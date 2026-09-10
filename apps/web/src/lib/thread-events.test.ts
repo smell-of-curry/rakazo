@@ -9,6 +9,8 @@ import {
   activeThreadRuns,
   applyThreadSendReceipt,
   clearActiveThreadRuns,
+  computerBootInFlight,
+  computerCanShowScreen,
   computerPanelAutoBoot,
   computerPanelAutoUsesBoot,
   computerPanelNeedsMaintenance,
@@ -1438,6 +1440,20 @@ describe("computer event reduction", () => {
     expect(computerPanelAutoBoot("running", null)).toBe("recover-screen");
     expect(computerPanelAutoBoot("booting")).toBe("wait");
     expect(computerPanelAutoBoot("suspended")).toBe("wait");
+  });
+
+  it("treats an in-flight boot as a wait, not another computer.boot", () => {
+    expect(computerBootInFlight("booting")).toBe(true);
+    expect(computerBootInFlight("running")).toBe(false);
+    expect(computerBootInFlight("stopped")).toBe(false);
+    expect(computerBootInFlight(undefined)).toBe(false);
+  });
+
+  it("shows a live screen URL even when the row is still marked booting", () => {
+    expect(computerCanShowScreen("booting", "https://screen.example")).toBe(true);
+    expect(computerCanShowScreen("running", "https://screen.example")).toBe(true);
+    expect(computerCanShowScreen("booting", null)).toBe(false);
+    expect(computerCanShowScreen("stopped", "https://screen.example")).toBe(false);
   });
 
   it("maps recover-screen to computer.boot, not computer.recover", () => {

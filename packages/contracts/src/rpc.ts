@@ -1,6 +1,10 @@
 import { eventIterator, oc } from "@orpc/contract";
 import * as z from "zod";
-import { ATTACHMENT_MAX_BASE64_LENGTH, ATTACHMENT_MAX_COUNT } from "./attachments.js";
+import {
+  ATTACHMENT_MAX_BASE64_LENGTH,
+  ATTACHMENT_MAX_COUNT,
+  BOT_AVATAR_MAX_BASE64_LENGTH,
+} from "./attachments.js";
 import {
   ActionApprovalRuleSchema,
   ActionAutoReviewSettingsSchema,
@@ -218,6 +222,16 @@ export const appContract = {
     duplicate: oc.input(botId).output(BotSchema),
     reorder: oc.input(ReorderBotsInput).output(z.object({ ok: z.literal(true) })),
     update: oc.input(UpdateBotInput).output(BotSchema),
+    setAvatar: oc
+      .input(
+        z.object({
+          botId: Id,
+          name: z.string().min(1).max(255),
+          mimeType: z.string().min(1),
+          contentBase64: z.string().min(1).max(BOT_AVATAR_MAX_BASE64_LENGTH),
+        }),
+      )
+      .output(BotSchema),
     setComputer: oc.input(z.object({ botId: Id, mode: ComputerModeSchema })).output(BotSchema),
     archive: oc.input(botId).output(z.object({ ok: z.literal(true) })),
     restore: oc.input(botId).output(z.object({ ok: z.literal(true) })),

@@ -50,6 +50,7 @@ const bot: MobileBot = {
   sectionId: null,
   archivedAt: null,
   unread: false,
+  hasAvatar: false,
   updatedAt: "2026-01-01T00:00:00.000Z",
   modelProvider: null,
   modelId: null,
@@ -88,11 +89,18 @@ describe("spaceInboxItems", () => {
         },
       ],
     });
-    const headings = spaceInboxItems([work]).filter((item) => item.type === "heading");
-    expect(headings.map((item) => item.title)).toEqual(["Work", "Pinned", "Research"]);
+    const items = spaceInboxItems([work]);
+    expect(items.map((item) => item.type)).toEqual(["heading", "pinned", "heading", "bot"]);
+    const headings = items.filter((item) => item.type === "heading");
+    expect(headings.map((item) => item.title)).toEqual(["Work", "Research"]);
     expect(headings.filter((item) => item.space)).toEqual([
       { type: "heading", key: work.id, title: work.name, space: work },
     ]);
+    expect(items.find((item) => item.type === "pinned")).toEqual({
+      type: "pinned",
+      key: `${work.id}:pinned`,
+      items: [{ type: "bot", bot: { ...bot, pinned: true } }],
+    });
   });
 
   it("keeps populated default-space chrome minimal and retains group rows", () => {

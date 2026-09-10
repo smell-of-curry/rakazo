@@ -1,5 +1,3 @@
-import { dateLocaleForUi } from "./i18n";
-
 const DAY_MS = 86_400_000;
 
 export function filterBots<T extends { name: string; title: string; preview: string }>(
@@ -40,14 +38,11 @@ export function formatThreadTime(iso: string, now = new Date()) {
   const dayDiff = Math.round((startOfToday - startOfThatDay) / DAY_MS);
 
   if (dayDiff <= 0) {
-    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   }
+  if (dayDiff === 1) return "Yesterday";
   if (dayDiff < 7) {
-    return date.toLocaleDateString(dateLocaleForUi(), { weekday: "long" });
+    return date.toLocaleDateString("en-US", { weekday: "long" });
   }
-  return date.toLocaleDateString(dateLocaleForUi(), { month: "short", day: "numeric" });
-}
-
-function pad(value: number) {
-  return String(value).padStart(2, "0");
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }

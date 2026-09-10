@@ -59,6 +59,11 @@ export function embeddableScreenUrl(url: string | null, apiBase: string): string
   }
 }
 
+/** Fresh boot claim — a second `computer/boot` loses with "Computer is busy". */
+export function computerBootInFlight(state: string | undefined): boolean {
+  return state === "booting";
+}
+
 export function previewPlaceholder(
   state: string | undefined,
   booting: boolean,

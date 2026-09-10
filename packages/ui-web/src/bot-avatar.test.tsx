@@ -6,6 +6,16 @@ import { AvatarStyleProvider } from "./avatar-style.js";
 import { BotAvatar } from "./bot-avatar.js";
 
 describe("BotAvatar", () => {
+  it("renders a circular photo when imageSrc is set", () => {
+    const html = renderToString(
+      <BotAvatar color="#8B5CF6" imageSrc="/api/bots/bot-1/avatar?v=1" status="running" />,
+    );
+    expect(html).toContain("<img");
+    expect(html).toContain('src="/api/bots/bot-1/avatar?v=1"');
+    expect(html).toContain("object-cover");
+    expect(html).toContain("rakazo-bot-avatar-ring");
+  });
+
   it("renders distinct SVG gradient IDs for concurrent working avatars", () => {
     const html = renderToString(
       <div>

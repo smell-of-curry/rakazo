@@ -73,10 +73,15 @@ test("renders tappable choice buttons and submits the offered action id", async 
   await page.setViewportSize({ width: 1280, height: 720 });
   await seoul.click();
 
-  await expect(page.getByText("Answered: Seoul", { exact: true })).toBeVisible({
+  await expect(page.getByTestId("ask-card")).toHaveAttribute("data-ask-state", "answered", {
     timeout: 30_000,
   });
-  await expect(page.getByRole("button", { name: "Seoul", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Seoul", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Seoul", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByRole("button", { name: "Berlin", exact: true })).toBeDisabled();
 
   await expect
     .poll(

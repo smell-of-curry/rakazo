@@ -1,6 +1,7 @@
 import { GROUP_MEMBER_MAX } from "@rakazo/contracts";
 import { StyleSheet, Switch, Text, View } from "react-native";
 import type { MobileBot } from "../lib/api";
+import { botAvatarSrc } from "../lib/bot-avatar-src";
 import { useMobileTokens } from "../lib/native";
 import { BotAvatar } from "./bot-avatar";
 
@@ -20,7 +21,13 @@ export function BotMemberPicker({
     const checked = selected.includes(bot.id);
     return (
       <View key={bot.id} style={styles.row}>
-        <BotAvatar color={bot.color} identity={bot.id} size={34} status={bot.status} />
+        <BotAvatar
+          color={bot.color}
+          identity={bot.id}
+          size={34}
+          status={bot.status}
+          imageSrc={botAvatarSrc(bot)}
+        />
         <Text style={[styles.name, { color: tokens.foreground }]}>{bot.name}</Text>
         <Switch
           accessibilityLabel={bot.name}

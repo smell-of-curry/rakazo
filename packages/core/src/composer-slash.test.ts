@@ -26,6 +26,10 @@ describe("serializeComposerPrompt", () => {
   it("prefixes mentions without a skill", () => {
     expect(serializeComposerPrompt("go", null, [{ name: "everyone" }])).toBe("@everyone go");
   });
+
+  it("does not duplicate mentions already in the draft", () => {
+    expect(serializeComposerPrompt("@Ally go", null, [{ name: "Ally" }])).toBe("@Ally go");
+  });
 });
 
 describe("truncateSlashDescription", () => {

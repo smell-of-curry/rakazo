@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { latestAnswerableAskMessageId, selectedAskActionLabel } from "./answerable-ask.js";
+import {
+  isComposerDockedAskMessage,
+  latestAnswerableAskMessageId,
+  selectedAskActionLabel,
+} from "./answerable-ask.js";
 
 describe("latestAnswerableAskMessageId", () => {
   it("finds a waiting prompt even when a newer group run is active", () => {
@@ -34,6 +38,14 @@ describe("latestAnswerableAskMessageId", () => {
         messages: [{ id: "ask-1", runId: "run-1", blocks: [{ kind: "ask", status: "answered" }] }],
       }),
     ).toBeNull();
+  });
+});
+
+describe("isComposerDockedAskMessage", () => {
+  it("matches only the live pending ask", () => {
+    expect(isComposerDockedAskMessage({ id: "ask-1" }, "ask-1")).toBe(true);
+    expect(isComposerDockedAskMessage({ id: "ask-1" }, "ask-2")).toBe(false);
+    expect(isComposerDockedAskMessage({ id: "ask-1" }, null)).toBe(false);
   });
 });
 

@@ -19,6 +19,7 @@ import {
   type MobileModelCredential,
   rpc,
 } from "../lib/api";
+import { botAvatarSrc } from "../lib/bot-avatar-src";
 import { useI18n } from "../lib/i18n";
 import { presentMessageActionSheet } from "../lib/message-action-sheet";
 import { useMobileTokens, useResolvedAppearance } from "../lib/native";
@@ -288,7 +289,13 @@ export default function BotSettingsScreen() {
       >
         {bot ? (
           <View style={{ alignItems: "center", marginBottom: 24 }}>
-            <BotAvatar color={color} identity={bot.id} size={64} status={bot.status} />
+            <BotAvatar
+              color={color}
+              identity={bot.id}
+              size={64}
+              status={bot.status}
+              imageSrc={botAvatarSrc(bot)}
+            />
           </View>
         ) : null}
         <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>

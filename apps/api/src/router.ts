@@ -137,6 +137,7 @@ import { getLogger } from "@rakazo/logging";
 import { deleteAgentSecret, listAgentSecrets, putAgentSecret } from "./agent-secrets.js";
 import { createAgentSkillsService } from "./agent-skills.js";
 import { createOwnedArtifact, getOwnedArtifact, getSpaceArtifact } from "./artifacts.js";
+import { removeBotAvatarArtifact, setBotAvatar } from "./bot-avatar.js";
 import { botProfileLabelsChanged, commitBotUpdate } from "./bot-update.js";
 import {
   executionBlocksUserTakeover,
@@ -1057,8 +1058,39 @@ export function createRouter(deps: RouterDeps) {
               ? { teamChatAmbientEnabled: input.teamChatAmbientEnabled }
               : {}),
             ...(input.teamChatRules !== undefined ? { teamChatRules: input.teamChatRules } : {}),
+            ...(input.clearAvatar ? { avatarArtifactId: null } : {}),
           },
         });
+        if (input.clearAvatar && existing.avatarArtifactId) {
+          await removeBotAvatarArtifact(
+            deps,
+            context.actor,
+            input.botId,
+            existing.avatarArtifactId,
+          );
+        }
+        const bots = await repos.listBots(context.actor);
+        const bot = bots.find((b) => b.id === input.botId);
+        if (!bot) throw new IsolationError();
+        return bot;
+      }),
+      setAvatar: authed.bots.setAvatar.handler(async ({ context, input }) => {
+        try {
+          await setBotAvatar(
+            {
+              prisma: deps.prisma,
+              artifacts: deps.artifacts,
+              notify: (threadId, seq) => deps.events.notify(threadId, seq),
+            },
+            context.actor,
+            input,
+          );
+        } catch (error) {
+          if (error instanceof AttachmentValidationError) {
+            throw new ORPCError("BAD_REQUEST", { message: error.message });
+          }
+          throw error;
+        }
         const bots = await repos.listBots(context.actor);
         const bot = bots.find((b) => b.id === input.botId);
         if (!bot) throw new IsolationError();
@@ -4738,6 +4770,7 @@ async function spaceNavigationDto(
           preview: bot.preview,
           status: bot.status,
           updatedAt: bot.updatedAt,
+          hasAvatar: bot.hasAvatar,
         })),
         groups: spaceGroups.map((group) => ({
           id: group.id,

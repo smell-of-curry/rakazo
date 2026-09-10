@@ -82,7 +82,7 @@ export const darkTokens = {
 } as const satisfies ColorTokens;
 
 export const lightTokens = {
-  background: "#FAFAF8",
+  background: "#FFFFFF",
   foreground: "#1A1A1A",
   card: "#FFFFFF",
   cardForeground: "#1A1A1A",
@@ -95,7 +95,7 @@ export const lightTokens = {
   chatUser: "#E2E2DC",
   chatUserForeground: "#1A1A1A",
   muted: "#F0F0ED",
-  mutedForeground: "#6C6C70",
+  mutedForeground: "#5C5C61",
   accent: "#EAEAE6",
   accentForeground: "#1A1A1A",
   destructive: "#DC2626",
@@ -103,7 +103,7 @@ export const lightTokens = {
   border: "#F0F0ED",
   input: "#EAEAE6",
   ring: "#6C6C70",
-  sidebar: "#ECECE9",
+  sidebar: "#F5F5F7",
   sidebarForeground: "#1A1A1A",
   sidebarBorder: "#E8E8E4",
   sidebarAccent: "#FFFFFF",

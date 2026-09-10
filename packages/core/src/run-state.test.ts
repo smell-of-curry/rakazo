@@ -1,11 +1,20 @@
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { assertTransition, canTransition } from "./run-state.js";
+import { assertTransition, canTransition, isNeedsYou } from "./run-state.js";
 
 describe("run state machine", () => {
   it("allows takeover resume onto a lease", () => {
     expect(canTransition("waiting_takeover", "leased")).toBe(true);
     expect(canTransition("waiting_takeover", "running")).toBe(false);
+  });
+
+  it("treats waiting human statuses as needs-you", () => {
+    expect(["waiting_input", "waiting_takeover", "running", null].map(isNeedsYou)).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
   });
 
   it("rejects rewriting a completed run", () => {

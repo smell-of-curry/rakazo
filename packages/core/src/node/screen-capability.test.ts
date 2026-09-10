@@ -95,7 +95,8 @@ describe("sealed screen capabilities", () => {
     );
     expect(url.toString()).not.toContain("fake-socket-token");
     expect(url.searchParams.get("autoconnect")).toBe("true");
-    const socketPath = `/${url.searchParams.get("path")}`;
+    expect(url.searchParams.get("path")).toBe("websockify");
+    const socketPath = url.pathname.replace(/\/[^/]+$/, "/websockify");
     expect(openScreenCapability(socketPath, "fake-secret", 101)?.target.path).toBe(
       "/websockify?token=fake-socket-token",
     );

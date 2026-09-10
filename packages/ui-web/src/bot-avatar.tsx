@@ -1,5 +1,5 @@
 import { ACTIVE_RUN_STATUSES, avatarIdentitySeed, organicAvatarPath } from "@rakazo/core";
-import { type CSSProperties, memo, useId, useSyncExternalStore } from "react";
+import { type CSSProperties, memo, useEffect, useId, useState, useSyncExternalStore } from "react";
 import { type AvatarStyle, useAvatarStyle } from "./avatar-style.js";
 import { cn } from "./lib/utils.js";
 import "./styles.css";
@@ -11,6 +11,7 @@ export interface BotAvatarProps {
   variant?: AvatarStyle;
   identity?: string;
   className?: string;
+  imageSrc?: string;
 }
 
 export const BotAvatar = memo(function BotAvatar({
@@ -20,10 +21,40 @@ export const BotAvatar = memo(function BotAvatar({
   variant,
   identity,
   className,
+  imageSrc,
 }: BotAvatarProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => {
+    setImageFailed(false);
+  }, [imageSrc]);
   const isWorking = ACTIVE_RUN_STATUSES.some((activeStatus) => activeStatus === status);
   const gradId = `spin-grad-${useId().replace(/[^a-zA-Z0-9-_]/g, "")}`;
   const preferredVariant = useAvatarStyle();
+  if (imageSrc && !imageFailed) {
+    return (
+      <div
+        className={cn(
+          "rakazo-bot-avatar group relative flex items-center justify-center overflow-hidden rounded-full select-none",
+          className,
+        )}
+        data-working={isWorking}
+        style={{
+          width: size,
+          height: size,
+          flex: "none",
+          background: color,
+        }}
+      >
+        <AvatarWorkingRing color={color} size={size} gradId={gradId} />
+        <img
+          alt=""
+          src={imageSrc}
+          className="size-full rounded-full object-cover"
+          onError={() => setImageFailed(true)}
+        />
+      </div>
+    );
+  }
   if ((variant ?? preferredVariant) === "organic") {
     return (
       <OrganicAvatar
@@ -77,35 +108,7 @@ export const BotAvatar = memo(function BotAvatar({
           : `0 2px ${Math.max(4, Math.round(size * 0.15))}px rgba(0,0,0,0.4), inset 0 1px 1.5px rgba(255,255,255,0.4)`,
       }}
     >
-      <svg
-        className="rakazo-bot-avatar-ring absolute pointer-events-none"
-        style={{
-          inset: -4,
-          width: size + 8,
-          height: size + 8,
-          filter: `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 10px #ffffff)`,
-        }}
-        viewBox="0 0 48 48"
-        fill="none"
-      >
-        <circle
-          cx="24"
-          cy="24"
-          r="22"
-          stroke={`url(#${gradId})`}
-          strokeWidth="3.2"
-          strokeLinecap="round"
-          strokeDasharray="45 80"
-        />
-        <circle cx="43" cy="24" r="2.8" fill="#ffffff" />
-        <defs>
-          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-            <stop offset="60%" stopColor={color} stopOpacity="0.9" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-      </svg>
+      <AvatarWorkingRing color={color} size={size} gradId={gradId} />
 
       <div
         className="rakazo-bot-avatar-visor relative flex items-center justify-center overflow-hidden transition-transform duration-200 group-hover:scale-[1.04]"
@@ -154,6 +157,48 @@ export const BotAvatar = memo(function BotAvatar({
     </div>
   );
 });
+
+function AvatarWorkingRing({
+  color,
+  size,
+  gradId,
+}: {
+  color: string;
+  size: number;
+  gradId: string;
+}) {
+  return (
+    <svg
+      className="rakazo-bot-avatar-ring absolute pointer-events-none"
+      style={{
+        inset: -4,
+        width: size + 8,
+        height: size + 8,
+        filter: `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 10px #ffffff)`,
+      }}
+      viewBox="0 0 48 48"
+      fill="none"
+    >
+      <circle
+        cx="24"
+        cy="24"
+        r="22"
+        stroke={`url(#${gradId})`}
+        strokeWidth="3.2"
+        strokeLinecap="round"
+        strokeDasharray="45 80"
+      />
+      <circle cx="43" cy="24" r="2.8" fill="#ffffff" />
+      <defs>
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+          <stop offset="60%" stopColor={color} stopOpacity="0.9" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
 
 function OrganicAvatar({
   color,

@@ -11,6 +11,7 @@ import type {
   VoiceInfo,
 } from "@rakazo/contracts";
 import {
+  BOT_AVATAR_MAX_BYTES,
   BOT_COLORS,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
@@ -27,7 +28,7 @@ import {
   Toggle,
 } from "@rakazo/ui-web";
 import { X } from "lucide-react";
-import { lazy, Suspense, useEffect, useId, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { rpc } from "../../lib/rpc";
 
 const ScratchpadSection = lazy(() =>
@@ -191,6 +192,7 @@ export function BotSettings({
   bot,
   memoryProviderConfigured,
   onSkillsChange,
+  onAvatarChange,
   onSave,
   onExport,
   onClear,
@@ -198,6 +200,7 @@ export function BotSettings({
   bot: Bot;
   onSkillsChange: (skills: AgentSkillCatalogEntry[]) => void;
   memoryProviderConfigured: boolean;
+  onAvatarChange?: () => void | Promise<void>;
   onSave: (patch: {
     name?: string;
     title?: string;
@@ -237,6 +240,19 @@ export function BotSettings({
   const [modelMetaReady, setModelMetaReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasAvatar, setHasAvatar] = useState(bot.hasAvatar);
+  const [avatarUpdatedAt, setAvatarUpdatedAt] = useState(bot.updatedAt);
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | undefined>();
+  const localAvatarUrlRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    setHasAvatar(bot.hasAvatar);
+    setAvatarUpdatedAt(bot.updatedAt);
+  }, [bot.hasAvatar, bot.updatedAt]);
+  useEffect(() => {
+    return () => {
+      if (localAvatarUrlRef.current) URL.revokeObjectURL(localAvatarUrlRef.current);
+    };
+  }, []);
   useEffect(() => {
     void rpc.voice
       .voices({})
@@ -314,10 +330,89 @@ export function BotSettings({
     []
   ).filter((level) => level !== "off");
 
+  const avatarSrc =
+    localAvatarUrl ?? (hasAvatar ? `/api/bots/${bot.id}/avatar?v=${avatarUpdatedAt}` : undefined);
+
+  function replaceLocalAvatarUrl(next?: string) {
+    if (localAvatarUrlRef.current) URL.revokeObjectURL(localAvatarUrlRef.current);
+    localAvatarUrlRef.current = next;
+    setLocalAvatarUrl(next);
+  }
+
+  async function uploadAvatar(file: File) {
+    if (file.size > BOT_AVATAR_MAX_BYTES) {
+      setError(t`Couldn't update avatars`);
+      return;
+    }
+    replaceLocalAvatarUrl(URL.createObjectURL(file));
+    setError(null);
+    try {
+      const contentBase64 = await readFileAsBase64(file);
+      const updated = await rpc.bots.setAvatar({
+        botId: bot.id,
+        name: file.name,
+        mimeType: file.type || "image/jpeg",
+        contentBase64,
+      });
+      replaceLocalAvatarUrl();
+      setHasAvatar(updated.hasAvatar);
+      setAvatarUpdatedAt(updated.updatedAt);
+      await onAvatarChange?.();
+    } catch (err) {
+      replaceLocalAvatarUrl();
+      setError(err instanceof Error ? err.message : t`Couldn't update avatars`);
+    }
+  }
+
+  async function removeAvatar() {
+    setError(null);
+    try {
+      const updated = await rpc.bots.update({ botId: bot.id, clearAvatar: true });
+      replaceLocalAvatarUrl();
+      setHasAvatar(updated.hasAvatar);
+      setAvatarUpdatedAt(updated.updatedAt);
+      await onAvatarChange?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t`Couldn't update avatars`);
+    }
+  }
+
   return (
     <div data-testid="bot-settings">
-      <div className="flex justify-center">
-        <BotAvatar color={color} identity={bot.id} size={64} status={bot.status} />
+      <div className="flex flex-col items-center">
+        <label className="cursor-pointer rounded-full">
+          <span className="sr-only">
+            <Trans>Avatars</Trans>
+          </span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) void uploadAvatar(file);
+            }}
+          />
+          <BotAvatar
+            color={color}
+            identity={bot.id}
+            size={64}
+            status={bot.status}
+            imageSrc={avatarSrc}
+          />
+        </label>
+        {hasAvatar ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="mt-2"
+            onClick={() => void removeAvatar()}
+          >
+            <Trans>Remove</Trans>
+          </Button>
+        ) : null}
       </div>
       <label htmlFor={`${ids}-name`} className="mt-6 block text-[14px] text-muted-foreground">
         <Trans>Name</Trans>
@@ -552,6 +647,19 @@ export function BotSettings({
       </div>
     </div>
   );
+}
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      const base64 = result.includes(",") ? (result.split(",")[1] ?? "") : result;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
 }
 
 function modelOptionKey(provider: string, modelId: string) {

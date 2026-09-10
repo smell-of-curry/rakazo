@@ -41,11 +41,15 @@ import {
   groupBotsForSidebar,
   inferAttachmentMimeType,
   isActive,
+  isNeedsYou,
   isPeerReceiptBlocks,
+  isRateLimitError,
   isRunTerminalEvent,
   isToolActivityBlock,
+  isComposerDockedAskMessage,
   latestAnswerableAskMessageId,
   mentionChipKey,
+  mentionStillInPrompt,
   projectMessageReactions,
   reorderBotTo,
   resolveComposerSendPlan,
@@ -82,11 +86,9 @@ import {
   ArrowUp,
   Bell,
   Box,
-  ChevronDown,
   Clock,
   Copy,
   Gauge,
-  Lock,
   LogOut,
   Maximize2,
   Menu,
@@ -109,7 +111,9 @@ import {
 import {
   type ClipboardEvent,
   type DragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   lazy,
+  type MouseEvent as ReactMouseEvent,
   type MutableRefObject,
   memo,
   type RefObject,
@@ -124,8 +128,10 @@ import {
 } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArtifactFileCard } from "../components/ArtifactFileCard";
+import type { AskBlock } from "../components/AskCard";
 import { AskCard } from "../components/AskCard";
 import { ActiveBotGlyph, CollaborationMarker } from "../components/ai/CollaborationMarker";
+import { PeerReceiptCluster } from "../components/ai/PeerReceiptCluster";
 import { CloudAgentCard } from "../components/CloudAgentCard";
 import { ComputerMaintenanceActions } from "../components/ComputerMaintenanceActions";
 import {
@@ -152,7 +158,7 @@ import {
   requestBrowserNotificationPermission,
   shouldNotifyBrowser,
 } from "../lib/browser-notifications";
-import { loadComputerScreen } from "../lib/computer-screen";
+import { loadComputerScreen, novncEmbedSocketPath } from "../lib/computer-screen";
 import { desktopBridge } from "../lib/desktop";
 import { scheduleFocusPrompt } from "../lib/focus-prompt";
 import { localTimezone } from "../lib/local-timezone";
@@ -167,10 +173,14 @@ import { markAfterPaint, markOnce } from "../lib/performance";
 import { clearSpaceSelection, rpc, selectedSpaceId, selectSpace } from "../lib/rpc";
 import { readSeenRunErrorIds, rememberSeenRunErrorId } from "../lib/run-error-storage";
 import { sharedInflight } from "../lib/shared-inflight";
+import { botImageSrc, withMemberImages } from "../lib/bot-image-src";
+import { condensePeerReceipts } from "../lib/condense-peer-receipts";
 import {
   activeThreadRuns,
   applyThreadSendReceipt,
   clearActiveThreadRuns,
+  computerBootInFlight,
+  computerCanShowScreen,
   computerPanelAutoBoot,
   computerPanelAutoUsesBoot,
   computerPanelNeedsMaintenance,
@@ -207,6 +217,13 @@ import type { SettingsSection } from "./SettingsOverlay";
 import { SpaceSearchResults } from "./SpaceSearch";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
+import { PinnedGrid } from "./shell/pinned-grid";
+import {
+  askBlockFromMessage,
+  ComposerHumanGate,
+  latestComputerNeedsYouText,
+} from "./shell/composer-human-gate";
+import { SidebarChatRow, SidebarSectionHeader } from "./shell/sidebar-chrome";
 import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
 import {
   ClearConversationDialog,
@@ -1193,6 +1210,22 @@ export function ShellPage() {
           pinnedAroundRef.current = null;
           historyEpoch.current += 1;
         }
+        if (
+          event.type === "run.waiting_input" ||
+          event.type === "computer.takeover.requested"
+        ) {
+          const waiting =
+            event.type === "run.waiting_input" ? "waiting_input" : "waiting_takeover";
+          if (event.botId) {
+            setBots((current) =>
+              current.map((bot) =>
+                bot.id === event.botId && bot.status !== waiting
+                  ? { ...bot, status: waiting }
+                  : bot,
+              ),
+            );
+          }
+        }
         if (event.type === "bot.archived") {
           void refreshBots(true).catch(() => undefined);
         } else if (
@@ -1200,7 +1233,9 @@ export function ShellPage() {
           event.type === "bot.deleted" ||
           event.type === "run.started" ||
           isRunTerminalEvent(event) ||
-          event.type === "thread.cleared"
+          event.type === "thread.cleared" ||
+          event.type === "run.waiting_input" ||
+          event.type === "computer.takeover.requested"
         ) {
           void refreshBots().catch(() => undefined);
         }
@@ -1292,7 +1327,28 @@ export function ShellPage() {
           readVisibleGroups.current.delete(groupId);
           markVisibleGroupRead();
         }
-        if (event.type === "run.started" || isRunTerminalEvent(event)) {
+        if (
+          event.type === "run.waiting_input" ||
+          event.type === "computer.takeover.requested"
+        ) {
+          const waiting =
+            event.type === "run.waiting_input" ? "waiting_input" : "waiting_takeover";
+          if (event.botId) {
+            setBots((current) =>
+              current.map((bot) =>
+                bot.id === event.botId && bot.status !== waiting
+                  ? { ...bot, status: waiting }
+                  : bot,
+              ),
+            );
+          }
+        }
+        if (
+          event.type === "run.started" ||
+          isRunTerminalEvent(event) ||
+          event.type === "run.waiting_input" ||
+          event.type === "computer.takeover.requested"
+        ) {
           void refreshBots().catch(() => undefined);
         }
         if (isRunTerminalEvent(event) || event.type === "run.waiting_input") {
@@ -1616,6 +1672,19 @@ export function ShellPage() {
   );
   const transcriptRunning = workingRuns.length > 0;
   const composerRunning = currentRuns.some((run) => isActive(run.status));
+  const needsComputer =
+    currentRuns.some((run) => run.status === "waiting_takeover") ||
+    Boolean(computer?.takeoverRequested);
+  const dockedAskMessage = answerableAskMessageId
+    ? activeSnapshot?.messages.find((message) => message.id === answerableAskMessageId)
+    : undefined;
+  const dockedAsk = askBlockFromMessage(dockedAskMessage);
+  const takeoverReason = needsComputer
+    ? latestComputerNeedsYouText(activeSnapshot?.messages)
+    : undefined;
+  useEffect(() => {
+    if ((needsComputer || dockedAsk) && sendError) setSendError(null);
+  }, [dockedAsk, needsComputer, sendError]);
   const runError = threadRunError(activeSnapshot, dismissedRunErrorIds);
   const displayedRunError = !sendError ? runError : null;
   const displayedRunErrorId = displayedRunError ? (activeSnapshot?.run?.id ?? null) : null;
@@ -1646,6 +1715,14 @@ export function ShellPage() {
       color: bot?.color ?? FALLBACK_BOT_COLOR,
       name: bot?.name,
       status: run.status,
+      imageSrc: bot
+        ? botImageSrc({
+            id: "id" in bot ? bot.id : run.botId,
+            botId: run.botId,
+            hasAvatar: "hasAvatar" in bot ? bot.hasAvatar : false,
+            updatedAt: "updatedAt" in bot ? bot.updatedAt : undefined,
+          })
+        : undefined,
     };
   });
   const resolveTranscriptMemberName = useCallback(
@@ -1663,7 +1740,12 @@ export function ShellPage() {
         query: "",
         includeEveryone: inGroup,
         currentGroupId: groupId,
-        bots: bots.map((bot) => ({ id: bot.id, name: bot.name, color: bot.color })),
+        bots: bots.map((bot) => ({
+          id: bot.id,
+          name: bot.name,
+          color: bot.color,
+          hasAvatar: bot.hasAvatar,
+        })),
         groups: groups.map((group) => ({ id: group.id, name: group.name })),
         routines: mentionRoutines.map((routine) => ({
           id: routine.id,
@@ -2242,7 +2324,9 @@ export function ShellPage() {
     force?: boolean;
   }) {
     if (!active) return;
-    const needsBoot = force || computer?.state !== "running" || !screenUrl;
+    const needsBoot =
+      !computerBootInFlight(computer?.state) &&
+      (force || computer?.state !== "running" || !screenUrl);
     if (overlay && needsBoot) setBooting(true);
     setComputerError(null);
     setComputerErrorFromScreen(false);
@@ -2322,14 +2406,17 @@ export function ShellPage() {
     }
   }, [panel]);
 
-  // The routine panel copies a routine's data into local draft state at click time
-  // rather than deriving it from `active`, so it goes stale across a bot switch —
-  // without this, Save on bot B could silently update bot A's routine.
+  // Bot-only panels (computer / settings / routine) stay mounted across a group
+  // switch and render an empty "Group" chrome. Drop them when the thread kind changes.
   useEffect(() => {
     setEditingRoutine(null);
     setDeleteRoutineTarget(null);
-    setPanel((current) => (current === "routine" ? null : current));
-  }, [active?.id]);
+    setPanel((current) => {
+      if (!current || current === "create" || current === "create-group") return current;
+      if (inGroup) return current === "group-settings" ? current : null;
+      return current === "group-settings" || current === "routine" ? null : current;
+    });
+  }, [active?.id, groupId, inGroup]);
 
   useEffect(() => {
     const threadKey = inGroup ? groupId : active?.id;
@@ -2370,8 +2457,32 @@ export function ShellPage() {
     return () => window.clearInterval(timer);
   }, [panel, computerOpen, active?.id, computer?.state]);
 
+  useEffect(() => {
+    const botId = active?.id;
+    if ((panel !== "computer" && !computerOpen) || !botId) return;
+    if (computerCanShowScreen(computer?.state, screenUrl)) return;
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      void refreshThreadRef.current(botId).catch(() => undefined);
+    };
+    tick();
+    const timer = window.setInterval(tick, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [panel, computerOpen, active?.id, computer?.state, screenUrl]);
+
   async function openComputer() {
     if (!active) return;
+    if (computerBootInFlight(computer?.state)) {
+      setComputerError(null);
+      setComputerErrorFromScreen(false);
+      setComputerOpen(true);
+      void refreshComputerScreen(active.id).catch(() => undefined);
+      return;
+    }
     const needsTakeover = !userHoldsComputerControl(computer, active.id);
     const blocked = computerTakeoverBlocked(computer, snapshot?.run?.status);
     try {
@@ -2645,239 +2756,196 @@ export function ShellPage() {
                 const groupBotIds = group.bots.flatMap((item) =>
                   item.kind === "bot" ? [item.chat.id] : [],
                 );
+                const isPinned = group.key === "pinned" || group.key.endsWith(":pinned");
+                const rosterItems = group.bots.map((item) => {
+                  const selected =
+                    (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
+                    (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id);
+                  const avatarSize = isPinned ? 52 : 38;
+                  const liveMembers =
+                    item.kind === "group" && item.chat.id === activeSnapshot?.groupId
+                      ? (activeSnapshot.members ?? item.chat.members)
+                      : item.kind === "group"
+                        ? item.chat.members
+                        : undefined;
+                  const botStatus =
+                    item.kind === "bot"
+                      ? activeSnapshot?.botId === item.chat.id
+                        ? (activeSnapshot.run?.status ?? item.chat.status)
+                        : item.chat.status
+                      : undefined;
+                  const rosterStatus =
+                    item.kind === "bot"
+                      ? botStatus && botStatus !== "idle"
+                        ? botStatus
+                        : undefined
+                      : liveMembers?.find((member) => isNeedsYou(member.status))?.status;
+                  const avatar =
+                    item.kind === "bot" ? (
+                      <BotAvatar
+                        color={item.chat.color}
+                        identity={item.chat.id}
+                        size={avatarSize}
+                        status={botStatus ?? item.chat.status}
+                        imageSrc={botImageSrc(item.chat)}
+                      />
+                    ) : (
+                      <GroupAvatar
+                        members={withMemberImages(liveMembers ?? item.chat.members)}
+                        size={avatarSize}
+                      />
+                    );
+                  return {
+                    item,
+                    selected,
+                    avatar,
+                    rosterProps: {
+                      kind: item.kind,
+                      chatId: item.chat.id,
+                      avatar,
+                      name: item.chat.name,
+                      title: item.kind === "bot" ? item.chat.title : undefined,
+                      status: rosterStatus,
+                      selected,
+                      draggable: item.kind === "bot",
+                      "aria-keyshortcuts":
+                        item.kind === "bot" ? "Alt+ArrowUp Alt+ArrowDown" : undefined,
+                      onDragStart: (event: DragEvent<HTMLButtonElement>) => {
+                        if (item.kind !== "bot") return;
+                        setDraggedBotId(item.chat.id);
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", item.chat.id);
+                      },
+                      onDragOver: (event: DragEvent<HTMLButtonElement>) => {
+                        if (
+                          item.kind === "bot" &&
+                          draggedBotId &&
+                          groupBotIds.includes(draggedBotId)
+                        ) {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                        }
+                      },
+                      onDrop: (event: DragEvent<HTMLButtonElement>) => {
+                        if (item.kind !== "bot" || !draggedBotId) return;
+                        event.preventDefault();
+                        reorderRosterBot(draggedBotId, item.chat.id, groupBotIds);
+                        setDraggedBotId(null);
+                      },
+                      onDragEnd: () => setDraggedBotId(null),
+                      onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+                        if (
+                          item.kind !== "bot" ||
+                          !event.altKey ||
+                          (event.key !== "ArrowUp" && event.key !== "ArrowDown")
+                        )
+                          return;
+                        const index = groupBotIds.indexOf(item.chat.id);
+                        const target = groupBotIds[index + (event.key === "ArrowUp" ? -1 : 1)];
+                        if (!target) return;
+                        event.preventDefault();
+                        reorderRosterBot(item.chat.id, target, groupBotIds);
+                      },
+                      onClick: () => {
+                        openSpaceChat(
+                          item.chat.spaceId,
+                          item.kind === "bot" ? `/app/${item.chat.id}` : `/app/g/${item.chat.id}`,
+                        );
+                      },
+                      onContextMenu: (event: ReactMouseEvent<HTMLButtonElement>) => {
+                        if (item.chat.spaceId !== bootstrapMe?.spaceId) return;
+                        event.preventDefault();
+                        botMenuAnchor.current = event.currentTarget;
+                        setBotMenu({
+                          kind: item.kind,
+                          id: item.chat.id,
+                          position: { x: event.clientX, y: event.clientY },
+                        });
+                      },
+                      style: {
+                        opacity: item.kind === "bot" && draggedBotId === item.chat.id ? 0.55 : 1,
+                      },
+                    },
+                  };
+                });
+                if (isPinned) {
+                  return (
+                    <PinnedGrid
+                      key={group.key}
+                      groupKey={group.key}
+                      items={rosterItems.map(({ rosterProps }) => rosterProps)}
+                    />
+                  );
+                }
                 return (
                   <div key={group.key} data-sidebar-group={group.key}>
                     {group.title ? (
-                      <div className="flex items-center pt-2">
-                        <button
-                          type="button"
-                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-muted-foreground/80 hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
-                          onClick={() => {
-                            if (group.emptySpaceId) {
-                              openSpaceChat(group.emptySpaceId, "/onboarding");
-                              return;
-                            }
-                            toggleSidebarSection(group.key);
-                          }}
-                          onContextMenu={
-                            group.canDeleteSpace
-                              ? (event) => {
-                                  event.preventDefault();
-                                  spaceMenuAnchor.current = event.currentTarget;
-                                  setSpaceMenu({
-                                    id: group.spaceId,
-                                    position: { x: event.clientX, y: event.clientY },
-                                  });
-                                }
-                              : undefined
+                      <SidebarSectionHeader
+                        title={group.title}
+                        collapsed={collapsed}
+                        showChevron={!group.emptySpaceId}
+                        showLock={group.showLock}
+                        onClick={() => {
+                          if (group.emptySpaceId) {
+                            openSpaceChat(group.emptySpaceId, "/onboarding");
+                            return;
                           }
-                          aria-expanded={group.emptySpaceId ? undefined : !collapsed}
-                          aria-label={
-                            group.emptySpaceId
-                              ? t`Open ${group.title}`
-                              : collapsed
-                                ? t`Expand ${group.title}`
-                                : t`Collapse ${group.title}`
-                          }
-                        >
-                          <span className="flex min-w-0 items-center gap-1.5 truncate">
-                            {group.showLock ? (
-                              <Lock size={11} strokeWidth={2} aria-hidden="true" />
-                            ) : null}
-                            <span className="truncate">{group.title}</span>
-                          </span>
-                          {group.emptySpaceId ? null : (
-                            <ChevronDown
-                              size={14}
-                              strokeWidth={1.8}
-                              className={
-                                collapsed
-                                  ? "-rotate-90 transition-transform"
-                                  : "transition-transform"
+                          toggleSidebarSection(group.key);
+                        }}
+                        onContextMenu={
+                          group.canDeleteSpace
+                            ? (event) => {
+                                event.preventDefault();
+                                spaceMenuAnchor.current = event.currentTarget;
+                                setSpaceMenu({
+                                  id: group.spaceId,
+                                  position: { x: event.clientX, y: event.clientY },
+                                });
                               }
-                              aria-hidden="true"
-                            />
-                          )}
-                        </button>
-                        {group.canDeleteSpace ? (
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={t`Actions for ${group.spaceName}`}
-                            onClick={(event) => {
-                              const rect = event.currentTarget.getBoundingClientRect();
-                              spaceMenuAnchor.current = event.currentTarget;
-                              setSpaceMenu({
-                                id: group.spaceId,
-                                position: { x: rect.left, y: rect.bottom },
-                              });
-                            }}
-                          >
-                            <MoreHorizontal size={14} aria-hidden="true" />
-                          </Button>
-                        ) : null}
-                      </div>
+                            : undefined
+                        }
+                        aria-label={
+                          group.emptySpaceId
+                            ? t`Open ${group.title}`
+                            : collapsed
+                              ? t`Expand ${group.title}`
+                              : t`Collapse ${group.title}`
+                        }
+                        actions={
+                          group.canDeleteSpace ? (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={t`Actions for ${group.spaceName}`}
+                              onClick={(event) => {
+                                const rect = event.currentTarget.getBoundingClientRect();
+                                spaceMenuAnchor.current = event.currentTarget;
+                                setSpaceMenu({
+                                  id: group.spaceId,
+                                  position: { x: rect.left, y: rect.bottom },
+                                });
+                              }}
+                            >
+                              <MoreHorizontal size={14} aria-hidden="true" />
+                            </Button>
+                          ) : null
+                        }
+                      />
                     ) : null}
                     {!collapsed &&
-                      group.bots.map((item) => (
-                        <button
+                      rosterItems.map(({ item, rosterProps }) => (
+                        <SidebarChatRow
                           key={`${item.kind}:${item.chat.id}`}
-                          type="button"
-                          draggable={item.kind === "bot"}
-                          data-roster-bot-id={item.kind === "bot" ? item.chat.id : undefined}
-                          aria-keyshortcuts={
-                            item.kind === "bot" ? "Alt+ArrowUp Alt+ArrowDown" : undefined
+                          {...rosterProps}
+                          preview={
+                            item.kind === "bot"
+                              ? item.chat.preview
+                              : item.chat.preview ||
+                                item.chat.members.map((member) => member.name).join(", ")
                           }
-                          onDragStart={(event) => {
-                            if (item.kind !== "bot") return;
-                            setDraggedBotId(item.chat.id);
-                            event.dataTransfer.effectAllowed = "move";
-                            event.dataTransfer.setData("text/plain", item.chat.id);
-                          }}
-                          onDragOver={(event) => {
-                            if (
-                              item.kind === "bot" &&
-                              draggedBotId &&
-                              groupBotIds.includes(draggedBotId)
-                            ) {
-                              event.preventDefault();
-                              event.dataTransfer.dropEffect = "move";
-                            }
-                          }}
-                          onDrop={(event) => {
-                            if (item.kind !== "bot" || !draggedBotId) return;
-                            event.preventDefault();
-                            reorderRosterBot(draggedBotId, item.chat.id, groupBotIds);
-                            setDraggedBotId(null);
-                          }}
-                          onDragEnd={() => setDraggedBotId(null)}
-                          onKeyDown={(event) => {
-                            if (
-                              item.kind !== "bot" ||
-                              !event.altKey ||
-                              (event.key !== "ArrowUp" && event.key !== "ArrowDown")
-                            )
-                              return;
-                            const index = groupBotIds.indexOf(item.chat.id);
-                            const target = groupBotIds[index + (event.key === "ArrowUp" ? -1 : 1)];
-                            if (!target) return;
-                            event.preventDefault();
-                            reorderRosterBot(item.chat.id, target, groupBotIds);
-                          }}
-                          onClick={() => {
-                            openSpaceChat(
-                              item.chat.spaceId,
-                              item.kind === "bot"
-                                ? `/app/${item.chat.id}`
-                                : `/app/g/${item.chat.id}`,
-                            );
-                          }}
-                          onContextMenu={(event) => {
-                            if (item.chat.spaceId !== bootstrapMe?.spaceId) return;
-                            event.preventDefault();
-                            botMenuAnchor.current = event.currentTarget;
-                            setBotMenu({
-                              kind: item.kind,
-                              id: item.chat.id,
-                              position: { x: event.clientX, y: event.clientY },
-                            });
-                          }}
-                          className={`flex w-full gap-3 rounded-xl px-2.5 py-[11px] text-start ${
-                            item.kind === "bot" ? "cursor-grab active:cursor-grabbing" : ""
-                          } ${
-                            (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
-                            (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id)
-                              ? "bg-sidebar-accent"
-                              : "hover:bg-sidebar-accent"
-                          }`}
-                          style={{
-                            opacity:
-                              item.kind === "bot" && draggedBotId === item.chat.id ? 0.55 : 1,
-                          }}
-                        >
-                          {item.kind === "bot" ? (
-                            <BotAvatar
-                              color={item.chat.color}
-                              identity={item.chat.id}
-                              size={38}
-                              status={item.chat.status}
-                            />
-                          ) : (
-                            <GroupAvatar
-                              members={
-                                item.chat.id === activeSnapshot?.groupId
-                                  ? (activeSnapshot.members ?? item.chat.members)
-                                  : item.chat.members
-                              }
-                              size={38}
-                            />
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <span
-                                dir="auto"
-                                data-roster-bot-name={item.kind === "bot" ? "" : undefined}
-                                className={`truncate text-[15px] text-foreground ${
-                                  item.chat.unread ? "font-semibold" : "font-medium"
-                                }`}
-                              >
-                                {item.chat.name}
-                                {item.chat.unread ? (
-                                  <span className="sr-only">
-                                    <Trans> (unread)</Trans>
-                                  </span>
-                                ) : null}
-                              </span>
-                              <span className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-muted-foreground/80">
-                                {item.kind === "bot" && item.chat.status !== "idle"
-                                  ? item.chat.status
-                                  : ""}
-                                {item.chat.unread ? (
-                                  <span
-                                    aria-hidden="true"
-                                    className="inline-block h-2 w-2 rounded-full bg-foreground"
-                                  />
-                                ) : null}
-                              </span>
-                            </div>
-                            {item.kind === "bot" && item.chat.title ? (
-                              <>
-                                <div
-                                  dir="auto"
-                                  className={`mt-0.5 truncate text-[13.5px] ${
-                                    item.chat.unread
-                                      ? "font-medium text-foreground/75"
-                                      : "text-muted-foreground"
-                                  }`}
-                                >
-                                  {item.chat.title}
-                                </div>
-                                {item.chat.preview ? (
-                                  <div
-                                    dir="auto"
-                                    className="truncate text-[12.5px] text-muted-foreground/80"
-                                  >
-                                    {item.chat.preview}
-                                  </div>
-                                ) : null}
-                              </>
-                            ) : (
-                              <div
-                                dir="auto"
-                                className={`mt-0.5 truncate text-[13.5px] ${
-                                  item.chat.unread
-                                    ? "font-medium text-foreground/75"
-                                    : "text-muted-foreground"
-                                }`}
-                              >
-                                {item.kind === "bot"
-                                  ? item.chat.preview
-                                  : item.chat.preview ||
-                                    item.chat.members.map((member) => member.name).join(", ")}
-                              </div>
-                            )}
-                          </div>
-                        </button>
+                          updatedAt={item.chat.updatedAt}
+                          unread={item.chat.unread}
+                        />
                       ))}
                   </div>
                 );
@@ -2906,6 +2974,7 @@ export function ShellPage() {
                         identity={bot.id}
                         size={28}
                         status={bot.status}
+                        imageSrc={botImageSrc(bot)}
                       />
                       <span
                         className="min-w-0 flex-1 truncate text-[14px] text-foreground/75"
@@ -3123,7 +3192,9 @@ export function ShellPage() {
             >
               {inGroup ? (
                 <GroupAvatar
-                  members={activeSnapshot?.members ?? activeGroup?.members ?? []}
+                  members={withMemberImages(
+                    activeSnapshot?.members ?? activeGroup?.members ?? [],
+                  )}
                   size={26}
                 />
               ) : active ? (
@@ -3132,10 +3203,11 @@ export function ShellPage() {
                   identity={active.id}
                   size={26}
                   status={active.status}
+                  imageSrc={botImageSrc(active)}
                 />
               ) : null}
               <span className="min-w-0">
-                <span className="block truncate text-[16px] font-medium text-foreground" dir="auto">
+                <span className="block truncate text-[14px] font-medium text-foreground" dir="auto">
                   {inGroup
                     ? (activeGroup?.name ?? activeSnapshot?.groupName ?? t`Group`)
                     : (active?.name ?? t`Select a bot`)}
@@ -3157,9 +3229,17 @@ export function ShellPage() {
                   }
                 }}
                 data-active={panel ? "" : undefined}
-                className="app-no-drag grid h-[30px] w-[34px] place-items-center rounded-[9px] hover:bg-accent data-active:bg-accent"
+                className={`app-no-drag grid h-[30px] w-[34px] place-items-center rounded-[9px] ${
+                  needsComputer
+                    ? "bg-warning/15 text-warning hover:bg-warning/20"
+                    : "hover:bg-accent data-active:bg-accent"
+                }`}
               >
-                <Monitor size={18} strokeWidth={1.6} className="text-foreground/75" />
+                <Monitor
+                  size={18}
+                  strokeWidth={1.6}
+                  className={needsComputer ? "text-warning" : "text-foreground/75"}
+                />
               </button>
             ) : null}
           </div>
@@ -3211,10 +3291,24 @@ export function ShellPage() {
             key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
             activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
             running={composerRunning}
+            needsComputer={needsComputer}
+            takeoverReason={takeoverReason}
+            dockedAsk={dockedAsk}
+            onAnswerAsk={
+              dockedAskMessage
+                ? (text) => answerMessage(dockedAskMessage, text)
+                : undefined
+            }
+            onOpenComputer={() => {
+              setPanel("computer");
+              if (active) {
+                void refreshThread(active.id).catch(() => undefined);
+              }
+            }}
             disabled={Boolean(recordingSkill)}
             pendingAttachments={activePendingAttachments}
             attachmentNotice={attachmentNotice}
-            sendError={sendError}
+            sendError={needsComputer || dockedAsk ? null : sendError}
             runError={displayedRunError}
             runErrorId={displayedRunErrorId}
             onRunErrorPresented={handleRunErrorPresented}
@@ -3335,7 +3429,8 @@ export function ShellPage() {
                     </div>
                   ) : computer?.kind === "desktop" ? (
                     <DesktopKindEmptyState className="grid h-full place-items-center px-6 text-center text-sm text-muted-foreground/80" />
-                  ) : computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
+                  ) : computerCanShowScreen(computer?.state, embeddedScreenUrl) &&
+                    !computerScreenError ? (
                     <iframe
                       title={t`Bot screen preview`}
                       src={embeddedScreenUrl}
@@ -3450,6 +3545,7 @@ export function ShellPage() {
                 bot={active}
                 memoryProviderConfigured={memoryProviderConfig != null}
                 onSkillsChange={setAgentSkills}
+                onAvatarChange={() => refreshBots()}
                 onSave={async ({ computerMode, ...patch }) => {
                   if (computerMode !== active.computerMode) {
                     await rpc.bots.setComputer({
@@ -4022,6 +4118,7 @@ export function ShellPage() {
                   identity={active.id}
                   size={28}
                   status={active.status}
+                  imageSrc={botImageSrc(active)}
                 />
                 {recordingSkill ? (
                   <TeachRecordingChrome
@@ -4098,7 +4195,7 @@ export function ShellPage() {
                 </Button>
               </div>
             </div>
-            {sendError ? (
+            {sendError && !needsComputer && !dockedAsk ? (
               <div
                 role="alert"
                 className="border-b border-destructive/40 bg-destructive/10 px-[18px] py-2 text-[13px] text-destructive"
@@ -4109,7 +4206,8 @@ export function ShellPage() {
             <div className="relative min-h-0 flex-1 bg-background">
               {computer?.kind === "desktop" ? (
                 <DesktopKindEmptyState className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground/80" />
-              ) : computer?.state === "running" && embeddedScreenUrl && !computerScreenError ? (
+              ) : computerCanShowScreen(computer?.state, embeddedScreenUrl) &&
+                !computerScreenError ? (
                 <>
                   <iframe
                     title={t`Bot screen`}
@@ -4134,9 +4232,11 @@ export function ShellPage() {
               ) : (
                 <div className="grid h-full place-items-center text-sm text-muted-foreground/80">
                   {computerScreenError ??
-                    (computer?.state === "suspended"
-                      ? t`Computer is asleep`
-                      : computerLabel(computer?.mode, active.name))}
+                    computerPlaceholder(
+                      computer?.state,
+                      booting,
+                      computerLabel(computer?.mode, active.name),
+                    )}
                 </div>
               )}
             </div>
@@ -4334,7 +4434,28 @@ const Transcript = memo(function Transcript({
             {loadingOlder ? t`Loading…` : t`Load earlier messages`}
           </button>
         ) : null}
-        {reactionView.visibleMessages.map((message) => {
+        {condensePeerReceipts(
+          reactionView.visibleMessages.filter(
+            (message) => !isComposerDockedAskMessage(message, answerableAskMessageId),
+          ),
+        ).map((row) => {
+          if (row.type === "peerCluster") {
+            return (
+              <div
+                key={row.messages[0]!.id}
+                data-message-id={row.messages[0]!.id}
+                className="relative py-0.5"
+              >
+                <PeerReceiptCluster
+                  messages={row.messages}
+                  sentOnly={row.sentOnly}
+                  peerBot={peerBot}
+                  onOpenPeer={onOpenPeerMessages}
+                />
+              </div>
+            );
+          }
+          const message = row.message;
           if (!message.blocks.some((block) => !isToolActivityBlock(block))) return null;
           const peerReceipt = isPeerReceiptBlocks(message.blocks);
           const messageReactions = reactionView.reactions.get(message.id);
@@ -4472,6 +4593,11 @@ const Transcript = memo(function Transcript({
 const Composer = memo(function Composer({
   activeName,
   running,
+  needsComputer,
+  takeoverReason,
+  dockedAsk,
+  onAnswerAsk,
+  onOpenComputer,
   disabled,
   pendingAttachments,
   attachmentNotice,
@@ -4497,6 +4623,11 @@ const Composer = memo(function Composer({
 }: {
   activeName?: string;
   running: boolean;
+  needsComputer?: boolean;
+  takeoverReason?: string;
+  dockedAsk?: AskBlock;
+  onAnswerAsk?: (text: string) => Promise<void>;
+  onOpenComputer?: () => void;
   disabled?: boolean;
   pendingAttachments: PendingAttachment[];
   attachmentNotice: string | null;
@@ -4600,6 +4731,9 @@ const Composer = memo(function Composer({
 
   function updateDraft(value: string) {
     setDraft(value);
+    setSelectedMentions((current) =>
+      current.filter((mention) => mentionStillInPrompt(value, mention)),
+    );
     const mentionMatch = /(?:^|\s)@([\w-]*)$/.exec(value);
     setMentionQuery(mentionMatch ? (mentionMatch[1] ?? "") : null);
     // `/` only at the start of the draft so forced skills expand (`Use skill:` / `/Name` prefix).
@@ -4614,7 +4748,7 @@ const Composer = memo(function Composer({
   }
 
   function insertMention(mention: ComposerMention) {
-    setDraft((current) => current.replace(/@([\w-]*)$/, ""));
+    setDraft((current) => current.replace(/@([\w-]*)$/, `@${mention.name} `));
     setMentionQuery(null);
     setMentionHighlightIndex(0);
     setSelectedMentions((current) =>
@@ -4638,10 +4772,6 @@ const Composer = memo(function Composer({
   }
 
   function removeLastChip() {
-    if (selectedMentions.length > 0) {
-      setSelectedMentions((current) => current.slice(0, -1));
-      return;
-    }
     if (selectedSkill) setSelectedSkill(null);
   }
 
@@ -4785,7 +4915,16 @@ const Composer = memo(function Composer({
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
     >
-      {sendError || runError ? (
+      {dockedAsk || needsComputer ? (
+        <ComposerHumanGate
+          ask={dockedAsk}
+          canAnswer
+          onAnswer={onAnswerAsk}
+          needsComputer={needsComputer}
+          takeoverReason={takeoverReason}
+          onOpenComputer={onOpenComputer}
+        />
+      ) : sendError || runError ? (
         <div
           ref={runErrorRef}
           role="alert"
@@ -4984,44 +5123,13 @@ const Composer = memo(function Composer({
               </button>
             </span>
           ) : null}
-          {selectedMentions.map((mention) => (
-            <span
-              key={mentionChipKey(mention)}
-              data-testid="mention-chip"
-              data-mention-kind={mention.kind}
-              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[13px] text-foreground"
-            >
-              <MentionChipIcon mention={mention} />
-              <span dir="auto" className="truncate">
-                {mention.name}
-              </span>
-              <button
-                type="button"
-                aria-label={t`Remove mention ${mention.name}`}
-                onClick={() =>
-                  setSelectedMentions((current) =>
-                    current.filter(
-                      (selected) => mentionChipKey(selected) !== mentionChipKey(mention),
-                    ),
-                  )
-                }
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X size={12} strokeWidth={2} />
-              </button>
-            </span>
-          ))}
           <textarea
             ref={textareaRef}
             value={draft}
             onChange={(event) => updateDraft(event.target.value)}
             onPaste={handlePaste}
             onKeyDown={(event) => {
-              if (
-                event.key === "Backspace" &&
-                draft.length === 0 &&
-                (selectedSkill !== null || selectedMentions.length > 0)
-              ) {
+              if (event.key === "Backspace" && draft.length === 0 && selectedSkill !== null) {
                 event.preventDefault();
                 removeLastChip();
                 return;
@@ -5075,7 +5183,7 @@ const Composer = memo(function Composer({
             autoComplete="off"
             dir="auto"
             rows={1}
-            className="max-h-32 min-h-[24px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[15.5px] leading-6 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
+            className="max-h-32 min-h-[24px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[14px] leading-5 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
           />
         </div>
         {onVoice ? (
@@ -5161,24 +5269,14 @@ function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
       </span>
     );
   }
-  return <BotAvatar color={mention.color ?? FALLBACK_BOT_COLOR} identity={mention.id} size={16} />;
-}
-
-function MentionChipIcon({ mention }: { mention: ComposerMention }) {
-  if (mention.kind === "routine") {
-    return <Clock size={13} strokeWidth={1.7} className="shrink-0 text-muted-foreground/70" />;
-  }
-  if (mention.kind === "connector") {
-    return <Puzzle size={13} strokeWidth={1.7} className="shrink-0 text-muted-foreground/70" />;
-  }
-  if (mention.kind === "group" || mention.kind === "everyone") {
-    return (
-      <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent text-[9px] text-foreground/75">
-        {mention.kind === "group" ? "G" : "@"}
-      </span>
-    );
-  }
-  return <BotAvatar color={mention.color ?? FALLBACK_BOT_COLOR} identity={mention.id} size={16} />;
+  return (
+    <BotAvatar
+      color={mention.color ?? FALLBACK_BOT_COLOR}
+      identity={mention.id}
+      size={20}
+      imageSrc={botImageSrc({ id: mention.id, hasAvatar: mention.hasAvatar })}
+    />
+  );
 }
 
 function previewMessageText(message: ThreadMessage): string {
@@ -5424,7 +5522,7 @@ const MessageView = memo(function MessageView({
         <div className="flex w-fit max-w-full justify-start">
           <div
             data-testid="message-bot-bubble"
-            className="max-w-full space-y-2.5 rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+            className="max-w-full space-y-2 rounded-2xl bg-muted px-4 py-2.5 text-[14px] leading-[1.4] text-foreground/90"
             dir="auto"
           >
             {visibleNarrationBlocks.map((block, i) => {
@@ -5476,7 +5574,12 @@ const MessageView = memo(function MessageView({
           const sent = block.kind === "bot_message_sent";
           const peer = sent ? block.toBotName : block.fromBotName;
           const peerBotId = sent ? block.toBotId : block.fromBotId;
-          const label = sent ? t`Messaged ${peer}` : t`Message from ${peer}`;
+          const label =
+            block.text && isRateLimitError(block.text)
+              ? t`${peer} rate-limited`
+              : sent
+                ? t`Messaged ${peer}`
+                : t`Message from ${peer}`;
           return (
             <CollaborationMarker
               key={i}
@@ -5517,7 +5620,7 @@ const MessageView = memo(function MessageView({
             <div key={i} className="flex w-fit max-w-full justify-start">
               <div
                 data-testid="message-bot-bubble"
-                className="max-w-full rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+                className="max-w-full rounded-2xl bg-muted px-4 py-2.5 text-[14px] leading-[1.4] text-foreground/90"
                 dir="auto"
               >
                 <ChatMarkdown streaming>{block.text}</ChatMarkdown>
@@ -5554,7 +5657,7 @@ const MessageView = memo(function MessageView({
               </div>
               <div className="mt-2 text-[13.5px] text-muted-foreground">{block.task}</div>
               {block.progress || block.result ? (
-                <div className="mt-2.5 text-[14.5px] leading-[1.5] text-foreground/75">
+                <div className="mt-2.5 text-[14px] leading-[1.4] text-foreground/75">
                   <ChatMarkdown streaming={running}>
                     {block.result || block.progress || ""}
                   </ChatMarkdown>
@@ -5591,7 +5694,7 @@ const MessageView = memo(function MessageView({
                   )}
                 </span>
               </div>
-              <div className="mt-2 text-[14.5px] leading-[1.5] text-foreground/75" dir="auto">
+              <div className="mt-2 text-[14px] leading-[1.4] text-foreground/75" dir="auto">
                 {removed
                   ? block.status === "archived"
                     ? t`Archived. Chat, memory, and files kept.`
@@ -5671,7 +5774,7 @@ const MessageView = memo(function MessageView({
             <div key={i} className="flex w-fit max-w-full justify-end">
               <div
                 data-testid="message-user-bubble"
-                className="max-w-full whitespace-pre-wrap wrap-anywhere rounded-[20px] bg-chat-user px-[18px] py-3 text-[15.5px] leading-[1.45] text-chat-user-foreground"
+                className="max-w-full whitespace-pre-wrap wrap-anywhere rounded-2xl bg-chat-user px-4 py-2.5 text-[14px] leading-[1.4] text-chat-user-foreground"
                 dir="auto"
               >
                 {block.text}
@@ -5684,7 +5787,7 @@ const MessageView = memo(function MessageView({
             <div key={i} className="flex w-fit max-w-full justify-start">
               <div
                 data-testid="message-bot-bubble"
-                className="max-w-full rounded-[20px] bg-muted px-[18px] py-3 text-[15.5px] leading-[1.5] text-foreground/90"
+                className="max-w-full rounded-2xl bg-muted px-4 py-2.5 text-[14px] leading-[1.4] text-foreground/90"
                 dir="auto"
               >
                 <ChatMarkdown>{block.text}</ChatMarkdown>
@@ -5756,7 +5859,7 @@ const MessageView = memo(function MessageView({
                   {block.state}
                 </span>
               </div>
-              <div className="my-2.5 text-[14.5px] leading-[1.5] text-foreground/75">
+              <div className="my-2.5 text-[14px] leading-[1.4] text-foreground/75">
                 <ChatMarkdown>{block.text}</ChatMarkdown>
               </div>
             </div>
@@ -5778,7 +5881,7 @@ function embeddableScreenUrl(url: string | null): string | null {
     if (local && parsed.port && parsed.port !== pagePort) {
       return null;
     }
-    return parsed.toString();
+    return novncEmbedSocketPath(parsed.toString());
   } catch {
     return url;
   }

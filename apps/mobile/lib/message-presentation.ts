@@ -28,3 +28,18 @@ export function messagePresentationSegments(
 export function hasVisibleMessagePresentation(blocks: readonly MessageBlock[]): boolean {
   return blocks.some((block) => !isToolActivityBlock(block));
 }
+
+/** Empty live `progress:` rows stay off the transcript; working glyph covers them. */
+export function isBlankLiveProgress(message: {
+  id: string;
+  blocks: readonly MessageBlock[];
+}): boolean {
+  if (!message.id.startsWith("progress:")) return false;
+  return !message.blocks.some(
+    (block) =>
+      !isToolActivityBlock(block) &&
+      "text" in block &&
+      typeof block.text === "string" &&
+      block.text.trim().length > 0,
+  );
+}

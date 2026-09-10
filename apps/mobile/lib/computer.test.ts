@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
   type ComputerStatus,
+  computerBootInFlight,
   controlLabel,
   embeddableScreenUrl,
   previewPlaceholder,
@@ -62,6 +63,15 @@ describe("embeddableScreenUrl", () => {
       embeddableScreenUrl("fake://screen/fake-team-home/researcher", "http://10.0.2.2:3100"),
     ).toBeNull();
     expect(embeddableScreenUrl("not a URL", "http://10.0.2.2:3100")).toBeNull();
+  });
+});
+
+describe("computerBootInFlight", () => {
+  it("is true only while a boot claim is live", () => {
+    expect(computerBootInFlight("booting")).toBe(true);
+    expect(computerBootInFlight("running")).toBe(false);
+    expect(computerBootInFlight("stopped")).toBe(false);
+    expect(computerBootInFlight(undefined)).toBe(false);
   });
 });
 

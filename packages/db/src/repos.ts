@@ -57,6 +57,7 @@ function mapBot(
     teamChatRules?: string;
     webhookSecretId?: string | null;
     spawnKey?: string | null;
+    avatarArtifactId?: string | null;
   },
   preview = "",
   status = "idle",
@@ -93,6 +94,7 @@ function mapBot(
     teamChatAmbientEnabled: bot.teamChatAmbientEnabled ?? false,
     teamChatRules: bot.teamChatRules ?? "",
     webhookConfigured: Boolean(bot.webhookSecretId),
+    hasAvatar: Boolean(bot.avatarArtifactId),
     spawnKey: bot.spawnKey ?? null,
   };
 }
@@ -135,6 +137,7 @@ export function createRepos(prisma: PrismaClient) {
         pinned: true,
         sectionId: true,
         updatedAt: true,
+        avatarArtifactId: true,
         thread: {
           select: {
             unread: true,
@@ -164,6 +167,7 @@ export function createRepos(prisma: PrismaClient) {
         preview: previewFromBlocks(bot.thread.messages[0]?.blocks),
         status: bot.runs[0]?.status ?? "idle",
         updatedAt: bot.updatedAt.toISOString(),
+        hasAvatar: Boolean(bot.avatarArtifactId),
       };
     });
   }

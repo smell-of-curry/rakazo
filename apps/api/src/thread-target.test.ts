@@ -1008,6 +1008,67 @@ describe("sendThreadMessage", () => {
     });
     expect(tx.steeringMessage.create).not.toHaveBeenCalled();
   });
+
+  it("rejects a new bot message while a run is waiting on takeover", async () => {
+    const tx = {
+      thread: {
+        update: vi.fn().mockResolvedValue({ nextMessageSeq: 2 }),
+      },
+      message: {
+        create: vi.fn().mockResolvedValue({
+          id: "msg-1",
+          threadId: "thread-1",
+          seq: 1,
+          role: "user",
+          blocks: [{ kind: "text", text: "hi" }],
+          botId: null,
+          replyToMessageId: null,
+          runId: null,
+          createdAt: new Date(),
+        }),
+        update: vi.fn(),
+      },
+      run: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([{ id: "run-waiting", taskId: "task-1", status: "waiting_takeover" }]),
+      },
+      steeringMessage: { create: vi.fn() },
+      event: { create: vi.fn() },
+      task: { create: vi.fn() },
+    };
+    const prisma = {
+      message: { findUnique: vi.fn().mockResolvedValue(null) },
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    } as unknown as PrismaClient;
+    const actor = { spaceId: "workspace-1", userId: "user-1" } as Actor;
+    const target = {
+      kind: "bot",
+      botId: "bot-1",
+      threadId: "thread-1",
+      bot: { computer: null },
+    } as ThreadTarget;
+
+    await expect(
+      sendThreadMessage(
+        {
+          prisma,
+          events: { notify: vi.fn() } as never,
+          jobs: { enqueue: vi.fn() } as never,
+        },
+        actor,
+        target,
+        {
+          text: "hi",
+          clientNonce: "nonce-1",
+        },
+      ),
+    ).rejects.toMatchObject({
+      code: "CONFLICT",
+      message: "Open the computer first.",
+    });
+    expect(tx.steeringMessage.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("stopThreadRuns", () => {

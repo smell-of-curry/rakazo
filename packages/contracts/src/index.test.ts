@@ -103,6 +103,11 @@ describe("contracts", () => {
     expect(UpdateBotInput.safeParse({ botId: "bot-1", name: "   " }).success).toBe(false);
   });
 
+  it("accepts optional avatar clear on bot update", () => {
+    expect(UpdateBotInput.parse({ botId: "bot-1", clearAvatar: true }).clearAvatar).toBe(true);
+    expect(UpdateBotInput.safeParse({ botId: "bot-1", clearAvatar: "yes" }).success).toBe(false);
+  });
+
   it("rejects partial model override clears on bot update", () => {
     expect(UpdateBotInput.safeParse({ botId: "bot-1", modelId: null }).success).toBe(false);
     expect(UpdateBotInput.safeParse({ botId: "bot-1", modelProvider: null }).success).toBe(false);
@@ -158,6 +163,7 @@ describe("contracts", () => {
     expect(appContract.bootstrap).toBeTruthy();
     expect(appContract.models.completeOAuth).toBeTruthy();
     expect(appContract.bots.create).toBeTruthy();
+    expect(appContract.bots.setAvatar).toBeTruthy();
     expect(appContract.bots.reorder).toBeTruthy();
     expect(appContract.bots.archive).toBeTruthy();
     expect(appContract.bots.restore).toBeTruthy();

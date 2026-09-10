@@ -4,10 +4,13 @@ import {
   attachmentsForBot,
   blocksToAgentHistoryText,
   decodeAttachmentBase64,
+  decodeBotAvatarBase64,
   inferAttachmentMimeType,
   promptTextForAttachments,
+  sniffBotAvatarMimeType,
   userTurnBlocksForRun,
   validateAttachmentMimeType,
+  validateBotAvatarMimeType,
 } from "./attachments.js";
 
 describe("attachment helpers", () => {
@@ -18,6 +21,22 @@ describe("attachment helpers", () => {
       AttachmentValidationError,
     );
     expect(() => decodeAttachmentBase64("aGVsbG8")).toThrow(AttachmentValidationError);
+  });
+
+  it("rejects gif avatars and sniffs jpeg/png/webp magic bytes", () => {
+    expect(() => validateBotAvatarMimeType("image/gif")).toThrow(AttachmentValidationError);
+    expect(() => validateBotAvatarMimeType("image/png")).not.toThrow();
+    expect(sniffBotAvatarMimeType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("image/jpeg");
+    expect(
+      sniffBotAvatarMimeType(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    ).toBe("image/png");
+    expect(
+      sniffBotAvatarMimeType(
+        new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]),
+      ),
+    ).toBe("image/webp");
+    expect(sniffBotAvatarMimeType(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]))).toBeNull();
+    expect(() => decodeBotAvatarBase64("a".repeat(3_000_000))).toThrow(AttachmentValidationError);
   });
 
   it("builds prompt text and history summaries", () => {

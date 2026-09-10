@@ -2183,6 +2183,9 @@ msgstr ""
 msgid "Message from {peer}"
 msgstr "来自 {peer} 的消息"
 
+msgid "{peer} rate-limited"
+msgstr "{peer} 已限流"
+
 #: src/pages/Shell.tsx:4909
 msgid "Message…"
 msgstr "消息…"

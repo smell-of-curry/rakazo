@@ -2178,6 +2178,9 @@ msgstr "Событие сообщения"
 msgid "Message from {peer}"
 msgstr "Сообщение от {peer}"
 
+msgid "{peer} rate-limited"
+msgstr "{peer} — лимит запросов"
+
 #: src/pages/Shell.tsx:4909
 msgid "Message…"
 msgstr "Сообщение…"

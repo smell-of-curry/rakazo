@@ -84,10 +84,12 @@
         return value === "1" || value === "true" || value === "yes";
       }
 
-      const path = String(query("path", "websockify")).replace(/^\//, "");
-      const prefix = window.location.pathname.replace(/[^/]+$/, "");
+      const raw = String(query("path", "websockify")).replace(/^\//, "");
+      const prefix = raw.startsWith("novnc/")
+        ? "/"
+        : window.location.pathname.replace(/[^/]+$/, "");
       const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-      const url = `${protocol}://${window.location.host}${prefix}${path}`;
+      const url = `${protocol}://${window.location.host}${prefix}${raw}`;
       const rfb = new RFB(document.getElementById("screen"), url);
       rfb.viewOnly = flag("view_only");
       rfb.scaleViewport = true;

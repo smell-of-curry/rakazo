@@ -1,7 +1,7 @@
 import type { AvatarStyle } from "@rakazo/contracts";
 import { ACTIVE_RUN_STATUSES, avatarIdentitySeed, organicAvatarPath } from "@rakazo/core";
-import { memo, useEffect } from "react";
-import { View } from "react-native";
+import { memo, useEffect, useState } from "react";
+import { Image, View } from "react-native";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -13,10 +13,26 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import Svg, { G, Path, Rect } from "react-native-svg";
+import { authHeaders } from "../lib/api";
 import { workingAvatarDuration, workingAvatarFrame } from "../lib/avatar-motion";
 import { useI18n } from "../lib/i18n";
 import { useAvatarStyle } from "./avatar-style";
 import { NativeSymbol } from "./native-symbol";
+
+let imageAuthHeaders: Promise<Record<string, string>> | undefined;
+
+function loadImageAuthHeaders(): Promise<Record<string, string>> {
+  imageAuthHeaders ??= authHeaders()
+    .then((headers) => {
+      if (!headers.authorization) imageAuthHeaders = undefined;
+      return headers;
+    })
+    .catch(() => {
+      imageAuthHeaders = undefined;
+      return {};
+    });
+  return imageAuthHeaders;
+}
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
@@ -27,6 +43,7 @@ export const BotAvatar = memo(function BotAvatar({
   identity,
   variant,
   muted = false,
+  imageSrc,
 }: {
   color: string;
   size?: number;
@@ -34,8 +51,23 @@ export const BotAvatar = memo(function BotAvatar({
   identity?: string;
   variant?: AvatarStyle;
   muted?: boolean;
+  imageSrc?: string;
 }) {
   const { t } = useI18n();
+  const [imageFailed, setImageFailed] = useState(false);
+  const [imageHeaders, setImageHeaders] = useState<Record<string, string> | null>(null);
+  useEffect(() => {
+    setImageFailed(false);
+    setImageHeaders(null);
+    if (!imageSrc) return;
+    let cancelled = false;
+    void loadImageAuthHeaders().then((headers) => {
+      if (!cancelled) setImageHeaders(headers);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [imageSrc]);
   const isWorking = ACTIVE_RUN_STATUSES.some((activeStatus) => activeStatus === status);
   const { avatarStyle } = useAvatarStyle();
   const visorW = Math.round(size * 0.68);
@@ -43,9 +75,18 @@ export const BotAvatar = memo(function BotAvatar({
   const eyeW = Math.max(3, Math.round(size * 0.11));
   const eyeH = Math.max(4, Math.round(size * 0.17));
   const gap = Math.max(3, Math.round(size * 0.11));
+  const showImage = Boolean(imageSrc) && imageHeaders !== null && !imageFailed;
   return (
     <View style={{ width: size, height: size }}>
-      {(variant ?? avatarStyle) === "organic" ? (
+      <View style={{ width: size, height: size, overflow: "hidden", borderRadius: size / 2 }}>
+      {showImage ? (
+        <Image
+          source={{ uri: imageSrc, headers: imageHeaders }}
+          onError={() => setImageFailed(true)}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+          resizeMode="cover"
+        />
+      ) : (variant ?? avatarStyle) === "organic" ? (
         <OrganicAvatar color={color} identity={identity} size={size} isWorking={isWorking} />
       ) : (
         <View
@@ -84,6 +125,7 @@ export const BotAvatar = memo(function BotAvatar({
           </View>
         </View>
       )}
+      </View>
       {isWorking ? (
         <View
           accessibilityLabel={t("Working")}

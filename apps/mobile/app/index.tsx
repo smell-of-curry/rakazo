@@ -5,6 +5,7 @@ import {
   type SpaceBot,
   type SpaceGroup,
 } from "@rakazo/contracts";
+import { isNeedsYou } from "@rakazo/core";
 import { botColors } from "@rakazo/ui-tokens";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -46,11 +47,13 @@ import {
   selectSpace,
 } from "../lib/api";
 import { mobileTokens, resolveMobileAppearance } from "../lib/appearance";
+import { botAvatarSrc, withMemberAvatarSrc } from "../lib/bot-avatar-src";
 import { allowFocusPrompt, scheduleFocusPrompt } from "../lib/focus-prompt";
 import { t, useI18n } from "../lib/i18n";
-import { botTag, filterBots, formatThreadTime, userInitials } from "../lib/inbox";
+import { filterBots, formatThreadTime, userInitials } from "../lib/inbox";
 import {
   canDeleteInboxSpace,
+  type InboxChatItem,
   type InboxSpace,
   type InboxSpaceItem,
   removeInboxSpace,
@@ -66,6 +69,8 @@ import { querySpaceSearch } from "../lib/search";
 import { mobileSearchDestination } from "../lib/search-destination";
 
 const FALLBACK_COLOR = botColors[3];
+const PIN_AVATAR = 52;
+const ROW_AVATAR = 38;
 
 type InboxItem = InboxSpaceItem | { type: "search"; hit: SearchHit };
 
@@ -307,6 +312,23 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  function openBotChat(bot: MobileBot | SpaceBot) {
+    if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
+    void openMobileSpace(bot.spaceId, () =>
+      router.push({ pathname: "/thread", params: { botId: bot.id, name: bot.name } }),
+    );
+  }
+
+  function openGroupChat(group: MobileGroup | SpaceGroup) {
+    if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
+    void openMobileSpace(group.spaceId, () =>
+      router.push({
+        pathname: "/group-thread",
+        params: { groupId: group.id, name: group.name },
+      }),
+    );
+  }
+
   async function chooseInboxSpace(spaceId: string) {
     if (spaceActionRef.current.busy) return;
     spaceActionRef.current.busy = true;
@@ -513,7 +535,7 @@ export default function Home() {
           onPress={() => void chooseInboxSpace(spaceRecoveryId)}
           style={styles.recoveryAction}
         >
-          <Text style={styles.spaceTitle}>{t("Try again.")}</Text>
+          <Text style={styles.recoveryLabel}>{t("Try again.")}</Text>
         </Pressable>
       ) : null}
 
@@ -521,6 +543,7 @@ export default function Home() {
         data={listData}
         keyExtractor={(item) => {
           if (item.type === "heading") return `heading-${item.key}`;
+          if (item.type === "pinned") return `pinned-${item.key}`;
           if (item.type === "bot") return item.bot.id;
           if (item.type === "group") return `group-${item.group.id}`;
           const hit = item.hit;
@@ -589,7 +612,9 @@ export default function Home() {
                   }}
                   style={({ pressed }) => [styles.spaceSelect, pressed && styles.rowPressed]}
                 >
-                  <Text style={styles.spaceTitle}>{item.title}</Text>
+                  <Text style={styles.spaceTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
                 </Pressable>
                 {canDeleteInboxSpace(item.space) ? (
                   <Pressable
@@ -608,18 +633,18 @@ export default function Home() {
             ) : (
               <Text style={styles.sectionHeading}>{item.title}</Text>
             )
+          ) : item.type === "pinned" ? (
+            <PinnedInboxGrid
+              items={item.items}
+              currentSpaceId={me?.spaceId}
+              onOpenBot={openBotChat}
+              onOpenGroup={openGroupChat}
+              onOrganize={(kind, id) => setOrganizeTarget({ kind, id })}
+            />
           ) : item.type === "group" ? (
             <GroupRow
               group={item.group}
-              onPress={() => {
-                if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
-                void openMobileSpace(item.group.spaceId, () =>
-                  router.push({
-                    pathname: "/group-thread",
-                    params: { groupId: item.group.id, name: item.group.name },
-                  }),
-                );
-              }}
+              onPress={() => openGroupChat(item.group)}
               onLongPress={
                 item.group.spaceId === me?.spaceId
                   ? () => setOrganizeTarget({ kind: "group", id: item.group.id })
@@ -629,15 +654,7 @@ export default function Home() {
           ) : (
             <BotRow
               bot={item.bot}
-              onPress={() => {
-                if (spaceActionRef.current.busy || spaceActionRef.current.recoveryId) return;
-                void openMobileSpace(item.bot.spaceId, () =>
-                  router.push({
-                    pathname: "/thread",
-                    params: { botId: item.bot.id, name: item.bot.name },
-                  }),
-                );
-              }}
+              onPress={() => openBotChat(item.bot)}
               onLongPress={
                 item.bot.spaceId === me?.spaceId
                   ? () => setOrganizeTarget({ kind: "bot", id: item.bot.id })
@@ -760,9 +777,39 @@ function ActivityRow({
       accessibilityLabel={`${title}, ${status}`}
       onPress={onPress}
       avatar={
-        <BotAvatar identity={run.botId} color={bot?.color ?? FALLBACK_COLOR} status={run.status} />
+        <BotAvatar
+          identity={run.botId}
+          color={bot?.color ?? FALLBACK_COLOR}
+          status={run.status}
+          imageSrc={botAvatarSrc(bot)}
+        />
       }
     />
+  );
+}
+
+function TitleCapsule({ title, compact }: { title?: string | null; compact?: boolean }) {
+  const styles = useThemedStyles(createHomeStyles);
+  const value = title?.trim() ?? "";
+  if (!value) return null;
+  return (
+    <View style={[styles.capsule, compact && styles.pinnedCapsule]}>
+      <Text style={styles.capsuleLabel} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function NeedsYouBadge({ compact }: { compact?: boolean }) {
+  const styles = useThemedStyles(createHomeStyles);
+  const { t } = useI18n();
+  return (
+    <View style={[styles.alertTag, compact && styles.pinnedCapsule]}>
+      <Text style={styles.alertTagLabel} numberOfLines={1}>
+        {t("Needs you")}
+      </Text>
+    </View>
   );
 }
 
@@ -771,7 +818,8 @@ function ConversationRow({
   preview,
   time,
   avatar,
-  tag,
+  capsule,
+  alert,
   unread,
   onPress,
   onLongPress,
@@ -782,7 +830,8 @@ function ConversationRow({
   preview: string;
   time: string;
   avatar: ReactNode;
-  tag?: string | null;
+  capsule?: string | null;
+  alert?: string | null;
   unread?: boolean;
   onPress: () => void;
   onLongPress?: () => void;
@@ -790,6 +839,7 @@ function ConversationRow({
   accessibilityHint?: string;
 }) {
   const styles = useThemedStyles(createHomeStyles);
+  const secondLine = Boolean(capsule?.trim() || preview);
   return (
     <Pressable
       accessibilityRole="button"
@@ -802,26 +852,29 @@ function ConversationRow({
       {avatar}
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
-          <View style={styles.titleRow}>
-            <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
-              {title}
-            </Text>
-            {tag ? (
-              <View style={styles.tag}>
-                <Text style={styles.tagLabel} numberOfLines={1}>
-                  {tag}
-                </Text>
-              </View>
-            ) : null}
-          </View>
+          <Text
+            style={[styles.name, unread && styles.nameUnread]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {title}
+          </Text>
           <View style={styles.rowMeta}>
+            {alert ? <NeedsYouBadge /> : null}
             {time ? <Text style={styles.time}>{time}</Text> : null}
             {unread ? <View accessibilityElementsHidden style={styles.unreadDot} /> : null}
           </View>
         </View>
-        <Text style={[styles.preview, unread && styles.unreadPreview]} numberOfLines={1}>
-          {preview}
-        </Text>
+        {secondLine ? (
+          <View style={styles.rowSecond}>
+            <TitleCapsule title={capsule} />
+            {preview ? (
+              <Text style={[styles.preview, unread && styles.unreadPreview]} numberOfLines={1}>
+                {preview}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -890,13 +943,14 @@ function BotRow({
   onLongPress?: () => void;
 }) {
   const { t } = useI18n();
-  const preview = previewSnippet(bot.preview, 40) || bot.title || t("No messages yet");
+  const preview = previewSnippet(bot.preview, 40) || t("No messages yet");
   const time = bot.updatedAt ? formatThreadTime(bot.updatedAt) : "";
-  const tag = botTag(bot.title, bot.name);
-  // Spelled out because an explicit label replaces the one built from the row's children.
+  const capsule = bot.title.trim();
+  const needsYou = isNeedsYou(bot.status);
   const label = [
     bot.name,
-    tag,
+    capsule,
+    needsYou ? t("Needs you") : null,
     bot.notifyOnFinish ? null : t("notifications silenced"),
     bot.unread ? t("unread") : null,
     time,
@@ -909,7 +963,8 @@ function BotRow({
       title={bot.name}
       preview={preview}
       time={time}
-      tag={tag}
+      capsule={capsule}
+      alert={needsYou ? t("Needs you") : null}
       unread={bot.unread}
       accessibilityLabel={label}
       accessibilityHint={
@@ -921,8 +976,10 @@ function BotRow({
         <BotAvatar
           color={bot.color || FALLBACK_COLOR}
           identity={bot.id}
+          size={ROW_AVATAR}
           status={bot.status}
           muted={!bot.notifyOnFinish}
+          imageSrc={botAvatarSrc(bot)}
         />
       }
     />
@@ -942,20 +999,118 @@ function GroupRow({
   const preview =
     previewSnippet(group.preview, 40) || group.members.map((member) => member.name).join(", ");
   const time = group.updatedAt ? formatThreadTime(group.updatedAt) : "";
+  const needsYou = group.members.some((member) => isNeedsYou(member.status));
   return (
     <ConversationRow
       title={group.name}
       preview={preview}
       time={time}
+      alert={needsYou ? t("Needs you") : null}
       unread={group.unread}
-      accessibilityLabel={[group.name, group.unread ? t("unread") : null, time, preview]
+      accessibilityLabel={[
+        group.name,
+        needsYou ? t("Needs you") : null,
+        group.unread ? t("unread") : null,
+        time,
+        preview,
+      ]
         .filter(Boolean)
         .join(", ")}
       accessibilityHint={onLongPress ? t("Long press to pin or move to a section") : undefined}
       onPress={onPress}
       onLongPress={onLongPress}
-      avatar={<GroupAvatar members={group.members} size={54} />}
+      avatar={<GroupAvatar members={withMemberAvatarSrc(group.members)} size={ROW_AVATAR} />}
     />
+  );
+}
+
+function PinnedInboxGrid({
+  items,
+  currentSpaceId,
+  onOpenBot,
+  onOpenGroup,
+  onOrganize,
+}: {
+  items: InboxChatItem[];
+  currentSpaceId?: string;
+  onOpenBot: (bot: MobileBot | SpaceBot) => void;
+  onOpenGroup: (group: MobileGroup | SpaceGroup) => void;
+  onOrganize: (kind: "bot" | "group", id: string) => void;
+}) {
+  const styles = useThemedStyles(createHomeStyles);
+  const { t } = useI18n();
+  return (
+    <View style={styles.pinnedGrid}>
+      {items.map((item) => {
+        if (item.type === "group") {
+          const { group } = item;
+          const needsYou = group.members.some((member) => isNeedsYou(member.status));
+          return (
+            <Pressable
+              key={`group:${group.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={[group.name, needsYou ? t("Needs you") : null]
+                .filter(Boolean)
+                .join(", ")}
+              accessibilityHint={
+                group.spaceId === currentSpaceId
+                  ? t("Long press to pin or move to a section")
+                  : undefined
+              }
+              onPress={() => onOpenGroup(group)}
+              onLongPress={
+                group.spaceId === currentSpaceId ? () => onOrganize("group", group.id) : undefined
+              }
+              style={({ pressed }) => [styles.pinnedCell, pressed && styles.rowPressed]}
+            >
+              <GroupAvatar members={withMemberAvatarSrc(group.members)} size={PIN_AVATAR} />
+              <Text style={styles.pinnedName} numberOfLines={1}>
+                {group.name}
+              </Text>
+              {needsYou ? <NeedsYouBadge compact /> : null}
+            </Pressable>
+          );
+        }
+        const { bot } = item;
+        const needsYou = isNeedsYou(bot.status);
+        return (
+          <Pressable
+            key={`bot:${bot.id}`}
+            accessibilityRole="button"
+            accessibilityLabel={[
+              bot.name,
+              needsYou ? t("Needs you") : bot.title.trim(),
+              bot.notifyOnFinish ? null : t("notifications silenced"),
+            ]
+              .filter(Boolean)
+              .join(", ")}
+            accessibilityHint={
+              bot.spaceId === currentSpaceId
+                ? t("Long press to pin, move, or silence notifications")
+                : undefined
+            }
+            onPress={() => onOpenBot(bot)}
+            onLongPress={
+              bot.spaceId === currentSpaceId ? () => onOrganize("bot", bot.id) : undefined
+            }
+            style={({ pressed }) => [styles.pinnedCell, pressed && styles.rowPressed]}
+          >
+            <BotAvatar
+              color={bot.color || FALLBACK_COLOR}
+              identity={bot.id}
+              size={PIN_AVATAR}
+              status={bot.status}
+              muted={!bot.notifyOnFinish}
+              imageSrc={botAvatarSrc(bot)}
+            />
+            <Text style={styles.pinnedName} numberOfLines={1}>
+              {bot.name}
+            </Text>
+            {needsYou ? <NeedsYouBadge compact /> : <TitleCapsule title={bot.title} compact />}
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
@@ -1034,8 +1189,8 @@ function createHomeStyles() {
     row: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 16,
-      paddingVertical: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
       gap: 12,
     },
     rowPressed: {
@@ -1044,58 +1199,76 @@ function createHomeStyles() {
     rowBody: {
       flex: 1,
       minWidth: 0,
-      gap: 2,
     },
     rowTop: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
     },
-    titleRow: {
-      flex: 1,
-      minWidth: 0,
+    rowSecond: {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
+      marginTop: 2,
     },
     rowMeta: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 7,
+      gap: 6,
     },
     name: {
-      flexShrink: 1,
+      flex: 1,
+      minWidth: 0,
       color: native.label,
-      fontSize: 17,
-      fontWeight: "600",
+      fontSize: 13,
+      fontWeight: "500",
       writingDirection: "auto",
     },
-    tag: {
-      flexShrink: 1,
+    nameUnread: {
+      fontWeight: "600",
+    },
+    capsule: {
+      flexShrink: 0,
+      maxWidth: "42%",
       borderRadius: 999,
       backgroundColor: native.fill,
-      paddingHorizontal: 7,
-      paddingVertical: 2,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
     },
-    tagLabel: {
+    pinnedCapsule: {
+      maxWidth: "100%",
+    },
+    capsuleLabel: {
       color: native.secondaryLabel,
-      fontSize: 11,
-      fontWeight: "500",
+      fontSize: 10,
+      writingDirection: "auto",
+    },
+    alertTag: {
+      flexShrink: 1,
+      borderRadius: 999,
+      backgroundColor: `${tokens.warning}26`,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    alertTagLabel: {
+      color: tokens.warning,
+      fontSize: 10,
       writingDirection: "auto",
     },
     time: {
       color: native.secondaryLabel,
-      fontSize: 15,
+      fontSize: 11,
     },
     preview: {
+      flexShrink: 1,
+      minWidth: 0,
       color: native.secondaryLabel,
-      fontSize: 15,
-      lineHeight: 20,
+      fontSize: 12,
       writingDirection: "auto",
     },
     unreadPreview: {
       color: native.label,
-      fontWeight: "600",
+      fontWeight: "500",
     },
     unreadDot: {
       width: 8,
@@ -1103,26 +1276,51 @@ function createHomeStyles() {
       borderRadius: 4,
       backgroundColor: tokens.foreground,
     },
+    pinnedGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    pinnedCell: {
+      width: "33.333%",
+      alignItems: "center",
+      paddingHorizontal: 4,
+      paddingVertical: 8,
+      gap: 4,
+    },
+    pinnedName: {
+      width: "100%",
+      textAlign: "center",
+      color: native.label,
+      fontSize: 12,
+      fontWeight: "500",
+      writingDirection: "auto",
+    },
     spaceHeading: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 16,
+      paddingHorizontal: 10,
       paddingTop: 8,
     },
     spaceSelect: {
       flex: 1,
-      minHeight: 44,
+      minHeight: 36,
       justifyContent: "center",
+      paddingHorizontal: 4,
+      paddingVertical: 6,
     },
     spaceTitle: {
-      color: native.label,
-      fontSize: 14,
-      fontWeight: "600",
+      color: native.secondaryLabel,
+      fontSize: 11,
+      fontWeight: "500",
+      letterSpacing: 0.66,
+      textTransform: "uppercase",
       writingDirection: "auto",
     },
     spaceActions: {
-      width: 44,
-      height: 44,
+      width: 36,
+      height: 36,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -1131,12 +1329,19 @@ function createHomeStyles() {
       paddingHorizontal: 20,
       justifyContent: "center",
     },
+    recoveryLabel: {
+      color: native.label,
+      fontSize: 15,
+      fontWeight: "500",
+    },
     sectionHeading: {
       color: native.secondaryLabel,
-      fontSize: 14,
-      fontWeight: "600",
-      paddingHorizontal: 16,
-      paddingTop: 12,
+      fontSize: 11,
+      fontWeight: "500",
+      letterSpacing: 0.66,
+      textTransform: "uppercase",
+      paddingHorizontal: 14,
+      paddingTop: 10,
       paddingBottom: 4,
     },
     activitySection: {

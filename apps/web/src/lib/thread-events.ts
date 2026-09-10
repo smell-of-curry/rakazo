@@ -541,6 +541,19 @@ export function computerPanelAutoBoot(
   return "boot";
 }
 
+/** Fresh boot claim — a second `computer.boot` loses with "Computer is busy". */
+export function computerBootInFlight(state: ComputerStatus["state"] | undefined): boolean {
+  return state === "booting";
+}
+
+/** Screen stream is valid while running or still marked booting (activation can lag). */
+export function computerCanShowScreen(
+  state: ComputerStatus["state"] | undefined,
+  screenUrl: string | null | undefined,
+): boolean {
+  return Boolean(screenUrl) && (state === "running" || state === "booting");
+}
+
 /** Auto panel reconnect must use computer.boot — never computer.recover (that destroys the sandbox). */
 export function computerPanelAutoUsesBoot(
   action: ReturnType<typeof computerPanelAutoBoot>,

@@ -20,8 +20,10 @@ import {
   isApprovalAskBlock,
   isRunTerminalEvent,
   isSecretAskBlock,
+  isComposerDockedAskMessage,
   latestAnswerableAskMessageId,
   mentionChipKey,
+  mentionStillInPrompt,
   projectMessageReactions,
   resolveComposerSendPlan,
   SLASH_ACTIONS,
@@ -29,8 +31,11 @@ import {
   selectedAskActionLabel,
   serializeComposerPrompt,
   truncateSlashDescription,
+  condensePeerReceipts,
+  isRateLimitError,
   userVisibleMessages,
 } from "@rakazo/core";
+import type { CondensedTranscriptRow } from "@rakazo/core";
 import * as Clipboard from "expo-clipboard";
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
@@ -65,6 +70,7 @@ import {
   type MarkdownArtifactPreviewTarget,
 } from "../components/markdown-artifact-preview";
 import { NativeSymbol } from "../components/native-symbol";
+import { PeerReceiptCluster } from "../components/peer-receipt-cluster";
 import {
   applyMobileThreadEvent,
   blockText,
@@ -86,6 +92,12 @@ import {
   subscribeThread,
 } from "../lib/api";
 import { mobileTokens } from "../lib/appearance";
+import {
+  isHumanGateComposerError,
+  isWaitingTakeover,
+  latestComputerNeedsYouText,
+  unansweredAskBlock,
+} from "../lib/composer-human-gate";
 import { type MobileArtifactTarget, openMobileArtifact } from "../lib/artifact-open";
 import { confirmDeleteBot } from "../lib/bot-lifecycle";
 import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
@@ -97,8 +109,10 @@ import {
   setOpenNotificationThread,
 } from "../lib/live-notifications";
 import { presentMessageActionSheet } from "../lib/message-action-sheet";
+import { botAvatarSrc } from "../lib/bot-avatar-src";
 import {
   hasVisibleMessagePresentation,
+  isBlankLiveProgress,
   isCenteredAgentEvent,
   messagePresentationSegments,
 } from "../lib/message-presentation";
@@ -243,7 +257,7 @@ function Thread() {
     messageId?: string;
   }>();
   const inGroup = Boolean(groupId);
-  const scroll = useRef<FlatList<MobileMessage>>(null);
+  const scroll = useRef<FlatList<CondensedTranscriptRow<MobileMessage>>>(null);
   const pinnedScroll = useRef<ScrollView>(null);
   const scrollBehavior = useRef(new ThreadScrollBehavior());
   const userDragging = useRef(false);
@@ -318,8 +332,9 @@ function Thread() {
   const reactionView = useMemo(
     () =>
       projectMessageReactions(
-        userVisibleMessages(snap?.messages ?? [], { includePeerReceipts: true }).filter((message) =>
-          hasVisibleMessagePresentation(message.blocks),
+        userVisibleMessages(snap?.messages ?? [], { includePeerReceipts: true }).filter(
+          (message) =>
+            hasVisibleMessagePresentation(message.blocks) && !isBlankLiveProgress(message),
         ),
       ),
     [snap?.messages],
@@ -337,6 +352,7 @@ function Thread() {
           id: bot.id,
           name: bot.name,
           color: bot.color,
+          hasAvatar: bot.hasAvatar,
         })),
         groups: mentionGroups.map((group) => ({
           id: group.id,
@@ -541,6 +557,7 @@ function Thread() {
               size={34}
               status={currentBotStatus}
               muted={!currentBot.notifyOnFinish}
+              imageSrc={botAvatarSrc(currentBot)}
             />
           ) : null}
           <Text
@@ -985,6 +1002,9 @@ function Thread() {
 
   function updateDraft(value: string) {
     setDraft(value);
+    setSelectedMentions((current) =>
+      current.filter((mention) => mentionStillInPrompt(value, mention)),
+    );
     const match = /(?:^|\s)@([\w-]*)$/.exec(value);
     setMentionQuery(match ? (match[1] ?? "") : null);
     const slashMatch = selectedSkill === null ? /^\/([^\n]*)$/.exec(value) : null;
@@ -992,7 +1012,7 @@ function Thread() {
   }
 
   function insertMention(mention: ComposerMention) {
-    setDraft((current) => current.replace(/@([\w-]*)$/, ""));
+    setDraft((current) => current.replace(/@([\w-]*)$/, `@${mention.name} `));
     setMentionQuery(null);
     setSelectedMentions((current) =>
       current.some((selected) => mentionChipKey(selected) === mentionChipKey(mention))
@@ -1008,10 +1028,6 @@ function Thread() {
   }
 
   function removeLastChip() {
-    if (selectedMentions.length > 0) {
-      setSelectedMentions((current) => current.slice(0, -1));
-      return;
-    }
     if (selectedSkill) setSelectedSkill(null);
   }
 
@@ -1271,8 +1287,25 @@ function Thread() {
   }
 
   const answerableAskMessageId = latestAnswerableAskMessageId(snap);
+  const dockedAskMessage = answerableAskMessageId
+    ? (snap?.messages.find((message) => message.id === answerableAskMessageId) ?? undefined)
+    : undefined;
+  const dockedAsk = unansweredAskBlock(dockedAskMessage);
+  const needsComputer = isWaitingTakeover(snap);
+  const takeoverReason = needsComputer ? latestComputerNeedsYouText(snap?.messages) : undefined;
+  const hideComposerError =
+    (Boolean(dockedAsk) || needsComputer) && isHumanGateComposerError(error);
   const runError = snap?.run?.status === "failed" ? (snap.run.error ?? null) : null;
-  const liveMessages = useMemo(() => [...visibleMessages].reverse(), [visibleMessages]);
+  const transcriptRows = useMemo(
+    () =>
+      condensePeerReceipts(
+        visibleMessages.filter(
+          (message) => !isComposerDockedAskMessage(message, answerableAskMessageId),
+        ),
+      ),
+    [answerableAskMessageId, visibleMessages],
+  );
+  const liveRows = useMemo(() => [...transcriptRows].reverse(), [transcriptRows]);
   const messagesById = useMemo(
     () => new Map((snap?.messages ?? []).map((message) => [message.id, message])),
     [snap?.messages],
@@ -1372,6 +1405,52 @@ function Thread() {
     };
   }
 
+  function peerLook(id: string) {
+    const bot = mentionBots.find((item) => item.id === id);
+    const member = snap?.members?.find((item) => item.botId === id);
+    return {
+      color: bot?.color ?? member?.color,
+      status: bot?.status ?? member?.status,
+      imageSrc: botAvatarSrc(bot ?? (member ? { botId: member.botId, hasAvatar: member.hasAvatar } : undefined)),
+    };
+  }
+
+  function renderTranscriptRow(
+    row: CondensedTranscriptRow<MobileMessage>,
+    options?: { enableJump?: boolean },
+  ) {
+    if (row.type === "peerCluster") {
+      const firstId = row.messages[0]?.id;
+      return (
+        <View
+          key={firstId ? `cluster-${firstId}` : "cluster"}
+          onLayout={
+            options?.enableJump
+              ? (event) => {
+                  if (!firstId || jumpScrollTarget.current !== firstId) return;
+                  const y = Math.max(0, event.nativeEvent.layout.y - 24);
+                  requestAnimationFrame(() => {
+                    if (jumpScrollTarget.current !== firstId) return;
+                    pinnedScroll.current?.scrollTo({ y, animated: true });
+                    jumpScrollTarget.current = null;
+                  });
+                }
+              : undefined
+          }
+          style={{ marginTop: 12, width: "100%", alignItems: "center" }}
+        >
+          <PeerReceiptCluster
+            messages={row.messages}
+            sentOnly={row.sentOnly}
+            peerLook={peerLook}
+            onOpenPeer={({ peerBotId, peerBotName }) => openBot(peerBotId, peerBotName)}
+          />
+        </View>
+      );
+    }
+    return renderMessageRow(row.message, options);
+  }
+
   function renderMessageRow(message: MobileMessage, options?: { enableJump?: boolean }) {
     const actionProps = messageActionProps(message);
     const messageReactions = reactionView.reactions.get(message.id);
@@ -1419,6 +1498,7 @@ function Thread() {
               identity={activityBotId}
               size={inGroup ? 20 : 28}
               status={activityStatus}
+              imageSrc={peerLook(activityBotId).imageSrc}
             />
           </View>
         ) : null}
@@ -1504,7 +1584,11 @@ function Thread() {
           identity={currentBot.id}
           size={28}
           status={currentBotStatus}
+          imageSrc={botAvatarSrc(currentBot)}
         />
+        <Text style={{ color: tokens.mutedForeground, fontSize: 13.5, marginLeft: 8 }}>
+          {t("{name} is working", { name: currentBot.name })}
+        </Text>
       </View>
     ) : inGroup && workingGroupBots.length > 0 ? (
       <View
@@ -1530,10 +1614,26 @@ function Thread() {
                 zIndex: workingGroupBots.length - index,
               }}
             >
-              <BotAvatar color={bot.color} identity={bot.botId} size={28} status={bot.status} />
+              <BotAvatar
+                color={bot.color}
+                identity={bot.botId}
+                size={28}
+                status={bot.status}
+                imageSrc={botAvatarSrc(
+                  mentionBots.find((item) => item.id === bot.botId) ?? {
+                    botId: bot.botId,
+                    hasAvatar: bot.hasAvatar,
+                  },
+                )}
+              />
             </View>
           ))}
         </View>
+        <Text style={{ color: tokens.mutedForeground, fontSize: 13.5 }}>
+          {workingGroupBots.length === 1
+            ? t("{name} is working", { name: workingGroupBots[0]?.name ?? t("Agent") })
+            : t("{count} agents working", { count: workingGroupBots.length })}
+        </Text>
       </View>
     ) : null;
 
@@ -1560,7 +1660,9 @@ function Thread() {
       keyboardVerticalOffset={headerHeight}
       style={{ flex: 1, backgroundColor: tokens.background, paddingHorizontal: 20 }}
     >
-      {error ? <Text style={{ color: tokens.mutedForeground, marginTop: 12 }}>{error}</Text> : null}
+      {error && !hideComposerError ? (
+        <Text style={{ color: tokens.mutedForeground, marginTop: 12 }}>{error}</Text>
+      ) : null}
       {runError ? (
         <Text style={{ color: tokens.destructive, marginTop: 12 }}>{runError}</Text>
       ) : null}
@@ -1573,16 +1675,18 @@ function Thread() {
             maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           >
             {loadEarlierControl}
-            {visibleMessages.map((message) => renderMessageRow(message, { enableJump: true }))}
+            {transcriptRows.map((row) => renderTranscriptRow(row, { enableJump: true }))}
             {workingFooter}
           </ScrollView>
         ) : (
-          <FlatList
+          <FlatList<CondensedTranscriptRow<MobileMessage>>
             key={threadKey}
             ref={scroll}
-            data={liveMessages}
+            data={liveRows}
             inverted
-            keyExtractor={(message) => message.id}
+            keyExtractor={(row) =>
+              row.type === "peerCluster" ? `cluster-${row.messages[0]?.id}` : row.message.id
+            }
             extraData={answerableAskMessageId}
             style={{ flex: 1, marginTop: 8 }}
             maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
@@ -1617,7 +1721,7 @@ function Thread() {
             }}
             ListFooterComponent={loadEarlierControl}
             ListHeaderComponent={workingFooter}
-            renderItem={({ item }) => renderMessageRow(item)}
+            renderItem={({ item }) => renderTranscriptRow(item)}
           />
         )}
         {!showPinnedPage && threadScrollState.detached ? (
@@ -1866,6 +1970,50 @@ function Thread() {
             ))}
           </View>
         ) : null}
+        {dockedAskMessage && dockedAsk ? (
+          <View testID="composer-ask-dock" style={{ marginTop: 12 }}>
+            <MessageBubble
+              botId={botId ?? snap?.members?.[0]?.botId ?? ""}
+              groupId={groupId}
+              message={dockedAskMessage}
+              botName={displayName}
+              bots={mentionBots}
+              members={snap?.members}
+              canAnswer
+              onAnswer={answerMessage}
+              onOpenBot={openBot}
+              onPreviewMarkdown={setMarkdownPreview}
+              actionProps={messageActionProps(dockedAskMessage)}
+            />
+          </View>
+        ) : needsComputer ? (
+          <Pressable
+            testID="composer-takeover-dock"
+            accessibilityLabel={t("Needs you")}
+            onPress={() => {
+              const targetBotId = snap?.run?.botId ?? botId;
+              if (!targetBotId) return;
+              router.push({
+                pathname: "/computer",
+                params: { botId: targetBotId, name: displayName ?? t("Bot") },
+              });
+            }}
+            style={{
+              marginTop: 12,
+              borderRadius: 14,
+              backgroundColor: `${tokens.warning}26`,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+            }}
+          >
+            <Text style={{ color: tokens.warning, fontSize: 13 }}>{t("Needs you")}</Text>
+            {takeoverReason ? (
+              <Text style={{ color: tokens.warning, opacity: 0.8, fontSize: 12, marginTop: 4 }}>
+                {takeoverReason}
+              </Text>
+            ) : null}
+          </Pressable>
+        ) : null}
         <View
           style={{
             flexDirection: "row",
@@ -1943,48 +2091,6 @@ function Thread() {
                 </Pressable>
               </View>
             ) : null}
-            {selectedMentions.map((mention) => (
-              <View
-                key={mentionChipKey(mention)}
-                testID="mention-chip"
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  backgroundColor: tokens.muted,
-                  borderRadius: 999,
-                  paddingHorizontal: 10,
-                  paddingVertical: 5,
-                  maxWidth: "100%",
-                }}
-              >
-                <MentionChipIcon mention={mention} />
-                <Text
-                  numberOfLines={1}
-                  style={{ color: tokens.foreground, fontSize: 13, flexShrink: 1 }}
-                >
-                  {mention.name}
-                </Text>
-                <Pressable
-                  accessibilityLabel={t("Remove mention {name}", { name: mention.name })}
-                  hitSlop={8}
-                  onPress={() =>
-                    setSelectedMentions((current) =>
-                      current.filter(
-                        (selected) => mentionChipKey(selected) !== mentionChipKey(mention),
-                      ),
-                    )
-                  }
-                >
-                  <NativeSymbol
-                    ios="xmark"
-                    android="close"
-                    size={12}
-                    color={tokens.mutedForeground}
-                  />
-                </Pressable>
-              </View>
-            ))}
             <TextInput
               value={draft}
               onChangeText={updateDraft}
@@ -1995,13 +2101,13 @@ function Thread() {
                 if (
                   event.nativeEvent.key === "Backspace" &&
                   draft.length === 0 &&
-                  (selectedSkill !== null || selectedMentions.length > 0)
+                  selectedSkill !== null
                 ) {
                   removeLastChip();
                 }
               }}
               placeholder={
-                selectedSkill || selectedMentions.length
+                selectedSkill
                   ? undefined
                   : displayName
                     ? t("Message {name}", { name: displayName })
@@ -2172,60 +2278,11 @@ function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
     );
   }
   return (
-    <View
-      style={{
-        width: 16,
-        height: 16,
-        borderRadius: 4,
-        backgroundColor: mention.color ?? tokens.mutedForeground,
-      }}
-    />
-  );
-}
-
-function MentionChipIcon({ mention }: { mention: ComposerMention }) {
-  const tokens = useMobileTokens();
-  if (mention.kind === "routine") {
-    return (
-      <NativeSymbol ios="clock" android="time-outline" size={13} color={tokens.mutedForeground} />
-    );
-  }
-  if (mention.kind === "connector") {
-    return (
-      <NativeSymbol
-        ios="puzzlepiece.extension"
-        android="extension-puzzle-outline"
-        size={13}
-        color={tokens.mutedForeground}
-      />
-    );
-  }
-  if (mention.kind === "group" || mention.kind === "everyone") {
-    return (
-      <View
-        style={{
-          width: 14,
-          height: 14,
-          borderRadius: 7,
-          backgroundColor: tokens.muted,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ color: tokens.foreground, fontSize: 9 }}>
-          {mention.kind === "group" ? "G" : "@"}
-        </Text>
-      </View>
-    );
-  }
-  return (
-    <View
-      style={{
-        width: 14,
-        height: 14,
-        borderRadius: 4,
-        backgroundColor: mention.color ?? tokens.mutedForeground,
-      }}
+    <BotAvatar
+      color={mention.color ?? tokens.mutedForeground}
+      identity={mention.id}
+      size={20}
+      imageSrc={botAvatarSrc(mention)}
     />
   );
 }
@@ -2356,9 +2413,12 @@ const MessageBubble = memo(function MessageBubble({
     const sent = peerMessage.kind === "bot_message_sent";
     const peer = sent ? peerMessage.toBotName : peerMessage.fromBotName;
     const peerBotId = sent ? peerMessage.toBotId : peerMessage.fromBotId;
-    const label = sent
-      ? t("Messaged {peer}", { peer: peer ?? t("Bot") })
-      : t("Message from {peer}", { peer: peer ?? t("Bot") });
+    const label =
+      peerMessage.text && isRateLimitError(peerMessage.text)
+        ? t("{peer} rate-limited", { peer: peer ?? t("Bot") })
+        : sent
+          ? t("Messaged {peer}", { peer: peer ?? t("Bot") })
+          : t("Message from {peer}", { peer: peer ?? t("Bot") });
     const peerColor =
       bots.find((bot) => bot.id === peerBotId)?.color ??
       members?.find((member) => member.botId === peerBotId)?.color ??
@@ -2379,7 +2439,20 @@ const MessageBubble = memo(function MessageBubble({
           gap: 6,
         }}
       >
-        <BotAvatar color={peerColor} identity={peerBotId} size={16} />
+        <BotAvatar
+          color={peerColor}
+          identity={peerBotId}
+          size={16}
+          imageSrc={botAvatarSrc(
+            bots.find((bot) => bot.id === peerBotId) ??
+              (members?.find((member) => member.botId === peerBotId)
+                ? {
+                    botId: peerBotId,
+                    hasAvatar: members.find((member) => member.botId === peerBotId)?.hasAvatar,
+                  }
+                : undefined),
+          )}
+        />
         <Text
           numberOfLines={1}
           style={{ color: tokens.mutedForeground, fontSize: 13.5, flexShrink: 1 }}
@@ -2605,7 +2678,7 @@ const MessageBubble = memo(function MessageBubble({
             borderRadius: 18,
             borderWidth: 1,
             borderColor: tokens.border,
-            backgroundColor: tokens.card,
+            backgroundColor: askBlock.status === "answered" ? tokens.muted : tokens.card,
             paddingHorizontal: 16,
             paddingVertical: 14,
           }}
@@ -2632,11 +2705,20 @@ const MessageBubble = memo(function MessageBubble({
               {askBlock.detail}
             </Text>
           ) : null}
-          {askBlock.status === "answered" ? (
+          {askBlock.actions?.length ? (
+            <AskActions
+              actions={askBlock.actions}
+              selectedId={askBlock.status === "answered" ? askBlock.answer : undefined}
+              disabled={askBlock.status === "answered" || !canAnswer || !onAnswer}
+              accessibilityActions={actionProps.accessibilityActions}
+              onAccessibilityAction={actionProps.onAccessibilityAction}
+              onAnswer={(answer) => onAnswer(message, answer)}
+            />
+          ) : askBlock.status === "answered" ? (
             <Text
               {...actionProps}
               style={{
-                color: tokens.success,
+                color: tokens.mutedForeground,
                 marginTop: 12,
                 fontSize: 13.5,
                 fontWeight: "600",
@@ -2648,13 +2730,6 @@ const MessageBubble = memo(function MessageBubble({
                 isApprovalAskBlock(askBlock),
               )}
             </Text>
-          ) : canAnswer && onAnswer ? (
-            <AskActions
-              actions={askBlock.actions}
-              accessibilityActions={actionProps.accessibilityActions}
-              onAccessibilityAction={actionProps.onAccessibilityAction}
-              onAnswer={(answer) => onAnswer(message, answer)}
-            />
           ) : (
             <Text
               {...actionProps}
@@ -3017,7 +3092,7 @@ function AskBlock({
         borderRadius: 18,
         borderWidth: 1,
         borderColor: tokens.border,
-        backgroundColor: tokens.card,
+        backgroundColor: answered ? tokens.muted : tokens.card,
         paddingHorizontal: 16,
         paddingVertical: 14,
         gap: 10,
@@ -3038,7 +3113,7 @@ function AskBlock({
         <Text style={{ color: tokens.mutedForeground, fontSize: 13.5 }}>{ask.detail}</Text>
       ) : null}
       {answered ? (
-        <Text style={{ color: tokens.success, fontSize: 14 }}>
+        <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>
           {secretInput ? t("Saved") : t("Answered: {answer}", { answer: ask.answer ?? t("Done") })}
         </Text>
       ) : canAnswer ? (

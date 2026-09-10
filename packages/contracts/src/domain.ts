@@ -68,6 +68,7 @@ export const BotSchema = z.object({
   teamChatAmbientEnabled: z.boolean(),
   teamChatRules: z.string(),
   webhookConfigured: z.boolean(),
+  hasAvatar: z.boolean(),
   /** Present when created with an idempotency key (e.g. onboarding:first). */
   spawnKey: z.string().nullable(),
 });
@@ -86,6 +87,7 @@ export const GroupMemberSchema = z.object({
   name: z.string(),
   color: z.string(),
   status: z.string().optional(),
+  hasAvatar: z.boolean().optional(),
 });
 export type GroupMember = z.infer<typeof GroupMemberSchema>;
 
@@ -161,6 +163,7 @@ export const SpaceBotSchema = BotSchema.pick({
   preview: true,
   status: true,
   updatedAt: true,
+  hasAvatar: true,
 });
 export type SpaceBot = z.infer<typeof SpaceBotSchema>;
 
@@ -320,6 +323,7 @@ export const UpdateBotInput = z
     thinkingLevel: ThinkingLevelSchema.nullable().optional(),
     teamChatAmbientEnabled: z.boolean().optional(),
     teamChatRules: z.string().max(TEAM_CHAT_RULES_MAX_LENGTH).optional(),
+    clearAvatar: z.boolean().optional(),
   })
   .superRefine((value, ctx) => {
     const providerProvided = value.modelProvider !== undefined;

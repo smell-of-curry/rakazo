@@ -3,7 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type { ThreadMessage } from "@rakazo/contracts";
 import { isApprovalAskBlock, isSecretAskBlock, selectedAskActionLabel } from "@rakazo/core";
-import { Button, Input } from "@rakazo/ui-web";
+import { Button, Input, cn } from "@rakazo/ui-web";
 import { useState } from "react";
 
 export type AskBlock = Extract<ThreadMessage["blocks"][number], { kind: "ask" }>;
@@ -60,6 +60,7 @@ export function AskCard({
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const submitting = pendingAction !== null;
+  const answered = block.status === "answered";
   const approvalActions = isApprovalAskBlock(block) ? block.actions : undefined;
   const askActions = block.actions;
   const secretInput = isSecretAskBlock(block);
@@ -85,10 +86,19 @@ export function AskCard({
 
   return (
     <div
-      data-testid={secretInput ? "secret-ask-card" : undefined}
-      className="max-w-[74%] rounded-2xl border border-border bg-card px-5 py-4"
+      data-testid={secretInput ? "secret-ask-card" : "ask-card"}
+      data-ask-state={answered ? "answered" : "pending"}
+      className={cn(
+        "max-w-[74%] rounded-2xl border border-border px-5 py-4",
+        answered ? "bg-muted" : "bg-card",
+      )}
     >
-      <div className="text-[15.5px] leading-[1.5] text-foreground">
+      <div
+        className={cn(
+          "text-[15.5px] leading-[1.5]",
+          answered ? "text-muted-foreground" : "text-foreground",
+        )}
+      >
         <ChatMarkdown>{block.text}</ChatMarkdown>
       </div>
       {secretInput && block.credential ? (
@@ -101,8 +111,42 @@ export function AskCard({
           {block.detail}
         </pre>
       ) : null}
-      {block.status === "answered" ? (
-        <div className="mt-3.5 text-[13.5px] font-medium text-success">
+      {askActions?.length ? (
+        <div className="mt-3.5 space-y-1.5">
+          {askActions.map((action) => {
+            const selected = answered && block.answer === action.id;
+            return (
+              <Button
+                key={action.id}
+                variant={
+                  selected
+                    ? "secondary"
+                    : approvalActions && action.id === "allow" && !answered
+                      ? "default"
+                      : "outline"
+                }
+                aria-pressed={answered ? selected : undefined}
+                className={cn(
+                  "h-auto w-full justify-start whitespace-normal px-3.5 py-3 text-start font-normal",
+                  answered && selected && "disabled:opacity-100",
+                  answered && !selected && "disabled:opacity-40",
+                )}
+                disabled={answered || !canAnswer || submitting}
+                onClick={() => void submitAnswer(action.id)}
+              >
+                {pendingAction === action.id ? (
+                  <Trans>Sending…</Trans>
+                ) : approvalActions ? (
+                  approvalActionLabel(action.id, action.label, action.outcome)
+                ) : (
+                  action.label
+                )}
+              </Button>
+            );
+          })}
+        </div>
+      ) : answered ? (
+        <div className="mt-3.5 text-[13.5px] font-medium text-muted-foreground">
           {formatAnsweredState(
             block.answer,
             Boolean(approvalActions),
@@ -114,26 +158,6 @@ export function AskCard({
       ) : !canAnswer ? (
         <div className="mt-3.5 text-[13.5px] font-medium text-muted-foreground">
           <Trans>No longer active</Trans>
-        </div>
-      ) : askActions?.length ? (
-        <div className="mt-3.5 space-y-1.5">
-          {askActions.map((action) => (
-            <Button
-              key={action.id}
-              variant={approvalActions && action.id === "allow" ? "default" : "outline"}
-              className="h-auto w-full justify-start whitespace-normal px-3.5 py-3 text-start font-normal"
-              disabled={submitting}
-              onClick={() => void submitAnswer(action.id)}
-            >
-              {pendingAction === action.id ? (
-                <Trans>Sending…</Trans>
-              ) : approvalActions ? (
-                approvalActionLabel(action.id, action.label, action.outcome)
-              ) : (
-                action.label
-              )}
-            </Button>
-          ))}
         </div>
       ) : secretInput ? (
         <form

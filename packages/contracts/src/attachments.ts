@@ -3,6 +3,10 @@ export const ATTACHMENT_MAX_COUNT = 4;
 /** Base64 expands payload by 4/3; cap before decode to reject oversize uploads cheaply. */
 export const ATTACHMENT_MAX_BASE64_LENGTH = Math.ceil(ATTACHMENT_MAX_BYTES / 3) * 4;
 
+export const BOT_AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+export const BOT_AVATAR_MAX_BASE64_LENGTH = Math.ceil(BOT_AVATAR_MAX_BYTES / 3) * 4;
+export const BOT_AVATAR_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
 export const ATTACHMENT_IMAGE_MIME_TYPES = [
   "image/jpeg",
   "image/png",

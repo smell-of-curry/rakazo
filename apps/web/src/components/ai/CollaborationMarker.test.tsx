@@ -35,5 +35,7 @@ describe("collaboration transcript markers", () => {
     expect(html).toContain('role="status"');
     expect(html).toContain('data-working="true"');
     expect(html).toContain("rakazo-bot-avatar-ring");
+    expect(html).toContain("Research is working");
+    expect(html).not.toContain("sr-only");
   });
 });

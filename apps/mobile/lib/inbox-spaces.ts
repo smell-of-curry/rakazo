@@ -18,10 +18,14 @@ export type InboxSpace = Pick<
   groups: (MobileGroup | SpaceGroup)[];
 };
 
-export type InboxSpaceItem =
+export type InboxChatItem =
   | { type: "bot"; bot: MobileBot | SpaceBot }
-  | { type: "group"; group: MobileGroup | SpaceGroup }
-  | { type: "heading"; key: string; title: string; space?: InboxSpace };
+  | { type: "group"; group: MobileGroup | SpaceGroup };
+
+export type InboxSpaceItem =
+  | InboxChatItem
+  | { type: "heading"; key: string; title: string; space?: InboxSpace }
+  | { type: "pinned"; key: string; items: InboxChatItem[] };
 
 export function canDeleteInboxSpace(
   space: Pick<InboxSpace, "isDefault" | "hasContent" | "canDelete">,
@@ -40,10 +44,19 @@ export function spaceInboxItems(spaces: InboxSpace[]): InboxSpaceItem[] {
       items.push({ type: "heading", key: space.id, title: space.name, space });
     }
     for (const group of groupBotsForSidebar(chats, space.botSections)) {
+      const chatsInGroup = group.bots.map((chat) =>
+        chat.type === "group"
+          ? { type: "group" as const, group: chat.group }
+          : { type: "bot" as const, bot: chat.bot },
+      );
+      if (group.key === "pinned" || group.key.endsWith(":pinned")) {
+        items.push({ type: "pinned", key: `${space.id}:${group.key}`, items: chatsInGroup });
+        continue;
+      }
       if (group.title) {
         items.push({ type: "heading", key: `${space.id}:${group.key}`, title: group.title });
       }
-      items.push(...group.bots);
+      items.push(...chatsInGroup);
     }
     return items;
   });

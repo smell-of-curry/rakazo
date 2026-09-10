@@ -167,13 +167,11 @@ describe("Android mobile platform contract", () => {
     expect(thread).toContain("inGroup && workingGroupBots.length > 0 ?");
     expect(thread).toContain("workingGroupBots.length - index");
     expect(thread).toContain("agents working");
-    // Visible chrome is avatar-only; copy stays on accessibilityLabel.
     expect(thread).toMatch(
       /accessibilityLabel=\{\s*workingGroupBots\.length === 1[\s\S]*agents working/,
     );
-    expect(thread).not.toMatch(
-      /workingGroupBots\.length === 1\s*\?[\s\S]*<Text[^>]*>\s*\{t\("\{name\} is working"/,
-    );
+    expect(thread).toMatch(/t\("\{name\} is working"/);
+    expect(thread).toContain('t("{count} agents working"');
   });
 
   it("keeps send and stop separate while steering active work", () => {

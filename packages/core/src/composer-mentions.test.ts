@@ -18,7 +18,7 @@ describe("buildComposerMentionOptions", () => {
     const options = buildComposerMentionOptions({
       query: "",
       includeEveryone: true,
-      bots: [{ id: "b1", name: "Chief", color: "#111" }],
+      bots: [{ id: "b1", name: "Chief", color: "#111", hasAvatar: true }],
       groups: [{ id: "g1", name: "Planning" }],
       routines: [
         { id: "r1", name: "Daily digest", crons: ["0 9 * * 1-5"], botId: "b1", botName: "Chief" },
@@ -37,6 +37,7 @@ describe("buildComposerMentionOptions", () => {
       "connector",
     ]);
     expect(options.find((option) => option.kind === "bot")?.subtitle).toBe("Bot");
+    expect(options.find((option) => option.kind === "bot")?.hasAvatar).toBe(true);
     expect(options.find((option) => option.name === "Gmail")?.subtitle).toBe("Connected");
     expect(options.find((option) => option.name === "Stripe")?.subtitle).toBe("Needs auth");
     expect(options.find((option) => option.kind === "routine")?.subtitle).toMatch(/Weekdays/i);

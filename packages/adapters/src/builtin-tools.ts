@@ -183,17 +183,22 @@ export const builtinAgentTools: ConnectorTool[] = [
   {
     name: "request_takeover",
     description:
-      "Ask the user to take over the computer screen for passwords, 2FA, CAPTCHA, payment, passkeys, or other protected input. Never ask the user to paste protected values in chat.",
+      "Hand the live computer to the user for website login, 2FA, CAPTCHA, payment, or passkeys. reason must be one sentence: the site and the exact on-screen action. Never ask them to paste protected values in chat.",
     inputSchema: {
       type: "object",
-      properties: { reason: { type: "string" } },
+      properties: {
+        reason: {
+          type: "string",
+          description: "One sentence: site + the action they must complete on screen.",
+        },
+      },
       required: ["reason"],
     },
   },
   {
     name: "ask_user",
     description:
-      "Ask the user one short multiple-choice question with tappable options, then wait for their selection. Use this instead of asking them to type when two to four concise choices are enough.",
+      "Ask the user one short question and wait. Omit options for a free-form fact (org slug, which calendar). Pass two to four tappable options when a short list is enough. Do not ask this in ordinary chat text.",
     inputSchema: {
       type: "object",
       properties: {
@@ -206,7 +211,7 @@ export const builtinAgentTools: ConnectorTool[] = [
           uniqueItems: true,
         },
       },
-      required: ["question", "options"],
+      required: ["question"],
     },
   },
   {
@@ -229,7 +234,7 @@ export const builtinAgentTools: ConnectorTool[] = [
   {
     name: "request_secret",
     description:
-      "Collect a credential in a masked field. Supply credential to save a named API credential for this bot and user at one HTTPS origin, or connectionId for a one-use connector code. Existing named credentials are reused unless replace is true. For website logins, CAPTCHA, passkeys, or anything that needs the live desktop, call request_takeover instead.",
+      "Collect a credential in a masked field. Supply credential to save a named API credential for this bot and user at one HTTPS origin, or connectionId for a one-use connector code. Existing named credentials are reused unless replace is true. For website logins, CAPTCHA, passkeys, or anything that needs the live desktop, call request_takeover instead. Never ask them to paste the value in ordinary chat.",
     // Exactly one destination: credential XOR connectionId. Sibling optionals
     // looked schema-valid to models but the executor rejects both and neither.
     inputSchema: {

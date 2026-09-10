@@ -116,14 +116,29 @@ describe("Pi choice asks", () => {
     ).toBe(false);
   });
 
-  it("rejects an empty choice set before emitting an ask", async () => {
+  it("emits a free-form ask when options are omitted or empty", async () => {
     fakeAgentState.options = [];
     const runtime = new PiAgentRuntime();
     const events: AgentRuntimeEvent[] = [];
 
-    await expect(async () => {
-      for await (const event of runtime.run(runRequest, runContext)) events.push(event);
-    }).rejects.toThrow("ask_user requires two to four unique, non-empty options");
-    expect(events.some((event) => event.type === "ask")).toBe(false);
+    for await (const event of runtime.run(runRequest, runContext)) events.push(event);
+
+    expect(events).toContainEqual({
+      type: "ask",
+      text: "Which city should I use?",
+    });
+    expect(events.some((event) => event.type === "ask" && "actions" in event)).toBe(false);
+  });
+
+  it("rejects one option or more than four", async () => {
+    for (const options of [["Only"], ["A", "B", "C", "D", "E"]]) {
+      fakeAgentState.options = options;
+      const runtime = new PiAgentRuntime();
+      await expect(async () => {
+        for await (const _event of runtime.run(runRequest, runContext)) {
+          void _event;
+        }
+      }).rejects.toThrow(/two to four/);
+    }
   });
 });

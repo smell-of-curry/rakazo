@@ -681,6 +681,7 @@ export type MobileBot = Pick<
   | "archivedAt"
   | "unread"
   | "updatedAt"
+  | "hasAvatar"
   | "computerMode"
   | "modelProvider"
   | "modelId"

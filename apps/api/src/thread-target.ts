@@ -62,6 +62,16 @@ const RUNS_NEEDING_CONTINUE = new Set(["queued"]);
 
 const STEERABLE_RUN_STATUSES = new Set(["queued", "leased", "running"]);
 
+function rejectUnsteerableRuns(runs: Array<{ status: string }>) {
+  const blocking = runs.filter((run) => !STEERABLE_RUN_STATUSES.has(run.status));
+  if (blocking.length === 0) return;
+  throw new ORPCError("CONFLICT", {
+    message: blocking.some((run) => run.status === "waiting_takeover")
+      ? "Open the computer first."
+      : "Answer the pending ask first.",
+  });
+}
+
 type MentionTargetInput = string | { kind: "bot" | "group" | "routine" | "connector"; id: string };
 
 function splitMentionTargets(mentions: MentionTargetInput[] | undefined) {
@@ -632,11 +642,7 @@ export async function sendThreadMessage(
           },
           select: { id: true, taskId: true, status: true },
         });
-        if (activeRuns.some((run) => !STEERABLE_RUN_STATUSES.has(run.status))) {
-          throw new ORPCError("CONFLICT", {
-            message: "Answer the pending ask first.",
-          });
-        }
+        rejectUnsteerableRuns(activeRuns);
         const active = activeRuns[0];
         if (active) {
           await tx.steeringMessage.create({
@@ -745,13 +751,9 @@ export async function sendThreadMessage(
         },
         select: { id: true, taskId: true, botId: true, status: true },
       });
+      rejectUnsteerableRuns(activeRuns);
       const activeByBotId = new Map<string, (typeof activeRuns)[number]>();
       for (const run of activeRuns) {
-        if (!STEERABLE_RUN_STATUSES.has(run.status)) {
-          throw new ORPCError("CONFLICT", {
-            message: "Answer the pending ask first.",
-          });
-        }
         if (!activeByBotId.has(run.botId)) activeByBotId.set(run.botId, run);
       }
       const runs: Array<{ id: string; taskId: string; botId: string; status: string }> = [];

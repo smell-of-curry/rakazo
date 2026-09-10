@@ -2,6 +2,7 @@ import type { MessageBlock } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
 import {
   hasVisibleMessagePresentation,
+  isBlankLiveProgress,
   isCenteredAgentEvent,
   messagePresentationSegments,
 } from "./message-presentation";
@@ -70,6 +71,28 @@ describe("mobile message presentation", () => {
       pendingToolNames: ["browser"],
     };
     expect(messagePresentationSegments([mixed])).toEqual([{ kind: "content", blocks: [mixed] }]);
+  });
+
+  it("treats empty live progress as blank", () => {
+    expect(isBlankLiveProgress({ id: "progress:run_1", blocks: [] })).toBe(true);
+    expect(
+      isBlankLiveProgress({
+        id: "progress:run_1",
+        blocks: [{ kind: "progress", text: "   " }],
+      }),
+    ).toBe(true);
+    expect(
+      isBlankLiveProgress({
+        id: "progress:run_1",
+        blocks: [{ kind: "progress", text: "Checking." }],
+      }),
+    ).toBe(false);
+    expect(
+      isBlankLiveProgress({
+        id: "m_1",
+        blocks: [{ kind: "progress", text: "" }],
+      }),
+    ).toBe(false);
   });
 
   it("keeps only response content around tool activity", () => {

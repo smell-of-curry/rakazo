@@ -8,6 +8,14 @@ type AskSnapshot = {
   activeRuns?: readonly { id: string; status: string }[];
 };
 
+/** Pending ask is docked on the composer; hide that row from the transcript. */
+export function isComposerDockedAskMessage(
+  message: { id: string },
+  answerableAskMessageId: string | null,
+): boolean {
+  return Boolean(answerableAskMessageId && message.id === answerableAskMessageId);
+}
+
 export function latestAnswerableAskMessageId(snapshot: AskSnapshot | null): string | null {
   if (!snapshot) return null;
   const waitingRunIds = new Set(

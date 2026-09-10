@@ -48,28 +48,23 @@ test("mention picker completes with Enter and Tab", async ({ page }, testInfo) =
   );
   await composer.press("Enter");
   await expect(page.getByTestId("mention-picker")).toHaveCount(0);
-  await expect(
-    page.getByTestId("mention-chip").filter({ hasText: "Research Writer" }),
-  ).toBeVisible();
+  await expect(composer).toHaveValue(/@Research Writer\s?/);
   await expect(composer).toBeFocused();
   await expect(composer).toHaveAttribute("aria-expanded", "false");
   await captureScreenshot(page, testInfo, "mention-picker-keyboard-completed");
 
-  await page.getByRole("button", { name: "Remove mention Research Writer" }).click();
   await composer.fill("@Res");
   await expect(page.getByTestId("mention-picker")).toBeVisible();
   await composer.press("Tab");
   await expect(page.getByTestId("mention-picker")).toHaveCount(0);
-  await expect(page.getByTestId("mention-chip").filter({ hasText: "Researcher" })).toBeVisible();
+  await expect(composer).toHaveValue(/@Researcher\s?/);
   await expect(composer).toBeFocused();
 
-  await page.getByRole("button", { name: "Remove mention Researcher" }).click();
   await composer.fill("@Res");
   await expect(page.getByTestId("mention-picker")).toBeVisible();
   await composer.press("Escape");
   await expect(page.getByTestId("mention-picker")).toHaveCount(0);
   await expect(composer).toHaveValue("@Res");
-  await expect(page.getByTestId("mention-chip")).toHaveCount(0);
   await expect(composer).toBeFocused();
 
   await composer.fill("hello without a picker");

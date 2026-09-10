@@ -735,12 +735,12 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
         return { reason: String(raw.reason ?? "I need you on the screen.") };
       }
       if (tool.name === "ask_user") {
-        const options = Array.isArray(raw.options) ? raw.options.map(String) : raw.options;
+        const options = Array.isArray(raw.options)
+          ? raw.options.map(String).filter((option) => option.trim().length > 0)
+          : [];
         return {
           question: String(raw.question ?? "What should I use?"),
-          // Keep a missing/invalid options value as-is so schema minItems can reject it;
-          // do not coerce to [] (that used to look like a valid empty list upstream).
-          options,
+          ...(options.length > 0 ? { options } : {}),
         };
       }
       if (tool.name === "request_secret") {
@@ -830,8 +830,20 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
           }
           if (tool.name === "ask_user") {
             const options = Array.isArray(args.options)
-              ? args.options.map((option) => String(option).trim())
+              ? args.options.map((option) => String(option).trim()).filter(Boolean)
               : [];
+            if (options.length === 0) {
+              host.pausePending = true;
+              host.queue.push({
+                type: "ask",
+                text: String(args.question ?? "What should I use?"),
+              });
+              return {
+                content: [{ type: "text", text: "Waiting for the user's answer." }],
+                details: args,
+                terminate: true,
+              };
+            }
             if (
               options.length < 2 ||
               options.length > 4 ||
@@ -1142,11 +1154,13 @@ function builtinParameters(tool: ConnectorTool) {
   if (tool.name === "ask_user") {
     return Type.Object({
       question: Type.String({ maxLength: 240 }),
-      options: Type.Array(Type.String({ minLength: 1, maxLength: 80 }), {
-        minItems: 2,
-        maxItems: 4,
-        uniqueItems: true,
-      }),
+      options: Type.Optional(
+        Type.Array(Type.String({ minLength: 1, maxLength: 80 }), {
+          minItems: 2,
+          maxItems: 4,
+          uniqueItems: true,
+        }),
+      ),
     });
   }
   if (tool.name === "remember") {

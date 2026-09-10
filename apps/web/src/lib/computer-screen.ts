@@ -1,3 +1,12 @@
+/** embed.html joins `path` onto the capability directory. A host-root path doubles. */
+export function novncEmbedSocketPath(url: string): string {
+  const parsed = new URL(url);
+  if (parsed.pathname.includes("/novnc/session/")) {
+    parsed.searchParams.set("path", "websockify");
+  }
+  return parsed.toString();
+}
+
 export interface ComputerScreenResult {
   url: string | null;
   error: string | null;

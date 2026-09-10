@@ -12,6 +12,7 @@ export type ComposerMention = {
   name: string;
   subtitle?: string;
   color?: string;
+  hasAvatar?: boolean;
   /** Owning bot for routine chips (test-run lands on that bot). */
   botId?: string;
   /** Connected connection row id when kind is connector + connected. */
@@ -19,7 +20,7 @@ export type ComposerMention = {
   authStatus?: "connected" | "needs_auth";
 };
 
-export type MentionPickerBot = { id: string; name: string; color?: string };
+export type MentionPickerBot = { id: string; name: string; color?: string; hasAvatar?: boolean };
 export type MentionPickerGroup = { id: string; name: string };
 export type MentionPickerRoutine = {
   id: string;
@@ -177,6 +178,7 @@ export function buildComposerMentionOptions(input: {
       name: bot.name,
       subtitle: "Bot",
       color: bot.color,
+      hasAvatar: bot.hasAvatar,
     });
   }
 

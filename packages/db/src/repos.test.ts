@@ -308,6 +308,7 @@ describe("createRepos.listSpaceBotsForSpaces", () => {
         notifyOnFinish: false,
         pinned: true,
         sectionId: null,
+        avatarArtifactId: "art-avatar",
         updatedAt: new Date("2026-08-20T00:00:00.000Z"),
         thread: {
           unread: true,
@@ -332,6 +333,7 @@ describe("createRepos.listSpaceBotsForSpaces", () => {
         preview: "Waiting for a reply",
         status: "running",
         updatedAt: "2026-08-20T00:00:00.000Z",
+        hasAvatar: true,
       },
     ]);
     const query = findMany.mock.calls[0]![0];

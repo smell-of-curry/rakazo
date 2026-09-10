@@ -15,6 +15,7 @@ import { currentApiBase, rpc } from "../lib/api";
 import {
   COMPUTER_HEARTBEAT_MS,
   type ComputerStatus,
+  computerBootInFlight,
   computerLabel,
   controlLabel,
   embeddableScreenUrl,
@@ -96,7 +97,9 @@ export default function Computer() {
   }) {
     if (!botId || !refreshController.isActive()) return false;
     const action = refreshController.beginAction();
-    const needsBoot = force || computer?.state !== "running" || !screenUrl;
+    const needsBoot =
+      !computerBootInFlight(computer?.state) &&
+      (force || computer?.state !== "running" || !screenUrl);
     const showBooting = overlay && needsBoot;
     if (showBooting) setBootingCount((count) => count + 1);
     try {
@@ -140,6 +143,12 @@ export default function Computer() {
 
   async function openComputer() {
     if (!botId) return;
+    if (computerBootInFlight(computer?.state)) {
+      setError(null);
+      setScreenError(null);
+      setComputerOpen(true);
+      return;
+    }
     const needsTakeover = !(computer?.controlHolder === "user" && computer.controlBotId === botId);
     try {
       const opened = await bootComputer({

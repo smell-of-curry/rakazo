@@ -5,6 +5,7 @@ import {
   runContinueJob,
 } from "@rakazo/adapter-kit";
 import type { MessageBlock } from "@rakazo/contracts";
+import { delegatedFailureText } from "@rakazo/core";
 import type { Pool, PrismaClient, ThreadEvents } from "@rakazo/db";
 import { getLogger } from "@rakazo/logging";
 import type { PoolClient } from "pg";
@@ -270,7 +271,7 @@ export function createJobReconciler(
                 : await botRunOutcomeText(deps.prisma, run.id);
             const text =
               run.status === "failed"
-                ? `Could not complete the delegated request: ${run.error ?? "unknown error"}`
+                ? delegatedFailureText(run.error ?? "unknown error")
                 : transcript.text ||
                   "The delegated bot completed its turn without a written summary.";
             // Same stable delivery key as the executor path (auto-outcome:<runId>), so a

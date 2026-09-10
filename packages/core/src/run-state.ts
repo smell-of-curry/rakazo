@@ -34,6 +34,10 @@ export function isActive(status: RunStatus): boolean {
   return (ACTIVE_RUN_STATUSES as readonly RunStatus[]).includes(status);
 }
 
+export function isNeedsYou(status: string | null | undefined): boolean {
+  return status === "waiting_input" || status === "waiting_takeover";
+}
+
 export function isTerminal(status: RunStatus): boolean {
   return TERMINAL.includes(status);
 }

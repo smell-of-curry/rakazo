@@ -1,5 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
-import { loadComputerScreen } from "./computer-screen";
+import { loadComputerScreen, novncEmbedSocketPath } from "./computer-screen";
+
+describe("novncEmbedSocketPath", () => {
+  it("keeps the RFB socket under the capability directory", () => {
+    const url = novncEmbedSocketPath(
+      "https://app.example/novnc/session/control/1.token/embed.html?path=novnc%2Fsession%2Fcontrol%2F1.token%2Fwebsockify&view_only=false",
+    );
+    expect(new URL(url).searchParams.get("path")).toBe("websockify");
+  });
+
+  it("leaves non-proxy screens alone", () => {
+    const src = "https://screen.example/vnc.html?path=websockify%3Ftoken%3Dabc";
+    expect(novncEmbedSocketPath(src)).toBe(src);
+  });
+});
 
 describe("computer screen requests", () => {
   it("shows connection failures and lets a successful retry clear them", async () => {

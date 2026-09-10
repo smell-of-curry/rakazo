@@ -84,6 +84,14 @@ msgstr "{0} will still respond to direct mentions."
 msgid "{0}'s screen"
 msgstr "{0}'s screen"
 
+#: src/components/ai/PeerReceiptCluster.tsx
+msgid "{messageCount} messages with"
+msgstr "{messageCount} messages with"
+
+#: src/components/ai/PeerReceiptCluster.tsx
+msgid "{peerCount} Bots"
+msgstr "{peerCount} Bots"
+
 #: src/pages/Shell.tsx:5666
 msgid "{botName}’s computer"
 msgstr "{botName}’s computer"
@@ -2183,9 +2191,18 @@ msgstr "Message event"
 msgid "Message from {peer}"
 msgstr "Message from {peer}"
 
+#: src/pages/Shell.tsx:5473
+#: src/components/ai/PeerReceiptCluster.tsx:82
+msgid "{peer} rate-limited"
+msgstr "{peer} rate-limited"
+
 #: src/pages/Shell.tsx:4909
 msgid "Message…"
 msgstr "Message…"
+
+#: src/pages/Shell.tsx:5324
+msgid "Messaged"
+msgstr "Messaged"
 
 #: src/pages/Shell.tsx:5324
 msgid "Messaged {peer}"

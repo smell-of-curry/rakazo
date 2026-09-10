@@ -1,3 +1,5 @@
+import { hasMentionToken } from "./group-mentions.js";
+
 export const SLASH_ACTIONS = [
   { id: "chat-settings" as const, label: "Chat Settings" },
   { id: "settings-general" as const, label: "Settings: General" },
@@ -13,7 +15,10 @@ export function serializeComposerPrompt(
   mentions: Array<{ name: string }>,
 ): string {
   const body = draft.replace(/^\s+/, "");
-  const mentionPrefix = mentions.map((member) => `@${member.name}`).join(" ");
+  const mentionPrefix = mentions
+    .filter((member) => !hasMentionToken(body, member.name))
+    .map((member) => `@${member.name}`)
+    .join(" ");
   const afterSkill = [mentionPrefix, body].filter((part) => part.trim().length > 0).join(" ");
   if (!skill) return afterSkill.trimEnd();
   return afterSkill.trim().length > 0 ? `/${skill.name}\n${afterSkill}` : `/${skill.name}`;

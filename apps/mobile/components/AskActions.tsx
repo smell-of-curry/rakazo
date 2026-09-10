@@ -14,12 +14,14 @@ const KNOWN_ASK_ACTION_LABELS: Record<string, string> = {
 export function AskActions({
   actions,
   disabled,
+  selectedId,
   onAnswer,
   accessibilityActions,
   onAccessibilityAction,
 }: {
   actions: AskAction[];
   disabled?: boolean;
+  selectedId?: string;
   onAnswer: (answer: string) => Promise<void>;
   accessibilityActions?: ViewProps["accessibilityActions"];
   onAccessibilityAction?: ViewProps["onAccessibilityAction"];
@@ -48,11 +50,14 @@ export function AskActions({
     <View style={{ marginTop: 12, gap: 6 }}>
       {actions.map((action) => {
         const emphasized = action.id === "allow" || action.id === "always";
+        const selected = selectedId === action.id;
+        const faded = Boolean(selectedId) && !selected;
         return (
           <Pressable
             key={action.id}
             accessibilityActions={accessibilityActions}
             onAccessibilityAction={onAccessibilityAction}
+            accessibilityState={{ disabled: disabled || submitting, selected }}
             disabled={disabled || submitting}
             onPress={() => void submit(action.id)}
             style={{
@@ -60,10 +65,10 @@ export function AskActions({
               borderRadius: 12,
               paddingHorizontal: 14,
               paddingVertical: 12,
-              backgroundColor: emphasized ? tokens.muted : "transparent",
+              backgroundColor: selected || emphasized ? tokens.muted : "transparent",
               borderWidth: 1,
               borderColor: tokens.border,
-              opacity: disabled || submitting ? 0.5 : 1,
+              opacity: faded ? 0.4 : disabled || submitting ? 0.7 : 1,
             }}
           >
             <Text
