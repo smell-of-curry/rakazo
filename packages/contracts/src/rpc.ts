@@ -50,8 +50,10 @@ import {
   ModelConnectInputSchema,
   ModelCredentialSchema,
   ModelOAuthBeginSchema,
+  refineRoutineModelPair,
   ReorderBotsInput,
   RoutineSchema,
+  ThinkingLevelSchema,
   ScratchpadItemSchema,
   ScratchpadItemStatusSchema,
   ServerUpdateCheckSchema,
@@ -411,6 +413,9 @@ export const appContract = {
               .regex(/^[a-z0-9._-]+$/i)
               .nullable()
               .optional(),
+            modelProvider: z.string().trim().min(1).max(80).nullable().optional(),
+            modelId: z.string().trim().min(1).max(200).nullable().optional(),
+            thinkingLevel: ThinkingLevelSchema.nullable().optional(),
             /** ISO datetime to arm a never-run one-shot. */
             runAt: IsoDate.optional(),
           })
@@ -428,6 +433,17 @@ export const appContract = {
                 path: ["crons"],
               });
             }
+            const providerProvided = value.modelProvider !== undefined;
+            const modelProvided = value.modelId !== undefined;
+            if (providerProvided !== modelProvided) {
+              ctx.addIssue({
+                code: "custom",
+                message: "Model provider and model id must both be set or both cleared",
+                path: ["modelId"],
+              });
+              return;
+            }
+            if (providerProvided) refineRoutineModelPair(value, ctx);
           }),
       )
       .output(RoutineSchema),

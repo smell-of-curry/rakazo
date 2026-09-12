@@ -37,6 +37,7 @@ import {
   isAttachmentImageMimeType,
 } from "@rakazo/contracts";
 import {
+  ACTIVE_RUN_STATUSES,
   type ActionApprovalRule,
   appendTextSegment,
   appendToolCallSegment,
@@ -594,6 +595,8 @@ export async function appendToolCompletionAudit(
   }
 }
 
+const BUSY_ROUTINE_RETRY_MS = 30_000;
+
 export async function deferFutureRoutine(
   jobs: JobPublisher,
   routineId: string,
@@ -732,14 +735,14 @@ export function createRunExecutor(deps: ExecutorDeps) {
       scope,
       provider,
       modelId,
+      { provider: resolveDeploymentModel().provider, key: deps.deploymentModelKey },
     );
     if (validationError) throw new Error(validationError);
     const credential = await findModelCredential(deps.prisma, scope, provider, modelId);
-    if (!credential) throw new Error("Connect that model provider first");
     // Free-form selections must keep the preference that owns this modelId. A
     // intervening delete/change can make findModelCredential fall back to another
     // same-provider credential; reject that mismatch instead of mixing baseUrl.
-    if (!isCatalogModelChoice(provider, modelId) && credential.defaultModel !== modelId) {
+    if (!isCatalogModelChoice(provider, modelId) && credential?.defaultModel !== modelId) {
       throw new Error("Unknown model for that provider");
     }
     const resolved = await resolveModelKey(
@@ -871,6 +874,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
       });
       const routinePrompt = expandSkillReferencesInPrompt(routine.prompt, skillRecords);
       const claimed = await deps.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM bots WHERE id = ${bot.id} FOR UPDATE`;
+        const activeRun = await tx.run.findFirst({
+          where: { botId: bot.id, status: { in: [...ACTIVE_RUN_STATUSES] } },
+          select: { id: true },
+        });
+        if (activeRun) return { kind: "busy" as const };
         const updated = await tx.routine.updateMany({
           where: { id: routine.id, active: true, nextRunAt: scheduledAt },
           data: {
@@ -890,7 +899,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             status: "queued",
           },
         });
-        return tx.run.create({
+        const run = await tx.run.create({
           data: {
             spaceId: routine.spaceId,
             botId: bot.id,
@@ -902,16 +911,27 @@ export function createRunExecutor(deps: ExecutorDeps) {
             routineId: routine.id,
           },
         });
+        return { kind: "run" as const, run };
       });
       if (!claimed) return;
+      if (claimed.kind === "busy") {
+        await deps.jobs.enqueue({
+          name: "routine.wakeup",
+          payload: { routineId: routine.id, scheduledFor: scheduledAt.toISOString() },
+          availableAt: new Date(Date.now() + BUSY_ROUTINE_RETRY_MS),
+          replaceKey: routineJobKey(routine.id),
+        });
+        return;
+      }
+      const run = claimed.run;
       // Enqueue continuation first so a thread-signal failure cannot strand the run.
       try {
-        await deps.jobs.enqueue(runContinueJob(claimed.id));
+        await deps.jobs.enqueue(runContinueJob(run.id));
       } catch (error) {
         // Restore the claim so wakeup retry / routine reconciliation can fire again.
         await deps.prisma.$transaction(async (tx) => {
-          await tx.run.deleteMany({ where: { id: claimed.id, status: "queued" } });
-          await tx.task.deleteMany({ where: { id: claimed.taskId, status: "queued" } });
+          await tx.run.deleteMany({ where: { id: run.id, status: "queued" } });
+          await tx.task.deleteMany({ where: { id: run.taskId, status: "queued" } });
           await tx.routine.updateMany({
             where: {
               id: routine.id,
@@ -933,7 +953,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           threadId: thread.id,
           botId: bot.id,
           type: "routine.fired",
-          runId: claimed.id,
+          runId: run.id,
           payload: { routineId: routine.id, scheduledFor },
         });
       } catch {
@@ -1125,10 +1145,22 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const agentEnvironment = decryptAgentEnvironment(agentSecretRows, deps.secretStore);
         runSecrets.push(...Object.values(agentEnvironment));
         const agentEnvironmentInstruction = formatAgentEnvironmentInstruction(agentEnvironment);
-        const hasModelOverride = Boolean(bot.modelProvider && bot.modelId);
+        const routine = run.routineId
+          ? await deps.prisma.routine.findUnique({
+              where: { id: run.routineId },
+              select: { modelProvider: true, modelId: true, thinkingLevel: true },
+            })
+          : null;
+        const modelOverride = routine?.modelProvider && routine.modelId ? routine : bot;
+        const hasModelOverride = Boolean(modelOverride.modelProvider && modelOverride.modelId);
         const overrideCredential =
-          hasModelOverride && bot.modelProvider
-            ? await findModelCredential(deps.prisma, run, bot.modelProvider, bot.modelId)
+          hasModelOverride && modelOverride.modelProvider
+            ? await findModelCredential(
+                deps.prisma,
+                run,
+                modelOverride.modelProvider,
+                modelOverride.modelId,
+              )
             : null;
         runAbortController = new AbortController();
         if (!leaseValid) runAbortController.abort();
@@ -1298,6 +1330,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const runtimeFallback = runtimeFallbackModel(deps.runtime);
         const selected = selectConfiguredModel({
           bot,
+          routine,
           overrideCredential,
           defaultCredential,
           settings,

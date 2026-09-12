@@ -1,6 +1,12 @@
 import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { Routine } from "@rakazo/contracts";
+import type {
+  ModelCatalogEntry,
+  ModelCredential,
+  Routine,
+  ThinkingLevel,
+} from "@rakazo/contracts";
+import { ThinkingLevelSchema } from "@rakazo/contracts";
 import {
   type CronFreq,
   type CronPreset,
@@ -20,10 +26,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
   Input,
+  NativeSelect,
+  NativeSelectOption,
   Textarea,
 } from "@rakazo/ui-web";
 import { ChevronLeft, Clock, GitBranch, Globe, MessageSquare, Pause, Plus, X } from "lucide-react";
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
+import { rpc } from "../lib/rpc";
 import { RoutineSchedule } from "./RoutineSchedule";
 
 function toDatetimeLocalValue(date: Date): string {
@@ -68,6 +77,9 @@ export type RoutineDraftState = {
   messageProvider: string | null;
   active: boolean;
   runAtLocal: string;
+  modelProvider: string | null;
+  modelId: string | null;
+  thinkingLevel: ThinkingLevel | null;
 };
 
 export function emptyRoutineDraft(): RoutineDraftState {
@@ -80,6 +92,9 @@ export function emptyRoutineDraft(): RoutineDraftState {
     messageProvider: null,
     active: true,
     runAtLocal: "",
+    modelProvider: null,
+    modelId: null,
+    thinkingLevel: null,
   };
 }
 
@@ -93,6 +108,9 @@ export function draftFromRoutine(routine: Routine): RoutineDraftState {
     messageProvider: routine.messageProvider,
     active: routine.active,
     runAtLocal: routineNeedsOneShotArm(routine, routine.crons) ? defaultArmRunAtLocal() : "",
+    modelProvider: routine.modelProvider,
+    modelId: routine.modelId,
+    thinkingLevel: routine.thinkingLevel,
   };
 }
 
@@ -213,6 +231,72 @@ export function RoutineEditor({
 }) {
   const { t } = useLingui();
   const fieldId = useId();
+  const [credentials, setCredentials] = useState<ModelCredential[]>([]);
+  const [catalog, setCatalog] = useState<ModelCatalogEntry[]>([]);
+  useEffect(() => {
+    void Promise.all([rpc.models.credentials(), rpc.models.list()])
+      .then(([nextCredentials, nextCatalog]) => {
+        setCredentials(nextCredentials);
+        setCatalog(nextCatalog);
+      })
+      .catch(() => undefined);
+  }, []);
+  const modelKey =
+    draft.modelProvider && draft.modelId
+      ? modelOptionKey(draft.modelProvider, draft.modelId)
+      : "";
+  const connectedOptions: Array<{
+    key: string;
+    provider: string;
+    modelId: string;
+    label: string;
+  }> = [];
+  const seenOptions = new Set<string>();
+  for (const credential of credentials) {
+    const providerModels = catalog.filter(
+      (entry) => entry.provider === credential.provider && !entry.placeholder,
+    );
+    const credentialInCatalog = Boolean(
+      credential.modelId && providerModels.some((entry) => entry.id === credential.modelId),
+    );
+    const options =
+      credential.modelId && !credentialInCatalog
+        ? [
+            {
+              key: modelOptionKey(credential.provider, credential.modelId),
+              provider: credential.provider,
+              modelId: credential.modelId,
+              label: `${credential.label} · ${credential.modelId}`,
+            },
+          ]
+        : providerModels.map((entry) => ({
+            key: modelOptionKey(entry.provider, entry.id),
+            provider: entry.provider,
+            modelId: entry.id,
+            label: `${entry.providerName ?? entry.provider} · ${entry.label}`,
+          }));
+    for (const option of options) {
+      if (seenOptions.has(option.key)) continue;
+      seenOptions.add(option.key);
+      connectedOptions.push(option);
+    }
+  }
+  const effectiveProvider = modelKey ? parseModelOptionKey(modelKey)?.provider : null;
+  const effectiveModelId = modelKey ? parseModelOptionKey(modelKey)?.modelId : null;
+  const effectiveEntry =
+    effectiveProvider && effectiveModelId
+      ? catalog.find(
+          (entry) => entry.provider === effectiveProvider && entry.id === effectiveModelId,
+        )
+      : undefined;
+  const effectiveCredential = credentials.find(
+    (entry) => entry.provider === effectiveProvider && entry.modelId === effectiveModelId,
+  );
+  const thinkingOptions = (
+    effectiveCredential?.thinkingLevels ??
+    effectiveEntry?.thinkingLevels ??
+    []
+  ).filter((level) => level !== "off");
   const slackAvailable = messageProviders.includes("slack");
   const slackDisabledReasonId = `${fieldId}-slack-disabled-reason`;
   const hasTriggers =
@@ -328,6 +412,65 @@ export function RoutineEditor({
           className="mt-2"
         />
       </label>
+
+      <label htmlFor={`${fieldId}-model`} className="mt-5 block text-sm text-muted-foreground">
+        <Trans>Model</Trans>
+        <NativeSelect
+          id={`${fieldId}-model`}
+          className="mt-2 w-full"
+          value={modelKey}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (!value) {
+              onChange({ ...draft, modelProvider: null, modelId: null, thinkingLevel: null });
+              return;
+            }
+            const selected = parseModelOptionKey(value);
+            if (!selected) return;
+            onChange({
+              ...draft,
+              modelProvider: selected.provider,
+              modelId: selected.modelId,
+              thinkingLevel: null,
+            });
+          }}
+        >
+          <NativeSelectOption value="">
+            <Trans>Same as bot</Trans>
+          </NativeSelectOption>
+          {modelKey && !connectedOptions.some((option) => option.key === modelKey) ? (
+            <NativeSelectOption value={modelKey}>
+              {parseModelOptionKey(modelKey)?.modelId ?? modelKey}
+            </NativeSelectOption>
+          ) : null}
+          {connectedOptions.map((option) => (
+            <NativeSelectOption key={option.key} value={option.key}>
+              {option.label}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </label>
+      {modelKey && thinkingOptions.length ? (
+        <label htmlFor={`${fieldId}-thinking`} className="mt-5 block text-sm text-muted-foreground">
+          <Trans>Thinking</Trans>
+          <NativeSelect
+            id={`${fieldId}-thinking`}
+            className="mt-2 w-full"
+            value={draft.thinkingLevel ?? ""}
+            onChange={(event) => {
+              const parsed = ThinkingLevelSchema.safeParse(event.target.value);
+              onChange({ ...draft, thinkingLevel: parsed.success ? parsed.data : null });
+            }}
+          >
+            <NativeSelectOption value="">{t`Default (medium)`}</NativeSelectOption>
+            {thinkingOptions.map((level) => (
+              <NativeSelectOption key={level} value={level}>
+                {thinkingLevelLabel(level)}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </label>
+      ) : null}
 
       <div className="mt-5 text-sm text-muted-foreground">
         <div className="flex items-baseline gap-2">
@@ -657,4 +800,24 @@ function comingSoonColor(id: string): string {
     default:
       return "#06AC38";
   }
+}
+
+function modelOptionKey(provider: string, modelId: string) {
+  return `${provider}::${modelId}`;
+}
+
+function thinkingLevelLabel(level: ThinkingLevel) {
+  if (level === "xhigh") return t`Extra high`;
+  if (level === "low") return t`Low`;
+  if (level === "medium") return t`Medium`;
+  if (level === "high") return t`High`;
+  if (level === "minimal") return t`Minimal`;
+  if (level === "max") return t`Max`;
+  return `${level.slice(0, 1).toUpperCase()}${level.slice(1)}`;
+}
+
+function parseModelOptionKey(key: string) {
+  const separator = key.indexOf("::");
+  if (separator <= 0) return null;
+  return { provider: key.slice(0, separator), modelId: key.slice(separator + 2) };
 }

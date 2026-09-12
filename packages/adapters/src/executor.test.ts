@@ -2,6 +2,7 @@ import type { MessageBlock } from "@rakazo/contracts";
 import { ONCE_ROUTINE_CRON } from "@rakazo/core";
 import type { PrismaClient } from "@rakazo/db";
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_OPENROUTER_MODEL_ID } from "./deployment-model.js";
 import {
   appendToolCompletionAudit,
   createRunExecutor,
@@ -551,9 +552,10 @@ describe("createRunExecutor", () => {
       },
       $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
+          $queryRaw: vi.fn(async () => [{ id: "bot-1" }]),
           routine: { updateMany },
           task: { create: taskCreate },
-          run: { create: runCreate },
+          run: { findFirst: vi.fn(async () => null), create: runCreate },
         }),
       ),
     } as unknown as PrismaClient;
@@ -619,9 +621,10 @@ describe("createRunExecutor", () => {
       agentSkill: { findMany: vi.fn(async () => []) },
       $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
+          $queryRaw: vi.fn(async () => [{ id: "bot-1" }]),
           routine: { updateMany: vi.fn(async () => ({ count: 1 })) },
           task: { create: taskCreate },
-          run: { create: runCreate },
+          run: { findFirst: vi.fn(async () => null), create: runCreate },
         }),
       ),
     } as unknown as PrismaClient;
@@ -684,9 +687,10 @@ describe("createRunExecutor", () => {
       agentSkill: { findMany: vi.fn(async () => []) },
       $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
+          $queryRaw: vi.fn(async () => [{ id: "bot-1" }]),
           routine: { updateMany: vi.fn(async () => ({ count: 1 })) },
           task: { create: taskCreate },
-          run: { create: runCreate },
+          run: { findFirst: vi.fn(async () => null), create: runCreate },
         }),
       ),
     } as unknown as PrismaClient;
@@ -766,9 +770,13 @@ description: Prepare standup notes
       },
       $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
+          $queryRaw: vi.fn(async () => [{ id: "bot-1" }]),
           routine: { updateMany: vi.fn(async () => ({ count: 1 })) },
           task: { create: taskCreate },
-          run: { create: vi.fn(async () => ({ id: "run-1" })) },
+          run: {
+            findFirst: vi.fn(async () => null),
+            create: vi.fn(async () => ({ id: "run-1" })),
+          },
         }),
       ),
     } as unknown as PrismaClient;
@@ -819,9 +827,13 @@ description: Prepare standup notes
       },
       $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
         callback({
+          $queryRaw: vi.fn(async () => [{ id: "bot-1" }]),
           routine: { updateMany },
           task: { create: vi.fn(async () => ({ id: "task-1" })) },
-          run: { create: vi.fn(async () => ({ id: "run-1", taskId: "task-1" })) },
+          run: {
+            findFirst: vi.fn(async () => null),
+            create: vi.fn(async () => ({ id: "run-1", taskId: "task-1" })),
+          },
         }),
       ),
     } as unknown as PrismaClient;
@@ -877,9 +889,13 @@ description: Prepare standup notes
         transactionCalls += 1;
         if (transactionCalls === 1) {
           return callback({
+            $queryRaw: vi.fn(async () => [{ id: "bot-1" }]),
             routine: { updateMany: claimUpdateMany },
             task: { create: vi.fn(async () => ({ id: "task-1" })) },
-            run: { create: vi.fn(async () => ({ id: "run-1", taskId: "task-1" })) },
+            run: {
+              findFirst: vi.fn(async () => null),
+              create: vi.fn(async () => ({ id: "run-1", taskId: "task-1" })),
+            },
           });
         }
         return callback({
@@ -910,6 +926,79 @@ description: Prepare standup notes
         }),
       }),
     );
+  });
+
+  it("defers a routine wake when the bot already has an active run", async () => {
+    const scheduledAt = new Date(Date.now() - 1_000);
+    const before = Date.now();
+    const enqueue = vi.fn(async () => undefined);
+    const append = vi.fn(async () => undefined);
+    const updateMany = vi.fn(async () => ({ count: 1 }));
+    const taskCreate = vi.fn(async () => ({ id: "task-1" }));
+    const runCreate = vi.fn(async () => ({ id: "run-1" }));
+    const runFindFirst = vi.fn(async () => ({ id: "run-busy" }));
+    const prisma = {
+      routine: {
+        findUnique: vi.fn(async () => ({
+          id: "routine-1",
+          spaceId: "ws-1",
+          botId: "bot-1",
+          userId: "user-1",
+          prompt: "say hi",
+          crons: [ONCE_ROUTINE_CRON],
+          timezone: "UTC",
+          active: true,
+          nextRunAt: scheduledAt,
+        })),
+      },
+      bot: {
+        findUnique: vi.fn(async () => ({
+          id: "bot-1",
+          thread: { id: "thread-1" },
+        })),
+      },
+      agentSkill: {
+        findMany: vi.fn(async () => []),
+      },
+      $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
+        callback({
+          $queryRaw: vi.fn(async () => [{ id: "bot-1" }]),
+          routine: { updateMany },
+          task: { create: taskCreate },
+          run: { findFirst: runFindFirst, create: runCreate },
+        }),
+      ),
+    } as unknown as PrismaClient;
+    const executor = createRunExecutor({
+      prisma,
+      jobs: { enqueue, cancel: vi.fn(async () => undefined), close: vi.fn(async () => undefined) },
+      events: { append },
+    } as unknown as Parameters<typeof createRunExecutor>[0]);
+
+    await executor.wakeRoutine("routine-1", scheduledAt.toISOString());
+
+    expect(runFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          botId: "bot-1",
+          status: { in: expect.arrayContaining(["waiting_input", "waiting_takeover"]) },
+        }),
+      }),
+    );
+    expect(updateMany).not.toHaveBeenCalled();
+    expect(taskCreate).not.toHaveBeenCalled();
+    expect(runCreate).not.toHaveBeenCalled();
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue).toHaveBeenCalledWith({
+      name: "routine.wakeup",
+      payload: { routineId: "routine-1", scheduledFor: scheduledAt.toISOString() },
+      replaceKey: "routine:routine-1",
+      availableAt: expect.any(Date),
+    });
+    const retryAt = (enqueue.mock.calls[0]?.[0] as { availableAt: Date }).availableAt.getTime();
+    expect(retryAt).toBeGreaterThanOrEqual(before + 29_000);
+    expect(retryAt).toBeLessThanOrEqual(Date.now() + 31_000);
+    expect(append).not.toHaveBeenCalled();
   });
 
   it("consumes a persisted takeover checkpoint when claiming the run", async () => {
@@ -1168,6 +1257,31 @@ description: Prepare standup notes
         }),
       }),
     );
+  });
+
+  it("resolves a catalog model from the deployment key without a personal credential", async () => {
+    const prisma = {
+      spaceModelPreference: { findFirst: vi.fn(async () => null) },
+      userModelCredential: { findFirst: vi.fn(async () => null) },
+      secret: { findFirst: vi.fn(async () => null), findUnique: vi.fn(async () => null) },
+    } as unknown as PrismaClient;
+    const executor = createRunExecutor({
+      prisma,
+      secretStore: { load: vi.fn(), put: vi.fn() },
+      deploymentModelKey: "deployment-openrouter-key",
+    } as unknown as Parameters<typeof createRunExecutor>[0]);
+
+    const model = await executor.resolveConnectedModel(
+      { userId: "user-1", spaceId: "ws-1" },
+      "openrouter",
+      DEFAULT_OPENROUTER_MODEL_ID,
+    );
+
+    expect(model).toMatchObject({
+      provider: "openrouter",
+      id: DEFAULT_OPENROUTER_MODEL_ID,
+      apiKey: "deployment-openrouter-key",
+    });
   });
 
   it("rejects a free-form selection when the owning preference disappears", async () => {

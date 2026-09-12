@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { ComposioEmulator } from "@rakazo/adapters";
+import { ComposioEmulator, listPiCatalog, resolveDeploymentModel } from "@rakazo/adapters";
 import type { appContract, Space, SpaceNavigation } from "@rakazo/contracts";
 import {
   claimEmptySpaceDeletionForMember,
@@ -46,6 +46,7 @@ describeWithDatabase("API authorization and resource isolation", () => {
       agentRuntime: "scripted",
       wakeupDriver: "memory",
       signupsEnabled: "true",
+      deploymentModelKey: "fake-deployment-key",
       composio: new ComposioEmulator(),
     });
     app = handles.app;
@@ -840,6 +841,89 @@ describeWithDatabase("API authorization and resource isolation", () => {
     });
     expect(missing.status).toBeGreaterThanOrEqual(400);
     expect(await missing.text()).toMatch(/credential/i);
+  });
+
+  it("treats the deployment model key as a connected catalog credential", async () => {
+    const cookie = await signup(app, `deployment-model-${stamp}@rakazo.test`, "Deployment Model");
+    const actor = await rpc<Actor>(app, cookie, "me");
+    expect(
+      await handles.prisma.userModelCredential.count({ where: { userId: actor.userId } }),
+    ).toBe(0);
+    const deployment = resolveDeploymentModel();
+    const catalogModel = listPiCatalog().find((item) => item.provider === deployment.provider);
+    expect(catalogModel).toBeDefined();
+
+    const listed = await rpc<ModelCredential[]>(app, cookie, "models/credentials");
+    expect(listed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "deployment",
+          provider: deployment.provider,
+          label: "Deployment",
+          hasKey: true,
+          isDefault: false,
+        }),
+      ]),
+    );
+    expect(JSON.stringify(listed)).not.toContain("fake-deployment-key");
+
+    await rpc(app, cookie, "models/setDefault", {
+      provider: deployment.provider,
+      modelId: catalogModel!.id,
+    });
+    const me = await rpc<{ defaultProvider: string; defaultModel: string }>(app, cookie, "me");
+    expect(me).toMatchObject({
+      defaultProvider: deployment.provider,
+      defaultModel: catalogModel!.id,
+    });
+    const afterDefault = await rpc<ModelCredential[]>(app, cookie, "models/credentials");
+    expect(afterDefault).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provider: deployment.provider,
+          label: "Deployment",
+          hasKey: true,
+          isDefault: true,
+          modelId: catalogModel!.id,
+        }),
+      ]),
+    );
+    expect(afterDefault.find((row) => row.id === "deployment")).toBeUndefined();
+    expect(JSON.stringify(afterDefault)).not.toContain("fake-deployment-key");
+    const sentinel = await handles.prisma.userModelCredential.findFirstOrThrow({
+      where: { userId: actor.userId, provider: deployment.provider },
+    });
+    expect(sentinel).toMatchObject({ label: "Deployment", secretId: "deployment" });
+
+    const otherProvider = await raw(app, cookie, "models/setDefault", {
+      provider: "missing-provider",
+      modelId: "missing/model",
+    });
+    expect(otherProvider.status).toBeGreaterThanOrEqual(400);
+    expect(await otherProvider.text()).toMatch(/credential/i);
+
+    const connected = await rpc<ModelCredential>(app, cookie, "models/connect", {
+      provider: deployment.provider,
+      apiKey: "fake-openrouter-key",
+      label: "Personal",
+      modelId: catalogModel!.id,
+    });
+    expect(connected).toMatchObject({
+      provider: deployment.provider,
+      label: "Personal",
+      hasKey: true,
+    });
+    expect(connected.id).not.toBe("deployment");
+    const replaced = await handles.prisma.userModelCredential.findFirstOrThrow({
+      where: { userId: actor.userId, provider: deployment.provider },
+    });
+    expect(replaced.id).toBe(sentinel.id);
+    expect(replaced.secretId).not.toBe("deployment");
+    expect(replaced.label).toBe("Personal");
+    const afterConnect = await rpc<ModelCredential[]>(app, cookie, "models/credentials");
+    expect(afterConnect.find((row) => row.id === "deployment")).toBeUndefined();
+    expect(JSON.stringify(afterConnect)).not.toContain("fake-deployment-key");
+    expect(JSON.stringify(afterConnect)).not.toContain("fake-openrouter-key");
   });
 
   it("deletes only empty, non-default spaces", async () => {

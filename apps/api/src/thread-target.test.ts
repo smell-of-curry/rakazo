@@ -948,10 +948,14 @@ function groupTarget() {
 }
 
 describe("sendThreadMessage", () => {
-  it("rejects a new bot message while a run is waiting on input", async () => {
+  it("steers a new bot message while a run is waiting on input", async () => {
     const tx = {
       thread: {
-        update: vi.fn().mockResolvedValue({ nextMessageSeq: 2 }),
+        update: vi.fn(async ({ data }: { data: { nextMessageSeq?: unknown; nextEventSeq?: unknown } }) => {
+          if (data.nextMessageSeq) return { nextMessageSeq: 2 };
+          if (data.nextEventSeq) return { nextEventSeq: 2 };
+          return {};
+        }),
       },
       message: {
         create: vi.fn().mockResolvedValue({
@@ -971,9 +975,16 @@ describe("sendThreadMessage", () => {
         findMany: vi
           .fn()
           .mockResolvedValue([{ id: "run-waiting", taskId: "task-1", status: "waiting_input" }]),
+        findUnique: vi.fn().mockResolvedValue({ status: "waiting_input", startedAt: new Date() }),
       },
       steeringMessage: { create: vi.fn() },
-      event: { create: vi.fn() },
+      event: {
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+          id: "event-1",
+          seq: 1,
+          ...data,
+        })),
+      },
       task: { create: vi.fn() },
     };
     const prisma = {
@@ -992,7 +1003,7 @@ describe("sendThreadMessage", () => {
       sendThreadMessage(
         {
           prisma,
-          events: { notify: vi.fn() } as never,
+          events: { notify: vi.fn().mockResolvedValue(undefined) } as never,
           jobs: { enqueue: vi.fn() } as never,
         },
         actor,
@@ -1002,17 +1013,34 @@ describe("sendThreadMessage", () => {
           clientNonce: "nonce-1",
         },
       ),
-    ).rejects.toMatchObject({
-      code: "CONFLICT",
-      message: "Answer the pending ask first.",
+    ).resolves.toMatchObject({ runId: "run-waiting", seq: 1 });
+    expect(tx.steeringMessage.create).toHaveBeenCalledWith({
+      data: {
+        messageId: "msg-1",
+        botId: "bot-1",
+        userId: "user-1",
+        runId: "run-waiting",
+      },
     });
-    expect(tx.steeringMessage.create).not.toHaveBeenCalled();
+    expect(tx.message.update).toHaveBeenCalledWith({
+      where: { id: "msg-1" },
+      data: { runId: "run-waiting" },
+    });
+    expect(tx.event.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: "thread.message.created", runId: "run-waiting" }),
+      }),
+    );
   });
 
-  it("rejects a new bot message while a run is waiting on takeover", async () => {
+  it("steers a new bot message while a run is waiting on takeover", async () => {
     const tx = {
       thread: {
-        update: vi.fn().mockResolvedValue({ nextMessageSeq: 2 }),
+        update: vi.fn(async ({ data }: { data: { nextMessageSeq?: unknown; nextEventSeq?: unknown } }) => {
+          if (data.nextMessageSeq) return { nextMessageSeq: 2 };
+          if (data.nextEventSeq) return { nextEventSeq: 2 };
+          return {};
+        }),
       },
       message: {
         create: vi.fn().mockResolvedValue({
@@ -1032,9 +1060,16 @@ describe("sendThreadMessage", () => {
         findMany: vi
           .fn()
           .mockResolvedValue([{ id: "run-waiting", taskId: "task-1", status: "waiting_takeover" }]),
+        findUnique: vi.fn().mockResolvedValue({ status: "waiting_takeover", startedAt: new Date() }),
       },
       steeringMessage: { create: vi.fn() },
-      event: { create: vi.fn() },
+      event: {
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
+          id: "event-1",
+          seq: 1,
+          ...data,
+        })),
+      },
       task: { create: vi.fn() },
     };
     const prisma = {
@@ -1053,7 +1088,7 @@ describe("sendThreadMessage", () => {
       sendThreadMessage(
         {
           prisma,
-          events: { notify: vi.fn() } as never,
+          events: { notify: vi.fn().mockResolvedValue(undefined) } as never,
           jobs: { enqueue: vi.fn() } as never,
         },
         actor,
@@ -1063,11 +1098,24 @@ describe("sendThreadMessage", () => {
           clientNonce: "nonce-1",
         },
       ),
-    ).rejects.toMatchObject({
-      code: "CONFLICT",
-      message: "Open the computer first.",
+    ).resolves.toMatchObject({ runId: "run-waiting", seq: 1 });
+    expect(tx.steeringMessage.create).toHaveBeenCalledWith({
+      data: {
+        messageId: "msg-1",
+        botId: "bot-1",
+        userId: "user-1",
+        runId: "run-waiting",
+      },
     });
-    expect(tx.steeringMessage.create).not.toHaveBeenCalled();
+    expect(tx.message.update).toHaveBeenCalledWith({
+      where: { id: "msg-1" },
+      data: { runId: "run-waiting" },
+    });
+    expect(tx.event.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: "thread.message.created", runId: "run-waiting" }),
+      }),
+    );
   });
 });
 

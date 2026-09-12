@@ -40,7 +40,9 @@ import {
   enqueueTakeoverContinuation,
   expireComputerControl,
   hasActiveComputerControl,
+  isAllowedMcpOAuthRedirect,
   isAutoReviewCheckerConfigured,
+  isCatalogModelChoice,
   isComputerScreenUnavailable,
   isSandboxGoneError,
   isScratchpadStatus,
@@ -62,6 +64,7 @@ import {
   replaceComputer,
   resolveAutoReviewChecker,
   resolveBotWorkspacePath,
+  resolveDeploymentModel,
   sanitizeComposioError,
   savePushToken,
   scheduleComputerControlExpiry,
@@ -72,6 +75,7 @@ import {
   takeoverLeaseMs,
   toComputerRef,
   touchRunningComputer,
+  validateConnectedModelChoice,
   verifyMcpInstall,
 } from "@rakazo/adapters";
 import type { Auth } from "@rakazo/auth";
@@ -83,6 +87,7 @@ import {
   type McpServer,
   type Me,
   OPENAI_COMPATIBLE_PROVIDER_ID,
+  type Routine,
   type SpaceNavigation,
 } from "@rakazo/contracts";
 import {
@@ -766,7 +771,7 @@ export function createRouter(deps: RouterDeps) {
             })
           : [];
         const ciphertextById = new Map(secrets.map((secret) => [secret.id, secret.ciphertext]));
-        return rows.map((row) => {
+        const credentials = rows.map((row) => {
           const preference = row.preferences[0];
           const selected = {
             ...row,
@@ -781,6 +786,21 @@ export function createRouter(deps: RouterDeps) {
             return modelCredentialDto(selected);
           }
         });
+        const deployment = resolveDeploymentModel();
+        if (
+          deps.env.deploymentModelKey &&
+          !rows.some((row) => row.provider === deployment.provider)
+        ) {
+          credentials.push(
+            modelCredentialDto({
+              id: "deployment",
+              provider: deployment.provider,
+              label: "Deployment",
+              isDefault: false,
+            }),
+          );
+        }
+        return credentials;
       }),
       connect: authed.models.connect.handler(async ({ context, input }) => {
         let plaintext: string;
@@ -878,14 +898,30 @@ export function createRouter(deps: RouterDeps) {
         await withSerializableRetry(() =>
           deps.prisma.$transaction(
             async (tx) => {
-              const credential = await tx.userModelCredential.findFirst({
+              let credential = await tx.userModelCredential.findFirst({
                 where: { userId: context.actor.userId, provider: input.provider },
                 orderBy: newestModelCredentialOrder,
               });
               if (!credential) {
-                throw new ORPCError("NOT_FOUND", {
-                  message: `No model credential is connected for ${input.provider}.`,
-                });
+                const deployment = resolveDeploymentModel();
+                if (
+                  deps.env.deploymentModelKey &&
+                  input.provider === deployment.provider &&
+                  isCatalogModelChoice(input.provider, input.modelId)
+                ) {
+                  credential = await tx.userModelCredential.create({
+                    data: {
+                      userId: context.actor.userId,
+                      provider: input.provider,
+                      label: "Deployment",
+                      secretId: "deployment",
+                    },
+                  });
+                } else {
+                  throw new ORPCError("NOT_FOUND", {
+                    message: `No model credential is connected for ${input.provider}.`,
+                  });
+                }
               }
               await selectSpaceModelPreference(tx, context.actor, credential.id, input.modelId);
             },
@@ -969,20 +1005,18 @@ export function createRouter(deps: RouterDeps) {
           if (!section) throw new IsolationError();
         }
         if (input.modelProvider && input.modelId) {
-          const credential = await findModelCredential(
+          const validationError = await validateConnectedModelChoice(
             deps.prisma,
             context.actor,
             input.modelProvider,
+            input.modelId,
+            {
+              provider: resolveDeploymentModel().provider,
+              key: deps.env.deploymentModelKey,
+            },
           );
-          if (!credential) {
-            throw new ORPCError("BAD_REQUEST", { message: "Connect that model provider first" });
-          }
-          const knownModels = [...listPiCatalog(), scriptedCatalogEntry];
-          const inCatalog = knownModels.some(
-            (item) => item.provider === input.modelProvider && item.id === input.modelId,
-          );
-          if (!inCatalog && credential.defaultModel !== input.modelId) {
-            throw new ORPCError("BAD_REQUEST", { message: "Unknown model for that provider" });
+          if (validationError) {
+            throw new ORPCError("BAD_REQUEST", { message: validationError });
           }
         }
         const thinkingLevel = input.thinkingLevel;
@@ -2297,6 +2331,21 @@ export function createRouter(deps: RouterDeps) {
           });
         }
         const bot = await repos.getBot(context.actor, input.botId);
+        if (input.modelProvider && input.modelId) {
+          const validationError = await validateConnectedModelChoice(
+            deps.prisma,
+            context.actor,
+            input.modelProvider,
+            input.modelId,
+            {
+              provider: resolveDeploymentModel().provider,
+              key: deps.env.deploymentModelKey,
+            },
+          );
+          if (validationError) {
+            throw new ORPCError("BAD_REQUEST", { message: validationError });
+          }
+        }
         // Validate every recurring cron even when inactive; @once and webhook-only have no next date.
         let nextRunAt: Date | null = null;
         if (input.crons.length > 0 && !isOneShotRoutineCrons(input.crons)) {
@@ -2317,6 +2366,9 @@ export function createRouter(deps: RouterDeps) {
             webhookEnabled: input.webhookEnabled,
             githubEnabled: input.githubEnabled,
             messageProvider: input.messageProvider,
+            modelProvider: input.modelProvider,
+            modelId: input.modelId,
+            thinkingLevel: input.thinkingLevel,
             nextRunAt,
           },
         });
@@ -2409,6 +2461,21 @@ export function createRouter(deps: RouterDeps) {
             : isOneShotRoutineCrons(crons)
               ? (armedOneShotAt ?? existing.nextRunAt)
               : (recalculatedNextRunAt ?? existing.nextRunAt);
+        if (input.modelProvider && input.modelId) {
+          const validationError = await validateConnectedModelChoice(
+            deps.prisma,
+            context.actor,
+            input.modelProvider,
+            input.modelId,
+            {
+              provider: resolveDeploymentModel().provider,
+              key: deps.env.deploymentModelKey,
+            },
+          );
+          if (validationError) {
+            throw new ORPCError("BAD_REQUEST", { message: validationError });
+          }
+        }
         const row = await deps.prisma.routine.update({
           where: { id: existing.id },
           data: {
@@ -2421,6 +2488,14 @@ export function createRouter(deps: RouterDeps) {
             webhookEnabled: input.webhookEnabled,
             githubEnabled: input.githubEnabled,
             messageProvider: input.messageProvider,
+            modelProvider: input.modelProvider,
+            modelId: input.modelId,
+            thinkingLevel:
+              input.thinkingLevel !== undefined
+                ? input.thinkingLevel
+                : input.modelProvider === null
+                  ? null
+                  : undefined,
             nextRunAt,
           },
         });
@@ -3169,8 +3244,7 @@ export function createRouter(deps: RouterDeps) {
       oauth: {
         begin: authed.mcp.oauth.begin.handler(async ({ context, input }) => {
           try {
-            const expectedRedirect = new URL("/mcp/oauth/callback", deps.env.webOrigin).toString();
-            if (new URL(input.redirectUri).toString() !== expectedRedirect) {
+            if (!isAllowedMcpOAuthRedirect(input.redirectUri, deps.env.webOrigin)) {
               throw new Error("MCP OAuth redirect URI is not allowed");
             }
             return await mcpOAuth.begin({
@@ -3184,13 +3258,9 @@ export function createRouter(deps: RouterDeps) {
             });
           }
         }),
-        complete: authed.mcp.oauth.complete.handler(async ({ context, input }) => {
+        complete: os.mcp.oauth.complete.handler(async ({ input }) => {
           try {
-            await mcpOAuth.complete({
-              ...input,
-              spaceId: context.actor.spaceId,
-              userId: context.actor.userId,
-            });
+            await mcpOAuth.completeGrant(input);
             return { ok: true as const };
           } catch (error) {
             throw new ORPCError("BAD_REQUEST", {
@@ -5158,6 +5228,9 @@ function mapRoutine(row: {
   webhookEnabled: boolean;
   githubEnabled: boolean;
   messageProvider: string | null;
+  modelProvider: string | null;
+  modelId: string | null;
+  thinkingLevel: string | null;
   lastRunAt: Date | null;
   nextRunAt: Date | null;
   createdAt: Date;
@@ -5174,6 +5247,9 @@ function mapRoutine(row: {
     webhookEnabled: row.webhookEnabled,
     githubEnabled: row.githubEnabled,
     messageProvider: row.messageProvider,
+    modelProvider: row.modelProvider,
+    modelId: row.modelId,
+    thinkingLevel: (row.thinkingLevel as Routine["thinkingLevel"]) ?? null,
     lastRunAt: row.lastRunAt?.toISOString() ?? null,
     nextRunAt: row.nextRunAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),

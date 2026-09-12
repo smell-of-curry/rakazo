@@ -228,6 +228,39 @@ describe("contracts", () => {
         prompt: "This has no trigger",
       }).success,
     ).toBe(false);
+    expect(
+      CreateRoutineInput.parse({
+        botId: "bot-1",
+        name: "Cheap watch",
+        prompt: "Ping the site",
+        crons: ["0 * * * *"],
+        modelProvider: "openrouter",
+        modelId: "openai/gpt-5.6-luna",
+        thinkingLevel: "low",
+      }),
+    ).toMatchObject({
+      modelProvider: "openrouter",
+      modelId: "openai/gpt-5.6-luna",
+      thinkingLevel: "low",
+    });
+    expect(
+      CreateRoutineInput.safeParse({
+        botId: "bot-1",
+        name: "Half model",
+        prompt: "Ping the site",
+        crons: ["0 * * * *"],
+        modelId: "openai/gpt-5.6-luna",
+      }).success,
+    ).toBe(false);
+    expect(
+      CreateRoutineInput.safeParse({
+        botId: "bot-1",
+        name: "Thinking only",
+        prompt: "Ping the site",
+        crons: ["0 * * * *"],
+        thinkingLevel: "low",
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts bot-to-bot runs in thread snapshots and activity rows", () => {

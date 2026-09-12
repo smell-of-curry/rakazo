@@ -60,7 +60,13 @@ export type ThreadTarget =
 const THREAD_MESSAGE_PAGE_SIZE = 100;
 const RUNS_NEEDING_CONTINUE = new Set(["queued"]);
 
-const STEERABLE_RUN_STATUSES = new Set(["queued", "leased", "running"]);
+const STEERABLE_RUN_STATUSES = new Set([
+  "queued",
+  "leased",
+  "running",
+  "waiting_input",
+  "waiting_takeover",
+]);
 
 function rejectUnsteerableRuns(runs: Array<{ status: string }>) {
   const blocking = runs.filter((run) => !STEERABLE_RUN_STATUSES.has(run.status));

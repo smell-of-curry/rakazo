@@ -131,6 +131,7 @@ import { ArtifactFileCard } from "../components/ArtifactFileCard";
 import type { AskBlock } from "../components/AskCard";
 import { AskCard } from "../components/AskCard";
 import { ActiveBotGlyph, CollaborationMarker } from "../components/ai/CollaborationMarker";
+import type { PeerReceiptPeerLook } from "../components/ai/PeerReceiptCluster";
 import { PeerReceiptCluster } from "../components/ai/PeerReceiptCluster";
 import { CloudAgentCard } from "../components/CloudAgentCard";
 import { ComputerMaintenanceActions } from "../components/ComputerMaintenanceActions";
@@ -1682,9 +1683,6 @@ export function ShellPage() {
   const takeoverReason = needsComputer
     ? latestComputerNeedsYouText(activeSnapshot?.messages)
     : undefined;
-  useEffect(() => {
-    if ((needsComputer || dockedAsk) && sendError) setSendError(null);
-  }, [dockedAsk, needsComputer, sendError]);
   const runError = threadRunError(activeSnapshot, dismissedRunErrorIds);
   const displayedRunError = !sendError ? runError : null;
   const displayedRunErrorId = displayedRunError ? (activeSnapshot?.run?.id ?? null) : null;
@@ -1976,7 +1974,10 @@ export function ShellPage() {
     async (text: string, mentions: ComposerMention[] = []) => {
       const initialBotTarget = activeBotId.current;
       const initialGroupTarget = activeGroupId.current;
-      if ((!initialBotTarget && !initialGroupTarget) || sending) return;
+      if (!initialBotTarget && !initialGroupTarget) return;
+      // Composer clears draft only after this promise resolves; a silent
+      // return here would wipe text on an in-flight double-send.
+      if (sending) throw new Error("Sending");
       const originThreadKey = initialGroupTarget ?? initialBotTarget;
       const attachments = attachmentsForThread(pendingAttachments, originThreadKey);
       const plan = resolveComposerSendPlan({
@@ -2108,6 +2109,7 @@ export function ShellPage() {
         } else if (botTarget && activeBotId.current === botTarget) {
           setSendError(error instanceof Error ? error.message : t`Failed to send message`);
         }
+        throw error;
       } finally {
         setSending(false);
       }
@@ -3308,7 +3310,7 @@ export function ShellPage() {
             disabled={Boolean(recordingSkill)}
             pendingAttachments={activePendingAttachments}
             attachmentNotice={attachmentNotice}
-            sendError={needsComputer || dockedAsk ? null : sendError}
+            sendError={sendError}
             runError={displayedRunError}
             runErrorId={displayedRunErrorId}
             onRunErrorPresented={handleRunErrorPresented}
@@ -3433,7 +3435,7 @@ export function ShellPage() {
                     !computerScreenError ? (
                     <iframe
                       title={t`Bot screen preview`}
-                      src={embeddedScreenUrl}
+                      src={embeddedScreenUrl ?? undefined}
                       sandbox={screenIframeSandbox(embeddedScreenUrl)}
                       className="h-full w-full border-0 bg-black"
                       allow="clipboard-read; clipboard-write"
@@ -3651,6 +3653,9 @@ export function ShellPage() {
                         webhookEnabled: routineDraft.webhookEnabled,
                         githubEnabled: routineDraft.githubEnabled,
                         messageProvider: routineDraft.messageProvider,
+                        modelProvider: routineDraft.modelProvider,
+                        modelId: routineDraft.modelId,
+                        thinkingLevel: routineDraft.thinkingLevel,
                         ...(runAt ? { runAt } : {}),
                       });
                     } else {
@@ -3665,6 +3670,9 @@ export function ShellPage() {
                         webhookEnabled: routineDraft.webhookEnabled,
                         githubEnabled: routineDraft.githubEnabled,
                         messageProvider: routineDraft.messageProvider,
+                        modelProvider: routineDraft.modelProvider,
+                        modelId: routineDraft.modelId,
+                        thinkingLevel: routineDraft.thinkingLevel,
                       });
                     }
                     if (
@@ -4211,7 +4219,7 @@ export function ShellPage() {
                 <>
                   <iframe
                     title={t`Bot screen`}
-                    src={embeddedScreenUrl}
+                    src={embeddedScreenUrl ?? undefined}
                     sandbox={screenIframeSandbox(embeddedScreenUrl)}
                     className="h-full w-full border-0 bg-black"
                     allow="clipboard-read; clipboard-write; fullscreen"
@@ -4292,7 +4300,7 @@ const Transcript = memo(function Transcript({
   onJumpToMessage: (messageId: string) => void;
   onOpenPeerMessages: (peer: { peerBotId: string; peerBotName: string }) => void;
   memberName?: (botId: string | undefined) => string | undefined;
-  peerBot: (botId: string) => { color: string; status?: string } | undefined;
+  peerBot: (botId: string) => PeerReceiptPeerLook | undefined;
   onRefresh: () => Promise<void>;
   onBotChanged: () => Promise<void>;
   onAddRoutine: (name: string, prompt: string) => void;
@@ -4822,17 +4830,21 @@ const Composer = memo(function Composer({
     mentionQuery === null &&
     (slashSkillOptions.length > 0 || slashActionOptions.length > 0);
 
-  function send() {
+  async function send() {
     if (!canSend || sending || disabled) return;
     const text = serializeComposerPrompt(draft, selectedSkill, selectedMentions);
+    const mentions = selectedMentions;
+    try {
+      await onSend(text, mentions);
+    } catch {
+      return;
+    }
     setDraft("");
     setMentionQuery(null);
     setMentionHighlightIndex(0);
     setSlashQuery(null);
     setSelectedSkill(null);
-    const mentions = selectedMentions;
     setSelectedMentions([]);
-    void onSend(text, mentions);
   }
 
   function handleDragEnter(event: DragEvent<HTMLFieldSetElement>) {
@@ -4924,7 +4936,8 @@ const Composer = memo(function Composer({
           takeoverReason={takeoverReason}
           onOpenComputer={onOpenComputer}
         />
-      ) : sendError || runError ? (
+      ) : null}
+      {sendError || (!(dockedAsk || needsComputer) && runError) ? (
         <div
           ref={runErrorRef}
           role="alert"
@@ -5472,7 +5485,7 @@ const MessageView = memo(function MessageView({
   onOpenPeerMessages: (peer: { peerBotId: string; peerBotName: string }) => void;
   speakerName?: string;
   memberName?: (botId: string | undefined) => string | undefined;
-  peerBot: (botId: string) => { color: string; status?: string } | undefined;
+  peerBot: (botId: string) => PeerReceiptPeerLook | undefined;
   replyPreview?: ThreadMessage;
   replyToMessageId?: string;
   onJumpToMessage?: (messageId: string) => void;
@@ -5574,6 +5587,7 @@ const MessageView = memo(function MessageView({
           const sent = block.kind === "bot_message_sent";
           const peer = sent ? block.toBotName : block.fromBotName;
           const peerBotId = sent ? block.toBotId : block.fromBotId;
+          const look = peerBot(peerBotId);
           const label =
             block.text && isRateLimitError(block.text)
               ? t`${peer} rate-limited`
@@ -5584,8 +5598,13 @@ const MessageView = memo(function MessageView({
             <CollaborationMarker
               key={i}
               ariaLabel={label}
-              color={peerBot(peerBotId)?.color ?? FALLBACK_BOT_COLOR}
+              color={look?.color ?? FALLBACK_BOT_COLOR}
               identity={peerBotId}
+              imageSrc={botImageSrc({
+                id: peerBotId,
+                hasAvatar: look?.hasAvatar,
+                updatedAt: look?.updatedAt,
+              })}
               label={label}
               onClick={() => onOpenPeerMessages({ peerBotId, peerBotName: peer })}
             />

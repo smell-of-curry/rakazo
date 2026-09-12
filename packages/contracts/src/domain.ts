@@ -350,6 +350,34 @@ export const UpdateBotInput = z
     }
   });
 
+export function refineRoutineModelPair(
+  value: {
+    modelProvider?: string | null;
+    modelId?: string | null;
+    thinkingLevel?: string | null;
+  },
+  ctx: z.RefinementCtx,
+) {
+  const provider = value.modelProvider ?? null;
+  const modelId = value.modelId ?? null;
+  const bothNull = provider === null && modelId === null;
+  const bothSet = Boolean(provider) && Boolean(modelId);
+  if (!bothNull && !bothSet) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Model provider and model id must both be set or both cleared",
+      path: ["modelId"],
+    });
+  }
+  if (value.thinkingLevel && bothNull) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Thinking requires a routine model",
+      path: ["thinkingLevel"],
+    });
+  }
+}
+
 export const RoutineSchema = z.object({
   id: Id,
   botId: Id,
@@ -367,6 +395,9 @@ export const RoutineSchema = z.object({
     .max(50)
     .regex(/^[a-z0-9._-]+$/i)
     .nullable(),
+  modelProvider: z.string().nullable(),
+  modelId: z.string().nullable(),
+  thinkingLevel: ThinkingLevelSchema.nullable(),
   lastRunAt: z.string().nullable(),
   nextRunAt: z.string().nullable(),
   createdAt: z.string(),
@@ -391,6 +422,9 @@ export const CreateRoutineInput = z
       .regex(/^[a-z0-9._-]+$/i)
       .nullable()
       .default(null),
+    modelProvider: z.string().trim().min(1).max(80).nullable().default(null),
+    modelId: z.string().trim().min(1).max(200).nullable().default(null),
+    thinkingLevel: ThinkingLevelSchema.nullable().default(null),
   })
   .superRefine((value, ctx) => {
     if (
@@ -405,6 +439,7 @@ export const CreateRoutineInput = z
         path: ["crons"],
       });
     }
+    refineRoutineModelPair(value, ctx);
   });
 
 export const ScratchpadItemStatusSchema = z.enum(["open", "parked", "done"]);

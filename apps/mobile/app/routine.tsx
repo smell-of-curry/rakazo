@@ -93,6 +93,13 @@ export default function RoutineDetail() {
                 routine.timezone,
               ].join(" · ")}
             </Text>
+            {routine.modelId ? (
+              <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>
+                {routine.thinkingLevel
+                  ? `${routine.modelId} · ${routine.thinkingLevel}`
+                  : routine.modelId}
+              </Text>
+            ) : null}
           </View>
           <View style={{ gap: 8 }}>
             <Text

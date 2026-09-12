@@ -538,8 +538,8 @@ msgid "Authorize"
 msgstr "Authorize"
 
 #: src/pages/shell/message-cards.tsx:350
-msgid "Authorize this server so agents can use its tools. A popup opens."
-msgstr "Authorize this server so agents can use its tools. A popup opens."
+msgid "Authorize this server so agents can use its tools."
+msgstr "Authorize this server so agents can use its tools."
 
 #: src/pages/ExternalConversationSettings.tsx:160
 msgid "Automated senders"
@@ -3045,6 +3045,10 @@ msgstr "Saving..."
 #: src/pages/RoutineEditor.tsx:489
 msgid "Saving…"
 msgstr "Saving…"
+
+#: src/pages/RoutineEditor.tsx:438
+msgid "Same as bot"
+msgstr "Same as bot"
 
 #: src/pages/CallView.tsx:255
 msgid "Say something. Silence sends it."

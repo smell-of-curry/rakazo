@@ -1,6 +1,11 @@
 import { RPCHandler } from "@orpc/server/fetch";
-import { COMPUTER_SCREEN_UNAVAILABLE, ComputerScreenUnavailableError } from "@rakazo/adapters";
-import type { Actor } from "@rakazo/contracts";
+import {
+  COMPUTER_SCREEN_UNAVAILABLE,
+  ComputerScreenUnavailableError,
+  listPiCatalog,
+  resolveDeploymentModel,
+} from "@rakazo/adapters";
+import type { Actor, ModelCredential } from "@rakazo/contracts";
 import { openScreenCapability } from "@rakazo/core/node/screen-capability";
 import type { PrismaClient } from "@rakazo/db";
 import { createLogger, createTestSink, installLogger } from "@rakazo/logging";
@@ -838,5 +843,159 @@ describe("interrupted computer reservation release", () => {
       data: { maintenanceId: null, state: "error" },
     });
     expect(order).toEqual(["operation", "computer"]);
+  });
+});
+
+describe("deployment model credentials", () => {
+  const actor = {
+    spaceId: "workspace-1",
+    userId: "user-1",
+    email: "user@rakazo.test",
+    isDeploymentOwner: true,
+  } satisfies Actor;
+  const deployment = resolveDeploymentModel();
+  const catalogModel = listPiCatalog().find((item) => item.provider === deployment.provider);
+  const fakeKey = "fake-deployment-key";
+
+  function credentialsDeps(options: {
+    deploymentModelKey?: string;
+    rows?: Array<{
+      id: string;
+      provider: string;
+      label: string;
+      secretId: string;
+      preferences: Array<{ isDefault: boolean; modelId: string | null }>;
+    }>;
+    create?: ReturnType<typeof vi.fn>;
+  }) {
+    const create =
+      options.create ??
+      vi.fn().mockResolvedValue({
+        id: "created-deployment",
+        userId: actor.userId,
+        provider: deployment.provider,
+        label: "Deployment",
+        secretId: "deployment",
+      });
+    const prisma = {
+      userModelCredential: {
+        findMany: vi.fn().mockResolvedValue(options.rows ?? []),
+        findFirst: vi.fn().mockResolvedValue(null),
+        create,
+      },
+      secret: { findMany: vi.fn().mockResolvedValue([]) },
+      spaceModelPreference: {
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        upsert: vi.fn().mockResolvedValue({ id: "preference" }),
+      },
+      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
+    } as unknown as PrismaClient;
+    const deps = {
+      prisma,
+      env: {
+        agentRuntime: "pi",
+        defaultProvider: deployment.provider,
+        defaultModel: catalogModel?.id ?? "test-model",
+        deploymentModelKey: options.deploymentModelKey,
+        webOrigin: "http://127.0.0.1:5173",
+        screenProxySecret: "fake-test-secret",
+        sandboxProvider: "fake",
+      },
+      dataDir: "/tmp/rakazo-router-test",
+    } as unknown as RouterDeps;
+    return { prisma, create, handler: new RPCHandler(createRouter(deps)) };
+  }
+
+  async function call(
+    handler: RPCHandler<never>,
+    path: string,
+    body: unknown,
+  ): Promise<{ status: number; json: unknown }> {
+    const { response } = await handler.handle(
+      new Request(`http://127.0.0.1/rpc/${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ json: body }),
+      }),
+      { prefix: "/rpc", context: { actor } },
+    );
+    return { status: response.status, json: await response.json() };
+  }
+
+  it("lists a synthetic Deployment credential when the env key is present and the user has no personal row", async () => {
+    const { handler } = credentialsDeps({ deploymentModelKey: fakeKey });
+    const { status, json } = await call(handler, "models/credentials", {});
+    expect(status).toBe(200);
+    const listed = (json as { json: ModelCredential[] }).json;
+    expect(listed).toEqual([
+      expect.objectContaining({
+        id: "deployment",
+        provider: deployment.provider,
+        label: "Deployment",
+        hasKey: true,
+        isDefault: false,
+      }),
+    ]);
+    expect(JSON.stringify(listed)).not.toContain(fakeKey);
+  });
+
+  it("omits the synthetic Deployment credential when the user already has that provider", async () => {
+    const { handler } = credentialsDeps({
+      deploymentModelKey: fakeKey,
+      rows: [
+        {
+          id: "personal-openrouter",
+          provider: deployment.provider,
+          label: "Personal",
+          secretId: "secret-1",
+          preferences: [],
+        },
+      ],
+    });
+    const { status, json } = await call(handler, "models/credentials", {});
+    expect(status).toBe(200);
+    const listed = (json as { json: ModelCredential[] }).json;
+    expect(listed.map((row) => row.id)).toEqual(["personal-openrouter"]);
+    expect(listed.find((row) => row.id === "deployment")).toBeUndefined();
+    expect(JSON.stringify(listed)).not.toContain(fakeKey);
+  });
+
+  it("creates a deployment sentinel and selects a catalog model without a personal key", async () => {
+    expect(catalogModel).toBeDefined();
+    const { handler, create, prisma } = credentialsDeps({ deploymentModelKey: fakeKey });
+    const { status, json } = await call(handler, "models/setDefault", {
+      provider: deployment.provider,
+      modelId: catalogModel!.id,
+    });
+    expect(status).toBe(200);
+    expect(json).toEqual({ json: { ok: true } });
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        userId: actor.userId,
+        provider: deployment.provider,
+        label: "Deployment",
+        secretId: "deployment",
+      },
+    });
+    expect(prisma.spaceModelPreference.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          credentialId: "created-deployment",
+          modelId: catalogModel!.id,
+          isDefault: true,
+        }),
+      }),
+    );
+  });
+
+  it("rejects setDefault for a non-deployment provider when only the env key is present", async () => {
+    const { handler, create } = credentialsDeps({ deploymentModelKey: fakeKey });
+    const { status, json } = await call(handler, "models/setDefault", {
+      provider: "missing-provider",
+      modelId: "missing/model",
+    });
+    expect(status).toBeGreaterThanOrEqual(400);
+    expect(JSON.stringify(json)).toMatch(/credential/i);
+    expect(create).not.toHaveBeenCalled();
   });
 });

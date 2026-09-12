@@ -21,7 +21,13 @@ function credential(provider: string, defaultModel: string | null) {
 
 const spaceCredential = credential("space-provider", "space-model");
 const overrideCredential = credential("bot-provider", "stored-model");
+const routineCredential = credential("routine-provider", "routine-stored");
 const bot = { modelProvider: "bot-provider", modelId: "bot-model", thinkingLevel: "high" };
+const routine = {
+  modelProvider: "routine-provider",
+  modelId: "routine-model",
+  thinkingLevel: "low",
+};
 const defaults: SelectionInput = {
   bot: null,
   overrideCredential: null,
@@ -106,6 +112,40 @@ describe("configured model selection", () => {
         thinkingLevel: null,
       },
     },
+    {
+      name: "routine override wins over bot model",
+      input: { bot, routine, overrideCredential: routineCredential },
+      expected: {
+        provider: "routine-provider",
+        id: "routine-model",
+        credential: routineCredential,
+        thinkingLevel: "low",
+      },
+    },
+    {
+      name: "incomplete routine (id null) falls through to bot",
+      input: { bot, routine: { ...routine, modelId: null }, overrideCredential },
+      expected: {
+        provider: "bot-provider",
+        id: "bot-model",
+        credential: overrideCredential,
+        thinkingLevel: "high",
+      },
+    },
+    {
+      name: "uses routine thinking when override credential exists",
+      input: {
+        bot: { ...bot, thinkingLevel: null },
+        routine,
+        overrideCredential: routineCredential,
+      },
+      expected: {
+        provider: "routine-provider",
+        id: "routine-model",
+        credential: routineCredential,
+        thinkingLevel: "low",
+      },
+    },
   ])("$name", ({ input, expected }) => {
     expect(selectConfiguredModel({ ...defaults, ...input })).toEqual(expected);
   });
@@ -188,6 +228,35 @@ describe("connected model validation", () => {
     } as unknown as PrismaClient;
     await expect(
       validateConnectedModelChoice(disconnectedPrisma, actor, "anthropic", "claude-opus-4-6"),
+    ).resolves.toBe("Connect that model provider first");
+  });
+
+  it("accepts a catalog model when the deployment provider matches", async () => {
+    const disconnectedPrisma = {
+      spaceModelPreference: { findFirst: async () => null },
+      userModelCredential: { findFirst: async () => null },
+    } as unknown as PrismaClient;
+    const deployment = { provider: "anthropic", key: "fake-deployment-key" };
+    await expect(
+      validateConnectedModelChoice(
+        disconnectedPrisma,
+        actor,
+        "anthropic",
+        "claude-opus-4-6",
+        deployment,
+      ),
+    ).resolves.toBeUndefined();
+    await expect(
+      validateConnectedModelChoice(
+        disconnectedPrisma,
+        actor,
+        "anthropic",
+        "not-a-model",
+        deployment,
+      ),
+    ).resolves.toBe("Connect that model provider first");
+    await expect(
+      validateConnectedModelChoice(disconnectedPrisma, actor, "xai", "grok-4.6", deployment),
     ).resolves.toBe("Connect that model provider first");
   });
 });

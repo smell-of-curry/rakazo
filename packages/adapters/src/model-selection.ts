@@ -21,9 +21,19 @@ export async function validateConnectedModelChoice(
   actor: Pick<Actor, "userId" | "spaceId">,
   provider: string,
   modelId: string,
+  deployment?: { provider: string; key?: string },
 ) {
   const credential = await findModelCredential(prisma, actor, provider);
-  if (!credential) return "Connect that model provider first";
+  if (!credential) {
+    if (
+      deployment?.key &&
+      deployment.provider === provider &&
+      isCatalogModelChoice(provider, modelId)
+    ) {
+      return undefined;
+    }
+    return "Connect that model provider first";
+  }
   if (isCatalogModelChoice(provider, modelId)) return undefined;
   // Free-form saved IDs only resolve at runtime for openai-compatible connections.
   if (provider !== OPENAI_COMPATIBLE_PROVIDER_ID) {
@@ -41,19 +51,24 @@ export async function validateConnectedModelChoice(
   return savedChoice ? undefined : "Unknown model for that provider";
 }
 
+type ModelChoice = {
+  modelProvider: string | null;
+  modelId: string | null;
+  thinkingLevel: string | null;
+};
+
 /** Select configuration without loading secrets or applying a runtime-specific fallback. */
 export function selectConfiguredModel(input: {
-  bot: {
-    modelProvider: string | null;
-    modelId: string | null;
-    thinkingLevel: string | null;
-  } | null;
+  bot: ModelChoice | null;
+  routine?: ModelChoice | null;
   overrideCredential: ModelCredential;
   defaultCredential: ModelCredential;
   settings: { defaultModelProvider: string | null; defaultModelId: string | null } | null;
   deployment: { provider: string; model: string } | null;
 }) {
-  const { bot, overrideCredential, defaultCredential, settings, deployment } = input;
+  const { overrideCredential, defaultCredential, settings, deployment } = input;
+  const hasRoutineOverride = Boolean(input.routine?.modelProvider && input.routine.modelId);
+  const bot = hasRoutineOverride ? input.routine! : input.bot;
   const hasOverride = Boolean(bot?.modelProvider && bot.modelId);
   // The override provider, model and credential must win together.
   const useOverride = Boolean(hasOverride && overrideCredential);
