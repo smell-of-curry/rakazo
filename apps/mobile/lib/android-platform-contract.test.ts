@@ -1,9 +1,21 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const mobileRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+function threadSource(): string {
+  const threadFiles = [
+    resolve(mobileRoot, "app/thread.tsx"),
+    ...readdirSync(resolve(mobileRoot, "components/thread"))
+      .filter((name) => name.endsWith(".tsx") || name.endsWith(".ts"))
+      .sort()
+      .map((name) => resolve(mobileRoot, "components/thread", name)),
+    resolve(mobileRoot, "lib/thread-ui.ts"),
+  ];
+  return threadFiles.map((path) => readFileSync(path, "utf8")).join("\n");
+}
 
 describe("Android mobile platform contract", () => {
   it("keeps authentication actions reachable while the keyboard is open", () => {
@@ -18,7 +30,7 @@ describe("Android mobile platform contract", () => {
     const config = JSON.parse(readFileSync(resolve(mobileRoot, "app.json"), "utf8"));
     const packageJson = JSON.parse(readFileSync(resolve(mobileRoot, "package.json"), "utf8"));
     const layout = readFileSync(resolve(mobileRoot, "app/_layout.tsx"), "utf8");
-    const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
+    const thread = threadSource();
     expect(config.expo.android.softwareKeyboardLayoutMode).toBe("resize");
     expect(packageJson.dependencies["react-native-keyboard-controller"]).toBeTruthy();
     expect(layout).toContain("KeyboardProvider");
@@ -43,7 +55,7 @@ describe("Android mobile platform contract", () => {
     const module = readFileSync(resolve(nativeRoot, "RakazoNotificationsModule.kt"), "utf8");
     const allowlist = readFileSync(resolve(nativeRoot, "EndpointAllowlist.kt"), "utf8");
     const live = readFileSync(resolve(mobileRoot, "lib/live-notifications.ts"), "utf8");
-    const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
+    const thread = threadSource();
     expect(service).toContain("android.requestPromotedOngoing");
     expect(service).toContain("liveStatusIcon(primary)");
     expect(service).not.toContain("showStarting");
@@ -131,7 +143,7 @@ describe("Android mobile platform contract", () => {
   });
 
   it("centers the latest-message control and clears a thread's Android notifications when read", () => {
-    const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
+    const thread = threadSource();
     const notifications = readFileSync(resolve(mobileRoot, "lib/live-notifications.ts"), "utf8");
     expect(thread).toContain('left: "50%"');
     expect(thread).toContain("dismissThreadNotifications");
@@ -140,18 +152,18 @@ describe("Android mobile platform contract", () => {
   });
 
   it("renders the per-message transport in every native channel-message path", () => {
-    const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
-    expect(
-      thread.match(/messagingProviderLabel\(block\.provider, block\.transport\)/g),
-    ).toHaveLength(2);
-    expect(thread).toContain(
-      "messagingProviderLabel(channelMessage.provider, channelMessage.transport)",
+    const thread = threadSource();
+    expect(thread.match(/messageProviderLabel\(block\.provider, block\.transport\)/g)).toHaveLength(
+      2,
     );
-    expect(thread).not.toMatch(/messagingProviderLabel\((?:block|channelMessage)\.provider\)/);
+    expect(thread).toContain(
+      "messageProviderLabel(channelMessage.provider, channelMessage.transport)",
+    );
+    expect(thread).not.toMatch(/messageProviderLabel\((?:block|channelMessage)\.provider\)/);
   });
 
   it("reconciles finished agents and opens ordinary chats at the latest message", () => {
-    const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
+    const thread = threadSource();
     const scroll = readFileSync(
       resolve(mobileRoot, "../../packages/core/src/thread-scroll.ts"),
       "utf8",
@@ -164,7 +176,7 @@ describe("Android mobile platform contract", () => {
   });
 
   it("stacks every currently working agent in a group footer", () => {
-    const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
+    const thread = threadSource();
     expect(thread).toContain("workingGroupBots.map");
     expect(thread).toContain("inGroup && workingGroupBots.length > 0 ?");
     expect(thread).toContain("workingGroupBots.length - index");
@@ -177,7 +189,7 @@ describe("Android mobile platform contract", () => {
   });
 
   it("keeps send and stop separate while steering active work", () => {
-    const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
+    const thread = threadSource();
     const stopStart = thread.indexOf("async function stop()");
     const stopSource = thread.slice(stopStart, thread.indexOf("const answerMessage", stopStart));
     expect(stopStart).toBeGreaterThan(-1);
@@ -204,7 +216,7 @@ describe("Android mobile platform contract", () => {
 
   it("shows agent notification silence in the menu, inbox avatar, and DM header only", () => {
     const index = readFileSync(resolve(mobileRoot, "app/index.tsx"), "utf8");
-    const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
+    const thread = threadSource();
     const avatar = readFileSync(resolve(mobileRoot, "components/bot-avatar.tsx"), "utf8");
     const menu = readFileSync(resolve(mobileRoot, "components/bot-organize-modal.tsx"), "utf8");
     expect(menu).toContain("Silence notifications");

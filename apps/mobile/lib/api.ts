@@ -784,8 +784,6 @@ export function prependMobileMessagePage(
   return prependThreadHistoryPage(prev, page);
 }
 
-export const messagingProviderLabel = messageProviderLabel;
-
 export function copyableMobileMessageText(message: MobileMessage): string {
   return copyableMessageText(message);
 }
@@ -794,7 +792,7 @@ export function blockText(message: MobileMessage) {
   return message.blocks
     .map((block) => {
       if (block.kind === "channel_message") {
-        return `${messagingProviderLabel(block.provider, block.transport)} · ${block.fromLabel}: ${block.text}`;
+        return `${messageProviderLabel(block.provider, block.transport)} · ${block.fromLabel}: ${block.text}`;
       }
       if (block.kind === "cloud_agent")
         return `${block.title}: ${block.status}${block.prUrl ? ` ${block.prUrl}` : ""}`;
