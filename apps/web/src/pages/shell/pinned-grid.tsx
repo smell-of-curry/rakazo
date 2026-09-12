@@ -35,7 +35,7 @@ export function PinnedGridCell({
     <button
       type={type}
       className={cn(
-        "flex flex-col items-center gap-1 rounded-2xl px-1 py-2 text-center",
+        "flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-center",
         kind === "bot" ? "cursor-grab active:cursor-grabbing" : null,
         selected ? "bg-sidebar-accent" : "hover:bg-sidebar-accent",
         className,
@@ -47,7 +47,7 @@ export function PinnedGridCell({
       <span
         dir="auto"
         data-roster-bot-name={kind === "bot" ? "" : undefined}
-        className="w-full truncate text-[12px] font-medium text-foreground"
+        className="w-full truncate text-caption font-medium text-foreground"
       >
         {name}
       </span>

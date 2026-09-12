@@ -14,6 +14,7 @@ import { IsolationError } from "./scope.js";
 import { lockSpaceForContentCreation } from "./spaces.js";
 import {
   activeRunSelection,
+  isOutboundBotMessage,
   preferredActiveRunStatus,
   previewFromBlocks,
 } from "./thread-listing.js";
@@ -305,6 +306,10 @@ export function createRepos(prisma: PrismaClient) {
               });
               for (const run of morePeers) peerRunIds.add(run.id);
               for (const runId of windowRunIds) checkedRunIds.add(runId);
+            }
+            if (isOutboundBotMessage(messages[0]?.blocks)) {
+              preview = previewFromBlocks(messages[0]?.blocks);
+              break;
             }
             const visible = userVisibleMessages(
               messages.map((message) => ({

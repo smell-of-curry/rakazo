@@ -73,6 +73,43 @@ describe("listSpaceGroupsForSpaces", () => {
     expect(query.select).not.toHaveProperty("archivedAt");
     expect(query.select).not.toHaveProperty("createdAt");
   });
+
+  it("prefixes a group preview with the sending bot name", async () => {
+    const findMany = vi.fn(async () => [
+      {
+        id: "group-1",
+        spaceId: "workspace-2",
+        name: "Support crew",
+        pinned: false,
+        sectionId: null,
+        updatedAt: new Date("2026-08-20T00:00:00.000Z"),
+        thread: {
+          unread: false,
+          messages: [
+            {
+              blocks: [{ kind: "text", text: "hello" }],
+              role: "bot",
+              botId: "bot-2",
+            },
+          ],
+        },
+        members: [
+          { bot: { id: "bot-1", name: "Triage", color: "#111", runs: [] } },
+          { bot: { id: "bot-2", name: "Responder", color: "#222", runs: [] } },
+        ],
+      },
+    ]);
+    const repos = createGroupRepos({ chatGroup: { findMany } } as unknown as PrismaClient);
+    const actor = {
+      spaceId: "workspace-1",
+      userId: "user-1",
+      email: "user@example.test",
+      isDeploymentOwner: false,
+    };
+    await expect(repos.listSpaceGroupsForSpaces(actor, ["workspace-2"])).resolves.toEqual([
+      expect.objectContaining({ preview: "Responder: hello" }),
+    ]);
+  });
 });
 
 describe("archiveGroup", () => {

@@ -5,6 +5,21 @@ import { ChevronDown, Lock } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { formatSidebarTime } from "../../lib/sidebar-time";
 
+export function accountDisplayName(name?: string | null, email?: string | null): string {
+  const trimmed = name?.trim() ?? "";
+  if (trimmed && trimmed.toLowerCase() !== "owner") return trimmed;
+  return email?.split("@")[0]?.trim() ?? "";
+}
+
+export function accountInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export type BotTitleCapsuleProps = {
   title?: string | null;
   className?: string;
@@ -17,11 +32,11 @@ export function BotTitleCapsule({ title, className }: BotTitleCapsuleProps) {
     <span
       dir="auto"
       className={cn(
-        "max-w-full truncate rounded-full bg-muted px-1.5 py-px text-[10px] text-muted-foreground",
+        "max-w-full truncate rounded-full bg-muted px-1.5 py-px text-muted-foreground",
         className,
       )}
     >
-      {value}
+      <span className="text-micro">{value}</span>
     </span>
   );
 }
@@ -30,11 +45,11 @@ export function NeedsYouBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "max-w-full truncate rounded-full bg-warning/15 px-1.5 py-px text-[10px] text-warning",
+        "max-w-full truncate rounded-full bg-warning/15 px-1.5 py-px text-warning",
         className,
       )}
     >
-      {i18n._({ id: "Needs you", message: "Needs you" })}
+      <span className="text-micro">{i18n._({ id: "Needs you", message: "Needs you" })}</span>
     </span>
   );
 }
@@ -59,14 +74,14 @@ export function SidebarSectionHeader({
   ...rest
 }: SidebarSectionHeaderProps) {
   return (
-    <div className="flex items-center pt-2">
+    <div className="group flex items-center">
       <button
         type={type}
         aria-expanded={showChevron ? !collapsed : undefined}
-        className={cn(
-          "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
+        className={`${cn(
+          "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-2.5 font-medium uppercase tracking-[0.06em] text-muted-foreground hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
           className,
-        )}
+        )} text-caption`}
         {...rest}
       >
         <span className="flex min-w-0 items-center gap-1.5 truncate">
@@ -77,7 +92,10 @@ export function SidebarSectionHeader({
           <ChevronDown
             size={14}
             strokeWidth={1.8}
-            className={collapsed ? "-rotate-90 transition-transform" : "transition-transform"}
+            className={cn(
+              "opacity-0 transition-transform group-hover:opacity-100 group-focus-within:opacity-100",
+              collapsed ? "-rotate-90" : null,
+            )}
             aria-hidden="true"
           />
         ) : null}
@@ -117,12 +135,14 @@ export function SidebarChatRow({
   type = "button",
   ...rest
 }: SidebarChatRowProps) {
+  void title;
   const stamp = time ?? (updatedAt ? formatSidebarTime(updatedAt) : "");
+  const needsYou = isNeedsYou(status);
   return (
     <button
       type={type}
       className={cn(
-        "flex w-full gap-3 rounded-xl px-2.5 py-[11px] text-start",
+        "flex h-[52px] w-full items-center gap-3 rounded-lg px-2.5 text-start",
         kind === "bot" ? "cursor-grab active:cursor-grabbing" : null,
         selected ? "bg-sidebar-accent" : "hover:bg-sidebar-accent",
         className,
@@ -136,44 +156,64 @@ export function SidebarChatRow({
           <span
             dir="auto"
             data-roster-bot-name={kind === "bot" ? "" : undefined}
-            className={cn(
-              "truncate text-[13px] text-foreground",
-              unread ? "font-semibold" : "font-medium",
-            )}
+            className="truncate text-body font-semibold text-foreground"
           >
             {name}
             {unread ? (
               <span className="sr-only">{i18n._({ id: " (unread)", message: " (unread)" })}</span>
             ) : null}
           </span>
-          <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground/80">
-            {isNeedsYou(status) ? <NeedsYouBadge /> : null}
-            {stamp}
-            {unread ? (
-              <span
-                aria-hidden="true"
-                className="inline-block h-2 w-2 rounded-full bg-foreground"
-              />
-            ) : null}
+          <span className="flex shrink-0 items-center gap-1.5">
+            {needsYou ? (
+              <NeedsYouBadge />
+            ) : (
+              <>
+                {unread ? (
+                  <span
+                    aria-hidden="true"
+                    className="inline-block h-1.5 w-1.5 rounded-full bg-primary"
+                  />
+                ) : null}
+                {stamp ? <span className="text-caption text-muted-foreground">{stamp}</span> : null}
+              </>
+            )}
           </span>
         </div>
-        {preview || (kind === "bot" && title?.trim()) ? (
-          <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-            {kind === "bot" ? <BotTitleCapsule title={title} className="shrink-0" /> : null}
-            {preview ? (
-              <div
-                dir="auto"
-                className={cn(
-                  "min-w-0 truncate text-[12px]",
-                  unread ? "font-medium text-foreground/75" : "text-muted-foreground/80",
-                )}
-              >
-                {preview}
-              </div>
-            ) : null}
+        {preview ? (
+          <div dir="auto" className="truncate text-small text-muted-foreground">
+            {preview}
           </div>
         ) : null}
       </div>
+    </button>
+  );
+}
+
+export type SidebarAccountRowProps = {
+  name: string;
+  initials: string;
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">;
+
+export function SidebarAccountRow({
+  name,
+  initials,
+  className,
+  type = "button",
+  ...rest
+}: SidebarAccountRowProps) {
+  return (
+    <button
+      type={type}
+      className={cn(
+        "flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-start hover:bg-sidebar-accent",
+        className,
+      )}
+      {...rest}
+    >
+      <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+        <span className="text-micro">{initials}</span>
+      </span>
+      <span className="truncate text-body">{name}</span>
     </button>
   );
 }

@@ -132,6 +132,40 @@ describe("createRepos.listBots", () => {
     expect(prisma.message.findMany).toHaveBeenCalledTimes(2);
   });
 
+  it("uses Messaged {Peer} when the newest message is an outbound bot_message", async () => {
+    const prisma = {
+      bot: {
+        findMany: vi.fn(async () => [
+          {
+            ...baseBot,
+            thread: {
+              ...baseBot.thread,
+              messages: [
+                {
+                  runId: "run-user",
+                  blocks: [
+                    {
+                      kind: "bot_message_sent",
+                      toBotId: "bot-2",
+                      toBotName: "Ken",
+                      text: "check marks",
+                    },
+                  ],
+                },
+                { runId: "run-user", blocks: [{ kind: "text", text: "Please ask Ken." }] },
+              ],
+            },
+          },
+        ]),
+      },
+      run: { findMany: vi.fn(async () => []) },
+    };
+
+    await expect(createRepos(prisma as unknown as PrismaClient).listBots(actor)).resolves.toEqual([
+      expect.objectContaining({ preview: "Messaged Ken: check marks" }),
+    ]);
+  });
+
   it("keeps bot-to-bot run output out of sidebar previews", async () => {
     const findMany = vi.fn(async () => [
       {

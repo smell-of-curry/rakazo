@@ -42,7 +42,12 @@ import { SpaceSearchResults } from "../SpaceSearch";
 import { WindowChrome } from "../WindowChrome";
 import { BotCreatePicker } from "./bot-picker";
 import { PinnedGrid, PinnedGridCell } from "./pinned-grid";
-import { SidebarChatRow, SidebarSectionHeader } from "./sidebar-chrome";
+import {
+  accountDisplayName,
+  accountInitials,
+  SidebarChatRow,
+  SidebarSectionHeader,
+} from "./sidebar-chrome";
 import type { Panel } from "./types";
 
 type SidebarBotChat = Pick<
@@ -141,6 +146,7 @@ export type ShellSidebarProps = {
   setMenuOpen: (open: boolean) => void;
   initials: string;
   userName: string;
+  setCommandPaletteOpen: (open: boolean) => void;
   openSettings: (section?: SettingsSection) => void;
   setUsage: Dispatch<
     SetStateAction<{
@@ -224,50 +230,35 @@ export function ShellSidebar({
   setMenuOpen,
   initials,
   userName,
+  setCommandPaletteOpen,
   openSettings,
   setUsage,
   botsSidebarEdgeDragRef,
 }: ShellSidebarProps) {
+  const accountName =
+    accountDisplayName(bootstrapMe?.name, bootstrapMe?.email) || accountDisplayName(userName) || "";
+  const accountLabel = accountInitials(accountName) || initials;
+
   return (
     <>
       <aside
         data-testid="bots-sidebar"
         data-collapsed={botsSidebarCollapsed ? "true" : "false"}
         inert={botsSidebarCollapsed && !mobileSidebarOpen ? true : undefined}
-        className={`absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[316px] shrink-0 flex-col border-e border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
+        className={`absolute inset-y-0 start-0 z-40 flex w-[calc(100%-48px)] max-w-[280px] shrink-0 flex-col border-e border-sidebar-border bg-sidebar transition-[transform,width,opacity] md:static md:z-auto md:translate-x-0 ${
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
         } ${
           botsSidebarCollapsed
             ? "md:w-0 md:max-w-0 md:overflow-hidden md:border-e-0 md:opacity-0 md:pointer-events-none"
-            : "md:w-[316px]"
+            : "md:w-[280px]"
         }`}
       >
-        <div className="app-drag flex items-center justify-between px-[18px] pb-3 pt-4">
+        <div className="app-drag group flex h-11 items-center justify-between px-3">
           <WindowChrome />
-          <div className="relative flex items-center gap-2.5">
+          <div className="relative flex items-center gap-1">
             <button
               type="button"
-              aria-label={t`Activity`}
-              aria-pressed={activityMode}
-              title={t`Activity`}
-              data-activity-mode={activityMode ? "on" : "off"}
-              onClick={toggleActivityMode}
-              className={`app-no-drag flex h-7 w-7 items-center justify-center rounded-full ${
-                activityMode
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground/70 hover:text-foreground/75"
-              }`}
-            >
-              <Bell
-                size={15}
-                strokeWidth={1.8}
-                fill={activityMode ? "currentColor" : "none"}
-                aria-hidden="true"
-              />
-            </button>
-            <button
-              type="button"
-              className="app-no-drag hidden h-7 w-7 items-center justify-center rounded-full text-muted-foreground/70 hover:text-foreground/75 md:inline-flex"
+              className="app-no-drag hidden h-7 w-7 items-center justify-center rounded-full text-muted-foreground/70 opacity-0 hover:text-foreground/75 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 md:inline-flex"
               aria-label={t`Minimize bots`}
               title={t`Minimize bots`}
               data-testid="minimize-bots-sidebar"
@@ -277,7 +268,7 @@ export function ShellSidebar({
             </button>
             <Popover open={createMenuOpen} onOpenChange={setCreateMenuOpen}>
               <PopoverTrigger
-                className="app-no-drag text-[21px] text-muted-foreground/70 hover:text-foreground/75"
+                className="app-no-drag text-title text-muted-foreground/70 hover:text-foreground/75"
                 title={t`Create`}
                 data-testid="create-menu-trigger"
               >
@@ -328,17 +319,23 @@ export function ShellSidebar({
         </div>
         <InputGroup
           data-testid="sidebar-search"
-          className="mx-2.5 mb-3 w-auto rounded-xl bg-card dark:bg-input"
+          className="mx-2.5 mb-3 h-8 w-auto rounded-full border-0 bg-muted shadow-none"
         >
           <InputGroupAddon>
-            <Search size={16} strokeWidth={1.8} aria-hidden="true" />
+            <Search size={14} strokeWidth={1.8} className="size-3.5" aria-hidden="true" />
           </InputGroupAddon>
           <InputGroupInput
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              setCommandPaletteOpen(true);
+            }}
             placeholder={t`Search`}
             autoComplete="off"
             name="sidebar-search"
+            className="text-body"
           />
         </InputGroup>
         <div className="rk-scroll flex flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pb-2.5">
@@ -369,7 +366,7 @@ export function ShellSidebar({
                   const selected =
                     (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
                     (item.kind === "group" && inGroup && activeGroup?.id === item.chat.id);
-                  const avatarSize = isPinned ? 52 : 38;
+                  const avatarSize = isPinned ? 52 : 36;
                   const liveMembers =
                     item.kind === "group" && item.chat.id === activeSnapshotGroupId
                       ? (activeSnapshotMembers ?? item.chat.members)
@@ -551,7 +548,7 @@ export function ShellSidebar({
                 type="button"
                 aria-expanded={archivedOpen}
                 onClick={() => setArchivedOpen((open) => !open)}
-                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[13.5px] text-muted-foreground hover:bg-sidebar-accent"
+                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-body text-muted-foreground hover:bg-sidebar-accent"
               >
                 <span>
                   <Trans>Archived</Trans>
@@ -570,7 +567,7 @@ export function ShellSidebar({
                         imageSrc={botImageSrc(bot)}
                       />
                       <span
-                        className="min-w-0 flex-1 truncate text-[14px] text-foreground/75"
+                        className="min-w-0 flex-1 truncate text-body text-foreground/75"
                         dir="auto"
                       >
                         {bot.name}
@@ -599,7 +596,7 @@ export function ShellSidebar({
                     <div key={group.id} className="flex items-center gap-2 rounded-lg px-2.5 py-2">
                       <GroupAvatar members={group.members} size={28} />
                       <span
-                        className="min-w-0 flex-1 truncate text-[14px] text-foreground/75"
+                        className="min-w-0 flex-1 truncate text-body text-foreground/75"
                         dir="auto"
                       >
                         {group.name}
@@ -634,31 +631,49 @@ export function ShellSidebar({
         <button
           type="button"
           onClick={() => setPluginsOpen(true)}
-          className="mx-3 mb-1 flex items-center gap-3 rounded-[11px] px-2.5 py-2 hover:bg-sidebar-accent"
+          className="mx-2 mb-0.5 flex h-9 items-center gap-3 rounded-lg px-2.5 hover:bg-sidebar-accent"
         >
-          <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-muted text-foreground/75">
-            <Puzzle size={15} strokeWidth={1.7} />
-          </span>
-          <span className="text-[14.5px] text-foreground/90">
+          <Puzzle
+            size={16}
+            strokeWidth={1.7}
+            className="text-muted-foreground"
+            aria-hidden="true"
+          />
+          <span className="text-body">
             <Trans>Integrations</Trans>
           </span>
         </button>
         <Popover open={menuOpen} onOpenChange={setMenuOpen}>
           <PopoverTrigger
             data-testid="user-menu-trigger"
-            className="flex items-center gap-[11px] px-[18px] py-3.5"
+            className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-start hover:bg-sidebar-accent"
           >
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-accent text-[12px] text-foreground/75">
-              {initials}
+            <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-muted text-micro text-muted-foreground">
+              {accountLabel}
             </span>
-            <span className="text-[14.5px] text-foreground/90">{userName}</span>
+            <span className="truncate text-body">{accountName}</span>
           </PopoverTrigger>
           {menuOpen ? (
             <PopoverContent
               side="top"
               align="start"
-              className="w-[calc(316px-1.5rem)] max-w-[calc(100vw-3rem)] gap-0 p-1 data-closed:animate-none"
+              className="w-[calc(280px-1.5rem)] max-w-[calc(100vw-3rem)] gap-0 p-1 data-closed:animate-none"
             >
+              <Button
+                variant="ghost"
+                className="w-full justify-start font-normal"
+                aria-label={t`Activity`}
+                aria-pressed={activityMode}
+                title={t`Activity`}
+                data-activity-mode={activityMode ? "on" : "off"}
+                onClick={() => {
+                  toggleActivityMode();
+                  setMenuOpen(false);
+                }}
+              >
+                <Bell className="text-muted-foreground" strokeWidth={1.75} />
+                <Trans>Activity</Trans>
+              </Button>
               <Button
                 variant="ghost"
                 className="w-full justify-start font-normal"
@@ -711,7 +726,7 @@ export function ShellSidebar({
         aria-label={botsSidebarCollapsed ? t`Show bots` : t`Hide bots`}
         aria-pressed={!botsSidebarCollapsed}
         className={`absolute inset-y-0 z-50 hidden w-2 cursor-ew-resize touch-none border-0 bg-transparent p-0 md:block ${
-          botsSidebarCollapsed ? "start-0" : "start-[308px]"
+          botsSidebarCollapsed ? "start-0" : "start-[272px]"
         }`}
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId);

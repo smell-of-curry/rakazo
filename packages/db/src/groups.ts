@@ -15,7 +15,7 @@ import {
   activeRunSelection,
   activeRunStatuses,
   preferredActiveRunStatus,
-  previewFromBlocks,
+  previewFromGroupMessage,
 } from "./thread-listing.js";
 
 type GroupRecord = {
@@ -31,7 +31,7 @@ type GroupRecord = {
   thread: {
     id: string;
     unread: boolean;
-    messages: Array<{ blocks: unknown }>;
+    messages: Array<{ blocks: unknown; role?: string | null; botId?: string | null }>;
   } | null;
   members: Array<{
     bot: {
@@ -51,7 +51,7 @@ type SpaceGroupRecord = Pick<
 > & {
   thread: {
     unread: boolean;
-    messages: Array<{ blocks: unknown }>;
+    messages: Array<{ blocks: unknown; role?: string | null; botId?: string | null }>;
   } | null;
 };
 
@@ -68,7 +68,7 @@ function mapGroupMembers(members: GroupRecord["members"]): GroupMember[] {
 
 function mapGroup(group: GroupRecord): Group {
   if (!group.thread) throw new IsolationError("Group is missing its thread");
-  const preview = previewFromBlocks(group.thread.messages[0]?.blocks);
+  const preview = previewFromGroupMessage(group.thread.messages[0], group.members);
   return {
     id: group.id,
     spaceId: group.spaceId,
@@ -94,7 +94,7 @@ function mapSpaceGroup(group: SpaceGroupRecord): SpaceGroup {
     pinned: group.pinned,
     sectionId: group.sectionId,
     members: mapGroupMembers(group.members),
-    preview: previewFromBlocks(group.thread.messages[0]?.blocks),
+    preview: previewFromGroupMessage(group.thread.messages[0], group.members),
     unread: group.thread.unread,
     updatedAt: group.updatedAt.toISOString(),
   };
@@ -205,7 +205,7 @@ export function createGroupRepos(prisma: PrismaClient) {
             messages: {
               orderBy: { seq: "desc" },
               take: 1,
-              select: { blocks: true },
+              select: { blocks: true, role: true, botId: true },
             },
           },
         },
