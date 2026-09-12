@@ -4,6 +4,7 @@ import {
   buildComposerMentionOptions,
   isActive,
   latestAnswerableAskMessageId,
+  resolveAvatarColor,
   userVisibleMessages,
 } from "@rakazo/core";
 import { Button, type GroupAvatarMember } from "@rakazo/ui-web";
@@ -20,7 +21,6 @@ import { askBlockFromMessage, latestComputerNeedsYouText } from "./shell/compose
 import { embeddableScreenUrl } from "./shell/computer-screen";
 import { ShellLayout } from "./shell/shell-layout";
 import type { Panel } from "./shell/types";
-import { FALLBACK_BOT_COLOR } from "./shell/types";
 import { useComputer } from "./shell/use-computer";
 import { useOverlays } from "./shell/use-overlays";
 import { useRoster } from "./shell/use-roster";
@@ -127,77 +127,18 @@ export function ShellPage() {
     bots,
     setBots,
     botsRef,
-    botSections,
-    spaces,
-    archivedBots,
-    archivedGroups,
-    archivedOpen,
-    setArchivedOpen,
-    collapsedSidebarSections,
-    query,
-    setQuery,
-    searchHits,
-    searchLoading,
-    menuOpen,
-    setMenuOpen,
-    mobileSidebarOpen,
-    setMobileSidebarOpen,
-    mobileSidebarSwipeRef,
-    draggedBotId,
-    setDraggedBotId,
-    createMenuOpen,
-    setCreateMenuOpen,
-    botsSidebarCollapsed,
-    botsSidebarEdgeDragRef,
     focusPromptBotIdRef,
     cancelFocusPrompt,
-    newSpaceOpen,
-    setNewSpaceOpen,
-    pickerInfoTopic,
-    setPickerInfoTopic,
-    botMenu,
-    setBotMenu,
-    botMenuAnchor,
-    closeBotMenu,
-    deleteTarget,
-    setDeleteTarget,
-    deleteGroupTarget,
-    setDeleteGroupTarget,
-    deleteSpaceTarget,
-    setDeleteSpaceTarget,
-    spaceMenu,
-    setSpaceMenu,
-    spaceMenuAnchor,
-    closeSpaceMenu,
-    clearTarget,
-    setClearTarget,
-    newSectionTarget,
-    setNewSectionTarget,
     initialBotsLoaded,
-    bootstrapMe,
     refreshBots,
-    markBotRead,
-    markBotUnread,
     markBotReadIfVisible,
     notifyBrowserForEvent,
     flushPendingBrowserNotifications,
     manuallyUnread,
     readVisibleGroups,
-    sidebarGroups,
-    openSpaceChat,
-    reorderRosterBot,
-    toggleSidebarSection,
-    jumpToSearchHit,
-    createBot,
-    createGroup,
-    setBotsSidebarCollapsedPref,
     inGroup,
     active,
     activeGroup,
-    showSpaceSearch,
-    contextBot,
-    contextGroup,
-    contextChat,
   } = roster;
 
   activeBotId.current = inGroup ? undefined : active?.id;
@@ -293,41 +234,12 @@ export function ShellPage() {
   });
   const {
     snapshot,
-    updateSnapshot,
-    setReplyTarget,
-    sending,
     sendError,
     setSendError,
-    attachmentNotice,
-    fileInputRef,
-    speakingMessageId,
-    loadingOlder,
-    messageScroll,
-    expandedHistoryThread,
-    pinnedAroundRef,
-    historyEpoch,
-    activePendingAttachments,
     activeBotId: threadActiveBotId,
     refreshThread,
-    refreshGroupThread,
     activeSnapshot,
     activeReplyTarget,
-    shellReady,
-    openBot,
-    loadOlder,
-    jumpToReplyMessage,
-    answerMessage,
-    reactToMessage,
-    onAttachmentPick,
-    removeAttachment,
-    sendMessage,
-    followUpMessage,
-    stopRun,
-    stopTeaching,
-    refreshActiveThread,
-    refreshActiveTeaching,
-    addSkillRoutine,
-    speakMessage,
   } = thread;
   activeBotId.current = threadActiveBotId.current;
   commitSnapshotRef.current = thread.commitSnapshot;
@@ -427,7 +339,7 @@ export function ShellPage() {
     const bot = resolveTranscriptBot(run.botId);
     return {
       botId: run.botId,
-      color: bot?.color ?? FALLBACK_BOT_COLOR,
+      color: resolveAvatarColor(run.botId, bot?.color),
       shape: bot?.avatarShape,
       name: bot?.name,
       status: run.status,
@@ -489,16 +401,10 @@ export function ShellPage() {
   const hideScreenLoadError = computerErrorFromScreen && Boolean(embeddedScreenUrl);
   const computerScreenError =
     computerError && !hideScreenLoadError ? (
-      <div role="alert" className="flex flex-col items-center gap-3 px-6 text-center text-sm">
-        <p className="text-destructive">{computerError}</p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => active && void refreshComputerScreen(active.id)}
-        >
-          <Trans>Retry screen</Trans>
-        </Button>
-      </div>
+      <ComputerScreenErrorAlert
+        message={computerError}
+        onRetry={() => active && void refreshComputerScreen(active.id)}
+      />
     ) : null;
 
   const userName = session.data?.user.name ?? t`You`;
@@ -598,5 +504,16 @@ export function ShellPage() {
       replyTargetName={replyTargetName}
       composerMentionTargets={composerMentionTargets}
     />
+  );
+}
+
+function ComputerScreenErrorAlert({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div role="alert" className="flex flex-col items-center gap-3 px-6 text-center text-sm">
+      <p className="text-destructive">{message}</p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        <Trans>Retry screen</Trans>
+      </Button>
+    </div>
   );
 }

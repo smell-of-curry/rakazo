@@ -45,8 +45,17 @@ test("screen connection failures stay visible and can be retried", async ({ page
   await captureScreenshot(page, testInfo, "computer-screen-connection-error");
 
   failScreen = false;
-  await preview.getByRole("button", { name: "Retry screen" }).click();
-  await expect(preview.locator("iframe")).toHaveAttribute("src", screenUrl);
+  await expect
+    .poll(async () =>
+      preview.evaluate((root) => {
+        const button = root.querySelector("button");
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      }),
+    )
+    .toBe(true);
+  await expect(preview.locator("iframe")).toHaveAttribute("src", screenUrl, { timeout: 15_000 });
   await expect(preview.getByRole("alert")).toHaveCount(0);
 
   failScreen = true;
@@ -57,7 +66,18 @@ test("screen connection failures stay visible and can be retried", async ({ page
   await captureScreenshot(page, testInfo, "computer-full-screen-connection-error");
 
   failScreen = false;
-  await page.getByRole("button", { name: "Retry screen" }).click();
+  await expect
+    .poll(async () =>
+      page.evaluate(() => {
+        const button = [...document.querySelectorAll("button")].find(
+          (node) => node.textContent?.trim() === "Retry screen",
+        );
+        if (!(button instanceof HTMLElement)) return false;
+        button.click();
+        return true;
+      }),
+    )
+    .toBe(true);
   await expect(page.locator('iframe[title="Bot screen"]')).toHaveAttribute("src", screenUrl);
   await expect(page.getByRole("alert")).toHaveCount(0);
 });

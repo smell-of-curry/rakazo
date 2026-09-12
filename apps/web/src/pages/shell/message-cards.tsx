@@ -113,6 +113,7 @@ export function AppConnectCard({
   const { t } = useLingui();
   const [busy, setBusy] = useState(false);
   const [localStatus, setLocalStatus] = useState<"pending" | "connected">(block.status);
+  const [started, setStarted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const connectionAttempt = useRef<AbortController | null>(null);
   const status = block.status === "connected" ? "connected" : localStatus;
@@ -122,6 +123,7 @@ export function AppConnectCard({
     connectionAttempt.current?.abort();
     const controller = new AbortController();
     connectionAttempt.current = controller;
+    setStarted(true);
     setBusy(true);
     setError(null);
     try {
@@ -164,7 +166,7 @@ export function AppConnectCard({
     <BuiCard
       role="group"
       aria-label={t`${block.name} connection`}
-      className="w-[min(420px,80%)] px-3 py-3"
+      className="mb-3 w-[min(420px,80%)] px-3 py-3"
     >
       <div className="flex items-center gap-3">
         <ItemLogo src={block.logo} name={block.name} />
@@ -180,13 +182,23 @@ export function AppConnectCard({
         </span>
         {status === "connected" ? (
           <StatusChip status="connected" />
-        ) : (
+        ) : started ? (
           <>
             <StatusChip status="waiting" />
             <Button variant="ghost" size="sm" disabled={busy} onClick={() => void authorize()}>
               <Trans>Reopen</Trans>
             </Button>
           </>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hover:bg-accent"
+            disabled={busy}
+            onClick={() => void authorize()}
+          >
+            <Trans>Authorize</Trans>
+          </Button>
         )}
       </div>
       {error ? <p className="mt-2 text-small text-destructive">{error}</p> : null}

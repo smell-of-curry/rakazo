@@ -3,7 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type { MessageReaction, ThreadMessage } from "@rakazo/contracts";
 import { canReactToThreadMessage, MESSAGE_REACTIONS } from "@rakazo/contracts";
-import { isRateLimitError, isToolActivityBlock } from "@rakazo/core";
+import { isRateLimitError, isToolActivityBlock, resolveAvatarColor } from "@rakazo/core";
 import {
   cn,
   DropdownMenu,
@@ -15,7 +15,7 @@ import {
   PopoverTrigger,
 } from "@rakazo/ui-web";
 import { Copy, MemoryStick, Monitor, MoreHorizontal, RefreshCw, Reply, Smile } from "lucide-react";
-import { memo, type ReactNode, useState } from "react";
+import { memo, type ReactNode, useRef, useState } from "react";
 import { ArtifactFileCard } from "../../components/ArtifactFileCard";
 import { AskCard } from "../../components/AskCard";
 import { CollaborationMarker } from "../../components/ai/CollaborationMarker";
@@ -38,7 +38,6 @@ import {
   ComputerHandoffCard,
   McpApprovalCard,
 } from "./message-cards";
-import { FALLBACK_BOT_COLOR } from "./types";
 
 export function previewMessageText(message: ThreadMessage): string {
   const text = message.blocks
@@ -67,6 +66,7 @@ export function MessageHoverActions({
   const { t } = useLingui();
   const [moreOpen, setMoreOpen] = useState(false);
   const [reactionsOpen, setReactionsOpen] = useState(false);
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Streaming progress bubbles keep hover free for selection / stop clicks.
   if (message.id.startsWith("progress:")) return null;
@@ -124,8 +124,16 @@ export function MessageHoverActions({
         >
           <Reply size={15} strokeWidth={1.7} />
         </button>
-        <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+        <DropdownMenu
+          modal={false}
+          open={moreOpen}
+          onOpenChange={(open) => {
+            setMoreOpen(open);
+            if (!open) moreTriggerRef.current?.focus();
+          }}
+        >
           <DropdownMenuTrigger
+            ref={moreTriggerRef}
             aria-label={t`More`}
             className={cn(
               iconButtonClass,
@@ -310,7 +318,7 @@ export const MessageView = memo(function MessageView({
             <CollaborationMarker
               key={`${message.id}:${i}`}
               ariaLabel={label}
-              color={look?.color ?? FALLBACK_BOT_COLOR}
+              color={resolveAvatarColor(peerBotId, look?.color)}
               shape={look?.avatarShape}
               identity={peerBotId}
               imageSrc={botImageSrc({
@@ -459,7 +467,7 @@ export const MessageView = memo(function MessageView({
           const botId = "botId" in artifactTarget ? artifactTarget.botId : message.botId;
           if (!botId) return null;
           return (
-            <div key={`${message.id}:${i}`} className="flex justify-start py-1">
+            <div key={`${message.id}:${i}`} className="flex justify-start pb-2">
               <AppConnectCard botId={botId} block={block} />
             </div>
           );

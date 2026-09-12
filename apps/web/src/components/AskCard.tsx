@@ -16,6 +16,20 @@ function approvalActionLabel(id: string, fallback: string): string {
   return fallback;
 }
 
+function approvalOutcomeLabel(
+  answer: string | undefined,
+  actions: AskBlock["actions"],
+  hasAlways: boolean,
+): string {
+  const selected = actions?.find((action) => action.id === answer);
+  if (selected?.outcome === "created") return t`Created`;
+  if (selected?.outcome === "cancelled") return t`Cancelled`;
+  if (hasAlways && answer === "allow") return t`Allowed once`;
+  if (answer === "always") return t`Always allowed`;
+  if (hasAlways && answer === "deny") return t`Denied`;
+  return selectedAskActionLabel(answer ?? "", actions);
+}
+
 export function AskCard({
   block,
   canAnswer,
@@ -96,12 +110,8 @@ export function AskCard({
         <div className="mt-3 space-y-1.5">
           {askActions.map((action) => {
             const selected = answered && block.answer === action.id;
-            const label = approval
-              ? approvalActionLabel(
-                  action.id,
-                  action.id === "allow" && !hasAlways ? t`Allow` : action.label,
-                )
-              : action.label;
+            const label =
+              approval && hasAlways ? approvalActionLabel(action.id, action.label) : action.label;
             return (
               <Button
                 key={action.id}
@@ -190,13 +200,7 @@ export function AskCard({
         </form>
       ) : answered && approval ? (
         <div className="mt-3 text-small text-muted-foreground">
-          {block.answer === "allow"
-            ? t`Allowed once`
-            : block.answer === "always"
-              ? t`Always allowed`
-              : block.answer === "deny"
-                ? t`Denied`
-                : selectedAskActionLabel(block.answer ?? "", askActions)}
+          {approvalOutcomeLabel(block.answer, askActions, hasAlways)}
         </div>
       ) : null}
       {error ? <p className="mt-3 text-small text-destructive">{error}</p> : null}

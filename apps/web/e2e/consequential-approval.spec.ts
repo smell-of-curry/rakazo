@@ -18,7 +18,9 @@ test("actions run by default while optional confirmations live in advanced user 
   await sendDestinationWrite(page, "write this to the destination crm as a note");
   await waitForRunIdle(page);
   await expectComposerReady(page);
-  await expect(page.getByRole("button", { name: "Allow once", exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Allow once", exact: true, disabled: false }),
+  ).toHaveCount(0);
   await captureScreenshot(page, testInfo, "50-actions-run-without-confirmation");
 
   await page.getByTestId("bot-settings-trigger").click();
@@ -51,9 +53,13 @@ test("actions run by default while optional confirmations live in advanced user 
   });
 
   await requestDestinationWrite(page, "write this to the destination crm as a note again");
-  const allowOnce = page.getByRole("button", { name: "Allow once", exact: true });
-  const alwaysAllow = page.getByRole("button", { name: "Always allow this tool", exact: true });
-  const deny = page.getByRole("button", { name: "Deny", exact: true });
+  const allowOnce = page.getByRole("button", { name: "Allow once", exact: true, disabled: false });
+  const alwaysAllow = page.getByRole("button", {
+    name: "Always allow",
+    exact: true,
+    disabled: false,
+  });
+  const deny = page.getByRole("button", { name: "Deny", exact: true, disabled: false });
   await expect(alwaysAllow).toBeVisible();
   await expect(deny).toBeVisible();
   const allowBox = await allowOnce.boundingBox();
@@ -71,21 +77,21 @@ test("actions run by default while optional confirmations live in advanced user 
   expect(Math.abs(allowBox!.width - listBox!.width)).toBeLessThan(2);
   await captureScreenshot(page, testInfo, "53-action-confirmation-pending");
 
-  await page.getByRole("button", { name: "Deny", exact: true }).click();
+  await page.getByRole("button", { name: "Deny", exact: true, disabled: false }).click();
   await expect(page.getByText("Denied", { exact: true })).toBeVisible();
   await waitForRunIdle(page);
   await expectComposerReady(page);
   await captureScreenshot(page, testInfo, "54-action-confirmation-denied");
 
   await requestDestinationWrite(page, "write this to the destination crm once more");
-  await page.getByRole("button", { name: "Allow once", exact: true }).click();
+  await page.getByRole("button", { name: "Allow once", exact: true, disabled: false }).click();
   await expect(page.getByText("Allowed once", { exact: true })).toBeVisible();
   await waitForRunIdle(page);
   await expectComposerReady(page);
   await captureScreenshot(page, testInfo, "55-action-confirmation-allowed-once");
 
   await requestDestinationWrite(page, "write this to the destination crm one final time");
-  await page.getByRole("button", { name: "Always allow this tool", exact: true }).click();
+  await page.getByRole("button", { name: "Always allow", exact: true, disabled: false }).click();
   await expect(page.getByText("Always allowed", { exact: true })).toBeVisible();
   await waitForRunIdle(page);
   await expectComposerReady(page);
@@ -94,7 +100,9 @@ test("actions run by default while optional confirmations live in advanced user 
   await sendDestinationWrite(page, "write this to the destination crm after always allow");
   await waitForRunIdle(page);
   await expectComposerReady(page);
-  await expect(page.getByRole("button", { name: "Allow once", exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Allow once", exact: true, disabled: false }),
+  ).toHaveCount(0);
 });
 
 async function sendDestinationWrite(page: Page, prompt: string) {
@@ -130,11 +138,16 @@ async function requestDestinationWrite(page: Page, prompt: string) {
     )
     .toBe("waiting_input");
   // threads/get can observe waiting_input before the shell realtime feed paints the ask card.
-  if ((await page.getByRole("button", { name: "Allow once" }).count()) === 0) {
+  const pendingAllow = page.getByRole("button", {
+    name: "Allow once",
+    exact: true,
+    disabled: false,
+  });
+  if ((await pendingAllow.count()) === 0) {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByPlaceholder(/Message/)).toBeVisible({ timeout: 15_000 });
   }
-  await expect(page.getByRole("button", { name: "Allow once" })).toBeVisible({
+  await expect(pendingAllow).toBeVisible({
     timeout: 15_000,
   });
 }

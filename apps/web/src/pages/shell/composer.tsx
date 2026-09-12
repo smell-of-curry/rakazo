@@ -7,6 +7,7 @@ import {
   clampMentionHighlightIndex,
   mentionChipKey,
   mentionStillInPrompt,
+  resolveAvatarColor,
   resolveMentionPickerKey,
   SLASH_ACTIONS,
   serializeComposerPrompt,
@@ -39,7 +40,6 @@ import { isFileDrag, isFilePaste } from "../../lib/pending-attachments";
 import { ComposerHumanGate } from "./composer-human-gate";
 import { previewMessageText } from "./message-view";
 import type { PendingAttachment } from "./types";
-import { FALLBACK_BOT_COLOR } from "./types";
 
 const ATTACHMENT_ACCEPT = ATTACHMENT_ALLOWED_MIME_TYPES.join(",");
 const draftByThread = new Map<string, string>();
@@ -700,6 +700,7 @@ export const Composer = memo(function Composer({
           <button
             type="button"
             aria-label={t`Send`}
+            data-testid="composer-send"
             disabled={sending || !canSend || disabled}
             onClick={send}
             className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
@@ -757,7 +758,7 @@ function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
   }
   return (
     <BotAvatar
-      color={mention.color ?? FALLBACK_BOT_COLOR}
+      color={resolveAvatarColor(mention.id, mention.color)}
       identity={mention.id}
       size={20}
       imageSrc={botImageSrc({ id: mention.id, hasAvatar: mention.hasAvatar })}

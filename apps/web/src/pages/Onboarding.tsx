@@ -204,7 +204,11 @@ export function OnboardingPage() {
     [providers],
   );
   const modelItems = useMemo(
-    () => modelsForProvider.map((entry) => ({ value: entry.id, label: entry.label })),
+    () =>
+      modelsForProvider.map((entry) => ({
+        value: entry.id,
+        label: entry.label || entry.id,
+      })),
     [modelsForProvider],
   );
   const probeModelItems = useMemo(
@@ -545,8 +549,12 @@ export function OnboardingPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {modelsForProvider.map((entry) => (
-                        <SelectItem key={`${entry.provider}:${entry.id}`} value={entry.id}>
-                          {entry.label}
+                        <SelectItem
+                          key={`${entry.provider}:${entry.id}`}
+                          value={entry.id}
+                          label={entry.label || entry.id}
+                        >
+                          {entry.label || entry.id}
                         </SelectItem>
                       ))}
                     </SelectContent>

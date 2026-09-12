@@ -188,17 +188,24 @@ describe("sidebar chrome", () => {
   });
 
   it("styles section headers as small uppercase tracking with a hover chevron", () => {
-    const { container } = render(<SidebarSectionHeader title="Unassigned" collapsed={false} />);
-    expect(screen.getByRole("button", { name: "Unassigned" })).toBeInTheDocument();
+    const { container } = render(<SidebarSectionHeader title="Projects" collapsed={false} />);
+    expect(screen.getByRole("button", { name: "Projects" })).toBeInTheDocument();
     expect(container.innerHTML).toContain("uppercase");
     expect(container.innerHTML).toContain("tracking-[0.06em]");
     expect(container.innerHTML).toContain("text-caption");
     expect(container.innerHTML).toContain("text-muted-foreground");
     expect(container.innerHTML).toContain("group-hover:opacity-100");
-    expect(screen.getByRole("button", { name: "Unassigned" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Projects" })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
+  });
+
+  it("keeps the Unassigned header in sentence case", () => {
+    const { container } = render(<SidebarSectionHeader title="Unassigned" collapsed={false} />);
+    expect(screen.getByRole("button", { name: "Unassigned" })).toBeInTheDocument();
+    expect(container.innerHTML).toContain("normal-case");
+    expect(container.innerHTML).not.toContain("uppercase");
   });
 
   it("falls back to the email local-part and never Owner", () => {

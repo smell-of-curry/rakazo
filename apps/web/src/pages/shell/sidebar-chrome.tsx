@@ -73,13 +73,15 @@ export function SidebarSectionHeader({
   type = "button",
   ...rest
 }: SidebarSectionHeaderProps) {
+  const sentenceCase = title === "Unassigned";
   return (
     <div className="group flex items-center">
       <button
         type={type}
         aria-expanded={showChevron ? !collapsed : undefined}
         className={`${cn(
-          "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-2.5 font-medium uppercase tracking-[0.06em] text-muted-foreground hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
+          "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-2.5 py-2.5 font-medium tracking-[0.06em] text-muted-foreground hover:bg-sidebar-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
+          sentenceCase ? "normal-case" : "uppercase",
           className,
         )} text-caption`}
         {...rest}

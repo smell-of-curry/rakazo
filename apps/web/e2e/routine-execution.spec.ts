@@ -29,9 +29,7 @@ test("Slack message trigger uses the mounted messaging provider and persists", a
 
   const panel = page.getByTestId("side-panel");
   await expect(panel.getByText("Slack message", { exact: true })).toBeVisible();
-  await expect(
-    panel.getByText("Runs when this bot receives a verified message from this provider."),
-  ).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Remove message trigger" })).toBeVisible();
 
   const saved = page.waitForResponse(
     (response) => response.url().includes("/rpc/routines/create") && response.ok(),
@@ -150,7 +148,10 @@ test("routine test-run completes and survives reload", async ({ page }, testInfo
   await routine.click();
   await page.getByRole("button", { name: "Test run" }).click();
   await expect(page.getByText(/routine-run-now-ok/i).first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0, {
+    timeout: 30_000,
+  });
+  await expect(page.getByRole("button", { name: "Voice", exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "34-routine-run-completed");
 
   await page.reload();

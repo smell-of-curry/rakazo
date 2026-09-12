@@ -84,7 +84,9 @@ test("sidebar Now and Recent surface active and terminal runs", async ({ page },
   await captureActivitySidebar(page, testInfo, "58-activity-now");
 
   await page.getByRole("button", { name: "Stop", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Voice", exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
 
   await page.reload();
   await expect(await activityToggle(page)).toHaveAttribute("aria-pressed", "true");

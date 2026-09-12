@@ -81,7 +81,15 @@ test("account settings appearance control switches to light mode", async ({ page
     .locator("code")
     .filter({ hasText: "shared/PROJECT_CHECKPOINT_WRAPUP.md" });
   await expect(inlinePath).toBeVisible({ timeout: 30_000 });
-  await expect(inlinePath).toHaveCSS("color", "rgb(26, 26, 26)");
+  const destructive = await inlinePath.evaluate((el) => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--destructive)";
+    el.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  });
+  await expect(inlinePath).toHaveCSS("color", destructive);
   await captureScreenshot(page, testInfo, "inline-code-light");
 
   await page.getByTestId("user-menu-trigger").click();
@@ -114,9 +122,9 @@ test("sidebar bot rows hover with the same tone as the integrations row", async 
   const chiefBg = await readChiefBg();
   await captureScreenshot(page, testInfo, "sidebar-row-hover");
 
-  const integrations = sidebar.getByRole("button", { name: "Integrations", exact: true });
-  await integrations.hover();
+  const marketplace = sidebar.getByRole("button", { name: "Marketplace", exact: true });
+  await marketplace.hover();
   await expect
-    .poll(() => integrations.evaluate((el) => getComputedStyle(el).backgroundColor))
+    .poll(() => marketplace.evaluate((el) => getComputedStyle(el).backgroundColor))
     .toBe(chiefBg);
 });

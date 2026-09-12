@@ -85,7 +85,7 @@ export function BotSettings({
   onSkillsChange: (skills: AgentSkillCatalogEntry[]) => void;
   memoryProviderConfigured: boolean;
   onAvatarChange?: () => void | Promise<void>;
-  onSave: (patch: BotSettingsPatch) => Promise<void>;
+  onSave: (patch: BotSettingsPatch) => Promise<Bot | undefined>;
   onExport: () => Promise<void>;
   onClear: () => void;
   onDelete: () => void;
@@ -119,7 +119,21 @@ export function BotSettings({
   const [computerBusy, setComputerBusy] = useState<"recover" | "reset" | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const localAvatarUrlRef = useRef<string | undefined>(undefined);
-  const { queue, flush, saved, error, setError } = useDebouncedSave(onSave);
+  const { queue, flush, saved, error, setError } = useDebouncedSave(async (patch) => {
+    const updated = await onSave(patch);
+    if (!updated) return;
+    // Only echo fields this save wrote. Color/shape persist via their own RPC
+    // and must not be clobbered by a stale title/description response.
+    if (patch.name !== undefined) setName(updated.name);
+    if (patch.title !== undefined) setTitle(updated.title);
+    if (patch.description !== undefined) setDescription(updated.description);
+    if (patch.instructions !== undefined) setInstructions(updated.instructions);
+    if (patch.computerMode !== undefined) setComputerMode(updated.computerMode);
+    if (patch.memoryScope !== undefined) setMemoryScope(updated.memoryScope);
+    if (patch.notifyOnFinish !== undefined) setNotifyOnFinish(updated.notifyOnFinish);
+    if (patch.autoSpeak !== undefined) setAutoSpeak(updated.autoSpeak);
+    if (patch.voiceId !== undefined) setVoiceId(updated.voiceId ?? "");
+  });
 
   useEffect(() => {
     setHasAvatar(bot.hasAvatar);

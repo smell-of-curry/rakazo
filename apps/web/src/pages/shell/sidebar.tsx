@@ -16,10 +16,11 @@ import {
 import {
   Bell,
   Gauge,
+  LayoutGrid,
+  Lock,
   LogOut,
   MoreHorizontal,
   PanelLeftClose,
-  Puzzle,
   Search,
   Settings,
 } from "lucide-react";
@@ -633,14 +634,14 @@ export function ShellSidebar({
           onClick={() => setPluginsOpen(true)}
           className="mx-2 mb-0.5 flex h-9 items-center gap-3 rounded-lg px-2.5 hover:bg-sidebar-accent"
         >
-          <Puzzle
+          <LayoutGrid
             size={16}
             strokeWidth={1.7}
             className="text-muted-foreground"
             aria-hidden="true"
           />
           <span className="text-body">
-            <Trans>Integrations</Trans>
+            <Trans>Marketplace</Trans>
           </span>
         </button>
         <Popover open={menuOpen} onOpenChange={setMenuOpen}>
@@ -673,6 +674,18 @@ export function ShellSidebar({
               >
                 <Bell className="text-muted-foreground" strokeWidth={1.75} />
                 <Trans>Activity</Trans>
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start font-normal"
+                aria-label={t`New space`}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setNewSpaceOpen(true);
+                }}
+              >
+                <Lock className="text-muted-foreground" strokeWidth={1.75} />
+                <Trans>New space</Trans>
               </Button>
               <Button
                 variant="ghost"

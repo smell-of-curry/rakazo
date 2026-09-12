@@ -15,7 +15,7 @@ describe("MessageHoverMetadata", () => {
     expect(html).toContain("start-full");
     expect(html).toContain("ms-1");
     expect(html).toContain("opacity-0");
-    expect(html).toContain("group-hover:opacity-100");
+    expect(html).toContain("group-hover/message:opacity-100");
     expect(html).toContain("focus-within:opacity-100");
     expect(html).not.toContain("w-14");
     expect(html).not.toContain("<time");
@@ -41,6 +41,7 @@ describe("MessageHoverMetadata", () => {
     );
 
     expect(html).toContain("pointer-events-auto opacity-100");
-    expect(html).toContain("group-hover:opacity-100");
+    expect(html).toContain("data-hover-pinned");
+    expect(html).toContain("group-hover/message:opacity-100");
   });
 });

@@ -144,6 +144,40 @@ describe("AskCard approval", () => {
     render(wrap(<AskCard block={approval("dismissed")} canAnswer={false} onAnswer={vi.fn()} />));
     expect(screen.getByText("Dismissed")).toBeInTheDocument();
   });
+
+  it("uses server labels when the approval has no Always allow", () => {
+    const space: AskBlock = {
+      kind: "ask",
+      text: "Create space “Customer support”",
+      approvalEffectId: "effect-space",
+      status: "pending",
+      actions: [
+        { id: "allow", label: "Create space", outcome: "created" },
+        { id: "deny", label: "Cancel", outcome: "cancelled" },
+      ],
+    };
+    render(wrap(<AskCard block={space} canAnswer onAnswer={vi.fn()} actorName="Chief" />));
+    expect(screen.getByRole("button", { name: "Create space" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Allow once" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Always allow" })).toBeNull();
+  });
+
+  it("shows Created after a space approval", () => {
+    const space: AskBlock = {
+      kind: "ask",
+      text: "Create space “Customer support”",
+      approvalEffectId: "effect-space",
+      status: "answered",
+      answer: "allow",
+      actions: [
+        { id: "allow", label: "Create space", outcome: "created" },
+        { id: "deny", label: "Cancel", outcome: "cancelled" },
+      ],
+    };
+    render(wrap(<AskCard block={space} canAnswer={false} onAnswer={vi.fn()} />));
+    expect(screen.getByText("Created")).toBeInTheDocument();
+  });
 });
 
 describe("ComputerHandoffCard", () => {

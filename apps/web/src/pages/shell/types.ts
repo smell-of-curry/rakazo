@@ -22,6 +22,3 @@ export type PendingBrowserNotification = {
   botName: string;
   groupNotification: boolean;
 };
-
-/** Identity colour for bots the roster no longer knows about. */
-export const FALLBACK_BOT_COLOR = "#85858A";

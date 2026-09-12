@@ -126,7 +126,9 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
   await sidebar.getByRole("button", { name: /^Review team/ }).click();
   await expect(page.getByRole("combobox", { name: "Message Review team" })).toHaveValue("");
   await sidebar.getByRole("button", { name: /^Draft team/ }).click();
-  await expect(page.getByRole("combobox", { name: "Message Draft team" })).toHaveValue("");
+  await expect(page.getByRole("combobox", { name: "Message Draft team" })).toHaveValue(
+    "@Researcher unfinished draft",
+  );
 
   const composer = page.getByRole("combobox", { name: "Message Draft team" });
   await composer.fill("@Res");
@@ -160,12 +162,11 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
   await expect(composer).toHaveValue(/@Research Writer/);
   await composer.fill("@Research Writer ask me which city to use");
   await composer.press("Enter");
-  // threads/get / member status can observe waiting_input before realtime paints the ask card.
-  await expect(page.getByRole("button", { name: /Research Writer waiting_input/ })).toBeVisible({
-    timeout: 60_000,
-  });
   const cityAsk = page.locator("p").filter({ hasText: /^Which city should I use\?$/ });
-  if ((await cityAsk.count()) === 0) {
+  try {
+    await expect(cityAsk).toBeVisible({ timeout: 45_000 });
+  } catch {
+    // threads/get can observe waiting_input before realtime paints the ask card.
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("combobox", { name: "Message Draft team" })).toBeVisible({
       timeout: 15_000,
@@ -223,6 +224,8 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
   await markdownDialog.getByRole("button", { name: "Close preview" }).click();
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Close panel" }).click();
+  await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
   await expect(page.getByRole("button", { name: "Open navigation" })).toBeVisible();
   expect((await transcript.boundingBox())?.width).toBeGreaterThan(350);
   await page.getByRole("button", { name: "Open navigation" }).click();

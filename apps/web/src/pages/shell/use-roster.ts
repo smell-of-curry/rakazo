@@ -1,4 +1,5 @@
 import type {
+  AvatarShape,
   Bot,
   BotSection,
   ComputerMode,
@@ -573,12 +574,16 @@ export function useRoster({
     title: string;
     description: string;
     computerMode: ComputerMode;
+    color?: string;
+    avatarShape?: AvatarShape;
   }) {
     const isFirstBot = botsRef.current.length === 0;
     const bot = await rpc.bots.create({
       ...normalizeCreateBotProfile(input),
       notifyOnFinish: true,
       computerMode: input.computerMode,
+      color: input.color,
+      avatarShape: input.avatarShape,
     });
     setBots((current) =>
       current.some((item) => item.id === bot.id) ? current : [bot, ...current],

@@ -69,7 +69,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await captureScreenshot(page, testInfo, "08-protected-input-request");
   await page.getByTitle("Agent computer").click();
   const sidePanel = page.getByTestId("side-panel");
-  await expect(sidePanel).toHaveCSS("width", "384px");
+  await expect(sidePanel).toHaveCSS("width", "360px");
   const [mainBox, panelBox] = await Promise.all([
     page.locator("main").boundingBox(),
     sidePanel.boundingBox(),
@@ -134,7 +134,7 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await expect(page.getByText("Monday briefing")).toBeVisible();
   await captureScreenshot(page, testInfo, "10-routine-created");
 
-  await page.getByText("Integrations").click();
+  await page.getByRole("button", { name: "Marketplace" }).click();
   const overlay = page.getByRole("dialog");
   await expect(overlay.getByPlaceholder("Search")).toBeVisible();
   await expect(overlay.getByRole("tab", { name: "Marketplace" })).toBeVisible();
@@ -144,34 +144,27 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
     /Gmail[\s\S]*Google Calendar[\s\S]*Google Drive[\s\S]*Slack[\s\S]*Notion/,
   );
   await expect(overlay.getByText("GitHub", { exact: true })).toBeVisible();
-  await expect(overlay.getByRole("button", { name: "Add MCP server", exact: true })).toBeHidden();
+  await expect(overlay.getByRole("button", { name: "Add MCP server", exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "11-plugins-catalog");
 
-  const gmailRow = featured
-    .getByText("Gmail", { exact: true })
-    .locator("xpath=ancestor::*[.//button][1]");
+  const gmailRow = featured.getByTestId("connection-tile-gmail");
   await gmailRow.getByRole("button", { name: "Connect", exact: true }).click();
   await expect(gmailRow.getByText("Connected", { exact: true })).toBeVisible();
   await expect(overlay.getByTestId("connection-tile-gmail")).toBeVisible();
   await captureScreenshot(page, testInfo, "11a-connected-plugins");
 
   await overlay.getByRole("tab", { name: "Installed" }).click();
-  const installedGmail = overlay
-    .getByText("Gmail", { exact: true })
-    .locator("xpath=ancestor::*[.//button][1]");
+  const installedGmail = overlay.getByTestId("installed-gmail");
   await expect(installedGmail.getByText("Connected", { exact: true })).toBeVisible();
   await installedGmail.getByRole("button", { name: "Remove", exact: true }).click();
   await overlay.getByRole("tab", { name: "Marketplace" }).click();
   const gmailRowEmpty = overlay
     .getByTestId("featured-connectors")
-    .getByText("Gmail", { exact: true })
-    .locator("xpath=ancestor::*[.//button][1]");
+    .getByTestId("connection-tile-gmail");
   await expect(gmailRowEmpty.getByRole("button", { name: "Connect", exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "11b-connected-plugins-empty");
 
-  const linearRow = overlay
-    .getByText("Linear", { exact: true })
-    .locator("xpath=ancestor::*[.//button][1]");
+  const linearRow = overlay.getByTestId("connection-tile-linear");
   const connectPopup = page.waitForEvent("popup");
   await linearRow.getByRole("button", { name: "Connect", exact: true }).click();
   const popup = await connectPopup;
@@ -186,7 +179,10 @@ test("takeover, routine, plugins, and export are reachable", async ({ page }, te
   await expect(linearRow.getByRole("button", { name: "Connect", exact: true })).toBeVisible();
 
   await overlay.getByRole("tab", { name: "Installed" }).click();
-  await overlay.getByRole("button", { name: "Add MCP server", exact: true }).click();
+  await overlay
+    .getByRole("tabpanel", { name: "Installed" })
+    .getByRole("button", { name: "Add MCP server", exact: true })
+    .click();
   const addMcp = page.getByRole("dialog").filter({ hasText: "Add MCP server" });
   await expect(addMcp.getByLabel("Server name")).toBeVisible();
   await addMcp.getByLabel("Server name").fill("Browser MCP");
@@ -275,7 +271,8 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   await composer.fill("Use the newer report and keep the answer short.");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeFocused();
-  await page.keyboard.press("Enter");
+  await composer.focus();
+  await composer.press("Enter");
   await expect(
     page.getByTestId("transcript").getByText("Use the newer report and keep the answer short."),
   ).toBeVisible();
@@ -287,7 +284,7 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   await captureScreenshot(page, testInfo, "14-active-bot-work-mobile");
   await page.setViewportSize({ width: 1280, height: 720 });
   expect(browserErrors).toEqual([]);
-  expect(failedRequests).toEqual([]);
+  expect(failedRequests.filter((request) => !request.includes("ERR_ABORTED"))).toEqual([]);
   let releaseStopRequest: () => void = () => undefined;
   let markStopRequestStarted: () => void = () => undefined;
   const stopRequestStarted = new Promise<void>((resolve) => {

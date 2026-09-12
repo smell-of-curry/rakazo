@@ -130,6 +130,9 @@ test("logout protects bot deep links and sign-in restores the session", async ({
     .getByText("line one\nline two", { exact: true });
   await expect(multilineMessage).toBeVisible();
   await expect(multilineMessage).toHaveCSS("white-space", "pre-wrap");
+  await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0, {
+    timeout: 30_000,
+  });
 
   const message = "Fake composer regression check.";
   await composer.fill(message);

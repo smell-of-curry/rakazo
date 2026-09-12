@@ -38,9 +38,24 @@ test("onboarding uses compact model selects without misleading latest labels", a
 
   const models = page.getByRole("combobox", { name: "Model", exact: true });
   await models.click();
-  const labels = await page.getByRole("option").allTextContents();
+  await expect(page.getByRole("listbox").last().getByRole("option").first()).toBeVisible();
+  const anthropicLabels = await page
+    .getByRole("listbox")
+    .last()
+    .getByRole("option")
+    .allTextContents();
   // "latest" is an upstream alias marker, so it lands on families like Claude Opus 4.5 while
   // newer models carry no marker. Rendered as-is it tells the user the opposite of the truth.
+  expect(anthropicLabels.filter((label) => /\blatest\b/i.test(label))).toEqual([]);
+  await page.keyboard.press("Escape");
+
+  // Alias suffix is on OpenRouter catalog entries; Anthropic names often omit "latest".
+  await provider.click();
+  await page.getByRole("option", { name: "OpenRouter" }).click();
+  await expect(provider).toContainText("OpenRouter");
+  await models.click();
+  await expect(page.getByRole("listbox").last().getByRole("option").first()).toBeVisible();
+  const labels = await page.getByRole("listbox").last().getByRole("option").allTextContents();
   expect(labels.filter((label) => /\blatest\b/i.test(label))).toEqual([]);
 
   // Select a non-default model and keep its user-facing alias visible in the compact trigger.

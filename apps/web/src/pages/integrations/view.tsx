@@ -70,7 +70,7 @@ export function IntegrationsView({
   const featuredSlugs = new Set(featuredRows.map((item) => item.slug));
   const rest = catalogRows.filter((item) => !featuredSlugs.has(item.slug));
 
-  function marketplaceCard(item: ConnectionCatalogItem, tile: boolean) {
+  function marketplaceCard(item: ConnectionCatalogItem) {
     return (
       <MarketplaceCard
         key={`${item.connectorId}:${item.slug}`}
@@ -78,7 +78,7 @@ export function IntegrationsView({
         logo={item.logo}
         connected={item.connected}
         connecting={pending === `${item.connectorId}:${item.slug}`}
-        testId={tile || item.connected ? `connection-tile-${item.slug.toLowerCase()}` : undefined}
+        testId={`connection-tile-${item.slug.toLowerCase()}`}
         onConnect={() => onConnect(item)}
       />
     );
@@ -115,10 +115,24 @@ export function IntegrationsView({
           <TabsContent value="marketplace">
             {!searching && featuredRows.length > 0 ? (
               <div data-testid="featured-connectors">
-                {featuredRows.map((item) => marketplaceCard(item, true))}
+                {featuredRows.map((item) => marketplaceCard(item))}
               </div>
             ) : null}
-            {rest.map((item) => marketplaceCard(item, searching))}
+            {rest.map((item) => marketplaceCard(item))}
+            {catalogRows.length === 0 && featuredRows.length === 0 ? (
+              <p className="text-small text-muted-foreground">
+                {i18n._({ id: "No apps available yet.", message: "No apps available yet." })}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              variant="link"
+              size="xs"
+              className="mt-2 px-0 text-body text-muted-foreground"
+              onClick={onAddMcp}
+            >
+              {i18n._({ id: "Add MCP server", message: "Add MCP server" })}
+            </Button>
           </TabsContent>
           <TabsContent value="installed">
             {installedRows.map((entry) => (
@@ -128,6 +142,7 @@ export function IntegrationsView({
                 logo={entry.logo}
                 status={entry.status}
                 pending={pending === entry.id}
+                testId={`installed-${entry.name.toLowerCase().replace(/\s+/g, "-")}`}
                 extra={entry.extra}
                 onReopen={entry.status === "waiting" ? () => onReopen(entry) : undefined}
                 onRemove={() => onRemove(entry)}

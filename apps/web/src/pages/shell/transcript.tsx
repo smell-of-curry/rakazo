@@ -15,6 +15,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { ActiveBotGlyph } from "../../components/ai/CollaborationMarker";
 import type { PeerReceiptPeerLook } from "../../components/ai/PeerReceiptCluster";
 import { PeerReceiptCluster } from "../../components/ai/PeerReceiptCluster";
+import { messageHoverRevealClass } from "../../components/MessageHoverMetadata";
 import type { ArtifactTarget } from "../../lib/artifact-open";
 import { condensePeerReceipts } from "../../lib/condense-peer-receipts";
 import {
@@ -348,9 +349,20 @@ export const Transcript = memo(function Transcript({
                 className={
                   peerReceipt
                     ? undefined
-                    : `relative flex ${message.role === "user" ? "justify-end" : "justify-start"}`
+                    : `relative flex w-full ${message.role === "user" ? "justify-end" : "justify-start"}`
                 }
               >
+                {peerReceipt ? null : (
+                  <time
+                    data-testid="message-hover-time"
+                    dateTime={message.createdAt}
+                    className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-caption text-muted-foreground ${messageHoverRevealClass} ${
+                      message.role === "user" ? "start-0" : "end-0"
+                    }`}
+                  >
+                    {formatThreadTimestamp(new Date(message.createdAt))}
+                  </time>
+                )}
                 <div
                   data-testid={peerReceipt ? undefined : "message-bubble-frame"}
                   className={peerReceipt ? undefined : "relative w-fit min-w-0 max-w-[72%]"}

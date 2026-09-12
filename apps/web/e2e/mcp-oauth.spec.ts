@@ -83,12 +83,15 @@ test("connects an MCP server through the OAuth popup callback", async ({ page },
     });
   });
 
-  await page.getByText("Integrations", { exact: true }).click();
+  await page.getByRole("button", { name: "Marketplace", exact: true }).click();
   const overlay = page.getByRole("dialog");
   await overlay.getByRole("tab", { name: "Installed" }).click();
   await expect(overlay.getByText("Linear MCP", { exact: true })).toBeVisible();
   await expect(overlay.getByText("Waiting for authorization", { exact: true })).toBeVisible();
-  await overlay.getByRole("button", { name: "Add MCP server", exact: true }).click();
+  await overlay
+    .getByRole("tabpanel", { name: "Installed" })
+    .getByRole("button", { name: "Add MCP server", exact: true })
+    .click();
   const addMcp = page.getByRole("dialog").filter({ hasText: "Add MCP server" });
   await expect(addMcp.getByLabel("Access token (optional)")).toBeHidden();
   await captureScreenshot(page, testInfo, "mcp-oauth-ready");

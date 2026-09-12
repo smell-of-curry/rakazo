@@ -1,4 +1,5 @@
 import { Trans, useLingui } from "@lingui/react/macro";
+import { resolveAvatarColor } from "@rakazo/core";
 import { Button } from "@rakazo/ui-web";
 import { Plus, Settings, X } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
@@ -16,7 +17,6 @@ import type { ShellLayoutProps } from "./shell-layout-props";
 import { ShellSidebar } from "./sidebar";
 import { ThreadHeader } from "./thread-header";
 import { Transcript } from "./transcript";
-import { FALLBACK_BOT_COLOR } from "./types";
 
 const MessagingSettingsOverlay = lazy(() =>
   import("../MessagingSettingsOverlay").then((module) => ({
@@ -441,7 +441,7 @@ export function ShellLayout(props: ShellLayoutProps) {
         {active || activeGroup ? (
           <Composer
             key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
-            threadId={activeSnapshot?.threadId ?? (inGroup ? `group:${groupId}` : active?.id)}
+            threadId={inGroup ? `group:${groupId}` : active?.id}
             activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
             running={composerRunning}
             needsComputer={needsComputer}
@@ -513,13 +513,13 @@ export function ShellLayout(props: ShellLayoutProps) {
         data-panel={panel ?? "closed"}
         className={`absolute inset-y-0 end-0 z-20 flex min-h-0 shrink-0 flex-col overflow-hidden bg-background transition-[width] duration-150 ease-out md:relative ${
           panel && (active || activeGroup || panel === "create")
-            ? "w-full max-w-[384px] border-s border-sidebar-border md:w-[384px] md:max-w-none"
+            ? "w-full max-w-[360px] border-s border-sidebar-border md:w-[360px] md:max-w-none"
             : "pointer-events-none w-0"
         }`}
       >
         {panel && (active || activeGroup || panel === "create") ? (
-          <div className="rk-scroll h-full w-full overflow-y-auto px-5 py-[17px] md:w-[384px]">
-            {panel === "settings" ? (
+          <div className="rk-scroll h-full w-full overflow-y-auto px-5 py-[17px] md:w-[360px]">
+            {panel === "settings" || panel === "group-settings" ? (
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-[13.5px] text-muted-foreground">
                   <Trans>Settings</Trans>
@@ -599,6 +599,10 @@ export function ShellLayout(props: ShellLayoutProps) {
                 onSkillsChange={setAgentSkills}
                 onAvatarChange={() => refreshBots()}
                 onClear={() => setClearTarget({ kind: "bot", chat: active })}
+                onDelete={() => {
+                  setDeleteTarget(active);
+                  setPanel(null);
+                }}
                 refreshBots={refreshBots}
               />
             ) : null}
@@ -727,9 +731,10 @@ export function ShellLayout(props: ShellLayoutProps) {
             botColor={active.color}
             peerBotId={peerConversation.peerBotId}
             peerBotName={peerConversation.peerBotName}
-            peerBotColor={
-              resolveTranscriptBot(peerConversation.peerBotId)?.color ?? FALLBACK_BOT_COLOR
-            }
+            peerBotColor={resolveAvatarColor(
+              peerConversation.peerBotId,
+              resolveTranscriptBot(peerConversation.peerBotId)?.color,
+            )}
             onClose={() => setPeerConversation(null)}
           />
         ) : null}

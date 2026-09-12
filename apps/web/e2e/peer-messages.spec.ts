@@ -48,40 +48,36 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
   await expect(page.getByRole("button", { name: "Stop" })).toHaveCount(0, { timeout: 60_000 });
 
   const transcript = page.getByTestId("transcript");
-  const chip = transcript
-    .locator("[data-testid='peer-receipt-chip'], [data-testid='peer-receipt-cluster']")
-    .filter({ hasText: "Researcher" })
-    .first();
-  await expect(chip).toBeVisible({ timeout: 30_000 });
-  await expect(chip).toContainText(/messages with|Messaged|Message from/);
-  await expect(chip.locator("svg")).toBeVisible();
-  await expect(chip).not.toContainText("{peer}");
-  await expect(chip).not.toContainText("peer-exchange-alpha");
+  const row = transcript.getByTestId("peer-receipt-cluster").filter({ hasText: "Researcher" });
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await expect(row).toContainText(/messages with/);
+  await expect(row.locator("svg")).toBeVisible();
+  await expect(row).not.toContainText("{peer}");
+  await expect(row).not.toContainText("peer-exchange-alpha");
   await expect(transcript.getByText("peer-exchange-alpha")).toHaveCount(1);
-  const assertChipCentered = async () => {
+  const assertRowCentered = async () => {
     const transcriptBox = await transcript.boundingBox();
-    const chipBox = await chip.boundingBox();
+    const rowBox = await row.boundingBox();
     expect(transcriptBox).not.toBeNull();
-    expect(chipBox).not.toBeNull();
-    const chipCenter = chipBox!.x + chipBox!.width / 2;
+    expect(rowBox).not.toBeNull();
+    const rowCenter = rowBox!.x + rowBox!.width / 2;
     const transcriptCenter = transcriptBox!.x + transcriptBox!.width / 2;
-    expect(Math.abs(chipCenter - transcriptCenter)).toBeLessThan(48);
+    expect(Math.abs(rowCenter - transcriptCenter)).toBeLessThan(48);
   };
 
-  await assertChipCentered();
+  await assertRowCentered();
   await expect(composer).toBeVisible();
   await captureScreenshot(page, testInfo, "peer-chip-desktop");
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await chip.scrollIntoViewIfNeeded();
-  await expect(chip).toBeVisible();
+  await row.scrollIntoViewIfNeeded();
+  await expect(row).toBeVisible();
   await expect(composer).toBeVisible();
-  await assertChipCentered();
+  await assertRowCentered();
   await captureScreenshot(page, testInfo, "peer-chip-mobile");
 
-  await chip.focus();
-  await expect(chip).toBeFocused();
-  await chip.press("Enter");
+  await row.click();
+  await page.getByTestId("peer-receipt-peer").filter({ hasText: "Researcher" }).click();
   const view = page.getByTestId("peer-conversation-view");
   await expect(view).toBeVisible();
   await expect(view.getByRole("heading", { name: /Chief · Researcher/ })).toBeVisible();

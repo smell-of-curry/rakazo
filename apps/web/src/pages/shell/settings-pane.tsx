@@ -4,7 +4,7 @@ import { useState } from "react";
 import { rpc } from "../../lib/rpc";
 import { GroupSettings } from "../GroupPanel";
 import { BotSettings } from "./bot-settings";
-import { DeleteBotDialog, DeleteItemDialog } from "./dialogs";
+import { DeleteItemDialog } from "./dialogs";
 import { firstThreadRoute } from "./thread-events";
 import type { Panel } from "./types";
 
@@ -14,6 +14,7 @@ export function BotSettingsPane({
   onSkillsChange,
   onAvatarChange,
   onClear,
+  onDelete,
   refreshBots,
 }: {
   active: Bot;
@@ -21,56 +22,45 @@ export function BotSettingsPane({
   onSkillsChange: Dispatch<SetStateAction<AgentSkillCatalogEntry[]>>;
   onAvatarChange: () => void;
   onClear: () => void;
+  onDelete: () => void;
   refreshBots: (includeArchived?: boolean, replaceBotOrder?: boolean) => Promise<void>;
 }) {
-  const [deleteOpen, setDeleteOpen] = useState(false);
   return (
-    <>
-      <BotSettings
-        key={active.id}
-        bot={active}
-        memoryProviderConfigured={memoryProviderConfigured}
-        onSkillsChange={onSkillsChange}
-        onAvatarChange={onAvatarChange}
-        onSave={async ({ computerMode, ...patch }) => {
-          if (computerMode !== undefined && computerMode !== active.computerMode) {
-            await rpc.bots.setComputer({
-              botId: active.id,
-              mode: computerMode,
-            });
-          }
-          if (Object.keys(patch).length > 0) {
-            await rpc.bots.update({ botId: active.id, ...patch });
-          }
-          await refreshBots();
-        }}
-        onExport={async () => {
-          const manifest = await rpc.export.bot({ botId: active.id });
-          const blob = new Blob([JSON.stringify(manifest, null, 2)], {
-            type: "application/json",
+    <BotSettings
+      key={active.id}
+      bot={active}
+      memoryProviderConfigured={memoryProviderConfigured}
+      onSkillsChange={onSkillsChange}
+      onAvatarChange={onAvatarChange}
+      onSave={async ({ computerMode, ...patch }) => {
+        if (computerMode !== undefined && computerMode !== active.computerMode) {
+          await rpc.bots.setComputer({
+            botId: active.id,
+            mode: computerMode,
           });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `${active.name.toLowerCase().replace(/\s+/g, "-")}-export.json`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }}
-        onClear={onClear}
-        onDelete={() => setDeleteOpen(true)}
-      />
-      {deleteOpen ? (
-        <DeleteBotDialog
-          bot={active}
-          onCancel={() => setDeleteOpen(false)}
-          onConfirm={async (deleteMemories) => {
-            await rpc.bots.remove({ botId: active.id, deleteMemories });
-            setDeleteOpen(false);
-            await refreshBots(true);
-          }}
-        />
-      ) : null}
-    </>
+        }
+        if (Object.keys(patch).length > 0) {
+          const updated = await rpc.bots.update({ botId: active.id, ...patch });
+          await refreshBots();
+          return updated;
+        }
+        await refreshBots();
+      }}
+      onExport={async () => {
+        const manifest = await rpc.export.bot({ botId: active.id });
+        const blob = new Blob([JSON.stringify(manifest, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${active.name.toLowerCase().replace(/\s+/g, "-")}-export.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }}
+      onClear={onClear}
+      onDelete={onDelete}
+    />
   );
 }
 

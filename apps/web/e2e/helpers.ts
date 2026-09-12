@@ -90,8 +90,8 @@ export async function openNewGroup(page: Page) {
 }
 
 export async function openNewSpace(page: Page) {
-  await page.getByTestId("create-menu-trigger").click();
-  await page.getByTestId("create-new-space").click();
+  await page.getByTestId("user-menu-trigger").click();
+  await page.getByRole("button", { name: "New space" }).click();
 }
 
 /** Open the create form from the + picker, submit, and wait for the new chat. */

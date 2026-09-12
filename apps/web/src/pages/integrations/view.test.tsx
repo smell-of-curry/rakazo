@@ -75,4 +75,10 @@ describe("integrations view", () => {
     expect(screen.getByRole("button", { name: "Add MCP server" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
   });
+
+  it("shows Add MCP on both tabs and an empty marketplace line", () => {
+    render(view({ catalog: [], featured: [] }));
+    expect(screen.getByText("No apps available yet.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add MCP server" })).toBeInTheDocument();
+  });
 });
