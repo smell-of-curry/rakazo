@@ -951,11 +951,13 @@ describe("sendThreadMessage", () => {
   it("steers a new bot message while a run is waiting on input", async () => {
     const tx = {
       thread: {
-        update: vi.fn(async ({ data }: { data: { nextMessageSeq?: unknown; nextEventSeq?: unknown } }) => {
-          if (data.nextMessageSeq) return { nextMessageSeq: 2 };
-          if (data.nextEventSeq) return { nextEventSeq: 2 };
-          return {};
-        }),
+        update: vi.fn(
+          async ({ data }: { data: { nextMessageSeq?: unknown; nextEventSeq?: unknown } }) => {
+            if (data.nextMessageSeq) return { nextMessageSeq: 2 };
+            if (data.nextEventSeq) return { nextEventSeq: 2 };
+            return {};
+          },
+        ),
       },
       message: {
         create: vi.fn().mockResolvedValue({
@@ -1036,11 +1038,13 @@ describe("sendThreadMessage", () => {
   it("steers a new bot message while a run is waiting on takeover", async () => {
     const tx = {
       thread: {
-        update: vi.fn(async ({ data }: { data: { nextMessageSeq?: unknown; nextEventSeq?: unknown } }) => {
-          if (data.nextMessageSeq) return { nextMessageSeq: 2 };
-          if (data.nextEventSeq) return { nextEventSeq: 2 };
-          return {};
-        }),
+        update: vi.fn(
+          async ({ data }: { data: { nextMessageSeq?: unknown; nextEventSeq?: unknown } }) => {
+            if (data.nextMessageSeq) return { nextMessageSeq: 2 };
+            if (data.nextEventSeq) return { nextEventSeq: 2 };
+            return {};
+          },
+        ),
       },
       message: {
         create: vi.fn().mockResolvedValue({
@@ -1060,7 +1064,9 @@ describe("sendThreadMessage", () => {
         findMany: vi
           .fn()
           .mockResolvedValue([{ id: "run-waiting", taskId: "task-1", status: "waiting_takeover" }]),
-        findUnique: vi.fn().mockResolvedValue({ status: "waiting_takeover", startedAt: new Date() }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ status: "waiting_takeover", startedAt: new Date() }),
       },
       steeringMessage: { create: vi.fn() },
       event: {

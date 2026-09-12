@@ -79,52 +79,52 @@ export const BotAvatar = memo(function BotAvatar({
   return (
     <View style={{ width: size, height: size }}>
       <View style={{ width: size, height: size, overflow: "hidden", borderRadius: size / 2 }}>
-      {showImage ? (
-        <Image
-          source={{ uri: imageSrc, headers: imageHeaders }}
-          onError={() => setImageFailed(true)}
-          style={{ width: size, height: size, borderRadius: size / 2 }}
-          resizeMode="cover"
-        />
-      ) : (variant ?? avatarStyle) === "organic" ? (
-        <OrganicAvatar color={color} identity={identity} size={size} isWorking={isWorking} />
-      ) : (
-        <View
-          style={{
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            backgroundColor: color,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        {showImage ? (
+          <Image
+            source={{ uri: imageSrc, headers: imageHeaders }}
+            onError={() => setImageFailed(true)}
+            style={{ width: size, height: size, borderRadius: size / 2 }}
+            resizeMode="cover"
+          />
+        ) : (variant ?? avatarStyle) === "organic" ? (
+          <OrganicAvatar color={color} identity={identity} size={size} isWorking={isWorking} />
+        ) : (
           <View
             style={{
-              width: visorW,
-              height: visorH,
-              borderRadius: Math.round(visorH * 0.52),
-              backgroundColor: "#0C0C0E",
-              flexDirection: "row",
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              backgroundColor: color,
               alignItems: "center",
               justifyContent: "center",
-              gap,
             }}
           >
-            {[0, 1].map((eye) => (
-              <View
-                key={eye}
-                style={{
-                  width: eyeW,
-                  height: eyeH,
-                  borderRadius: Math.max(2, Math.round(eyeW * 0.6)),
-                  backgroundColor: "#fff",
-                }}
-              />
-            ))}
+            <View
+              style={{
+                width: visorW,
+                height: visorH,
+                borderRadius: Math.round(visorH * 0.52),
+                backgroundColor: "#0C0C0E",
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap,
+              }}
+            >
+              {[0, 1].map((eye) => (
+                <View
+                  key={eye}
+                  style={{
+                    width: eyeW,
+                    height: eyeH,
+                    borderRadius: Math.max(2, Math.round(eyeW * 0.6)),
+                    backgroundColor: "#fff",
+                  }}
+                />
+              ))}
+            </View>
           </View>
-        </View>
-      )}
+        )}
       </View>
       {isWorking ? (
         <View

@@ -36,7 +36,9 @@ describe("formatRateLimitUserText", () => {
     expect(formatRateLimitUserText({ retrying: true, delayMs: 45_000 })).toBe(
       "Rate limited. Retrying in 45s.",
     );
-    expect(formatRateLimitUserText({ retrying: false })).toBe("Rate limited. Stopped after retries.");
+    expect(formatRateLimitUserText({ retrying: false })).toBe(
+      "Rate limited. Stopped after retries.",
+    );
   });
 });
 

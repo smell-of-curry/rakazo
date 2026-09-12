@@ -41,12 +41,12 @@ import {
   groupBotsForSidebar,
   inferAttachmentMimeType,
   isActive,
+  isComposerDockedAskMessage,
   isNeedsYou,
   isPeerReceiptBlocks,
   isRateLimitError,
   isRunTerminalEvent,
   isToolActivityBlock,
-  isComposerDockedAskMessage,
   latestAnswerableAskMessageId,
   mentionChipKey,
   mentionStillInPrompt,
@@ -111,11 +111,11 @@ import {
 import {
   type ClipboardEvent,
   type DragEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
   lazy,
-  type MouseEvent as ReactMouseEvent,
   type MutableRefObject,
   memo,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type RefObject,
   Suspense,
   useCallback,
@@ -149,6 +149,7 @@ import { readActivityMode, writeActivityMode } from "../lib/activity-mode";
 import type { ArtifactTarget } from "../lib/artifact-open";
 import { authClient } from "../lib/auth";
 import { takeInitialBootstrap } from "../lib/bootstrap";
+import { botImageSrc, withMemberImages } from "../lib/bot-image-src";
 import {
   BOTS_SIDEBAR_EDGE_DRAG_PX,
   readBotsSidebarCollapsed,
@@ -160,6 +161,7 @@ import {
   shouldNotifyBrowser,
 } from "../lib/browser-notifications";
 import { loadComputerScreen, novncEmbedSocketPath } from "../lib/computer-screen";
+import { condensePeerReceipts } from "../lib/condense-peer-receipts";
 import { desktopBridge } from "../lib/desktop";
 import { scheduleFocusPrompt } from "../lib/focus-prompt";
 import { localTimezone } from "../lib/local-timezone";
@@ -174,8 +176,6 @@ import { markAfterPaint, markOnce } from "../lib/performance";
 import { clearSpaceSelection, rpc, selectedSpaceId, selectSpace } from "../lib/rpc";
 import { readSeenRunErrorIds, rememberSeenRunErrorId } from "../lib/run-error-storage";
 import { sharedInflight } from "../lib/shared-inflight";
-import { botImageSrc, withMemberImages } from "../lib/bot-image-src";
-import { condensePeerReceipts } from "../lib/condense-peer-receipts";
 import {
   activeThreadRuns,
   applyThreadSendReceipt,
@@ -218,14 +218,12 @@ import type { SettingsSection } from "./SettingsOverlay";
 import { SpaceSearchResults } from "./SpaceSearch";
 import { BotSettings, CreateBotForm } from "./shell/bot-panel";
 import { BotCreatePicker } from "./shell/bot-picker";
-import { PinnedGrid } from "./shell/pinned-grid";
+import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
 import {
   askBlockFromMessage,
   ComposerHumanGate,
   latestComputerNeedsYouText,
 } from "./shell/composer-human-gate";
-import { SidebarChatRow, SidebarSectionHeader } from "./shell/sidebar-chrome";
-import { CommandPalette, isCommandPaletteHotkey } from "./shell/command-palette";
 import {
   ClearConversationDialog,
   DeleteBotDialog,
@@ -241,6 +239,8 @@ import {
   ChoiceCard,
   McpApprovalCard,
 } from "./shell/message-cards";
+import { PinnedGrid } from "./shell/pinned-grid";
+import { SidebarChatRow, SidebarSectionHeader } from "./shell/sidebar-chrome";
 import { WindowChrome } from "./WindowChrome";
 
 const BotContextMenu = lazy(() =>
@@ -1211,12 +1211,8 @@ export function ShellPage() {
           pinnedAroundRef.current = null;
           historyEpoch.current += 1;
         }
-        if (
-          event.type === "run.waiting_input" ||
-          event.type === "computer.takeover.requested"
-        ) {
-          const waiting =
-            event.type === "run.waiting_input" ? "waiting_input" : "waiting_takeover";
+        if (event.type === "run.waiting_input" || event.type === "computer.takeover.requested") {
+          const waiting = event.type === "run.waiting_input" ? "waiting_input" : "waiting_takeover";
           if (event.botId) {
             setBots((current) =>
               current.map((bot) =>
@@ -1328,12 +1324,8 @@ export function ShellPage() {
           readVisibleGroups.current.delete(groupId);
           markVisibleGroupRead();
         }
-        if (
-          event.type === "run.waiting_input" ||
-          event.type === "computer.takeover.requested"
-        ) {
-          const waiting =
-            event.type === "run.waiting_input" ? "waiting_input" : "waiting_takeover";
+        if (event.type === "run.waiting_input" || event.type === "computer.takeover.requested") {
+          const waiting = event.type === "run.waiting_input" ? "waiting_input" : "waiting_takeover";
           if (event.botId) {
             setBots((current) =>
               current.map((bot) =>
@@ -3194,9 +3186,7 @@ export function ShellPage() {
             >
               {inGroup ? (
                 <GroupAvatar
-                  members={withMemberImages(
-                    activeSnapshot?.members ?? activeGroup?.members ?? [],
-                  )}
+                  members={withMemberImages(activeSnapshot?.members ?? activeGroup?.members ?? [])}
                   size={26}
                 />
               ) : active ? (
@@ -3297,9 +3287,7 @@ export function ShellPage() {
             takeoverReason={takeoverReason}
             dockedAsk={dockedAsk}
             onAnswerAsk={
-              dockedAskMessage
-                ? (text) => answerMessage(dockedAskMessage, text)
-                : undefined
+              dockedAskMessage ? (text) => answerMessage(dockedAskMessage, text) : undefined
             }
             onOpenComputer={() => {
               setPanel("computer");

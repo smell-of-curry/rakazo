@@ -932,7 +932,7 @@ description: Prepare standup notes
   it("defers a routine wake when the bot already has an active run", async () => {
     const scheduledAt = new Date(Date.now() - 1_000);
     const before = Date.now();
-    const enqueue = vi.fn(async () => undefined);
+    const enqueue = vi.fn(async (_job: { availableAt: Date }) => undefined);
     const append = vi.fn(async () => undefined);
     const updateMany = vi.fn(async () => ({ count: 1 }));
     const taskCreate = vi.fn(async () => ({ id: "task-1" }));
@@ -996,7 +996,9 @@ description: Prepare standup notes
       replaceKey: "routine:routine-1",
       availableAt: expect.any(Date),
     });
-    const retryAt = (enqueue.mock.calls[0]?.[0] as { availableAt: Date }).availableAt.getTime();
+    const job = enqueue.mock.calls[0]?.[0];
+    if (!job) throw new Error("expected enqueue call");
+    const retryAt = job.availableAt.getTime();
     expect(retryAt).toBeGreaterThanOrEqual(before + 29_000);
     expect(retryAt).toBeLessThanOrEqual(Date.now() + 31_000);
     expect(append).not.toHaveBeenCalled();
@@ -1049,9 +1051,11 @@ description: Prepare standup notes
         })),
       },
     } as unknown as PrismaClient;
-    const executor = createRunExecutor({ prisma, jobs: { enqueue } } as unknown as Parameters<
-      typeof createRunExecutor
-    >[0]);
+    const executor = createRunExecutor({
+      prisma,
+      jobs: { enqueue },
+      events: { append: vi.fn(async () => undefined) },
+    } as unknown as Parameters<typeof createRunExecutor>[0]);
 
     await executor.continueRun("run-1", "worker-1");
 

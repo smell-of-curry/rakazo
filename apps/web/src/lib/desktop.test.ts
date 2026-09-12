@@ -63,12 +63,22 @@ describe("window chrome", () => {
   it("keeps conversation header controls clickable", () => {
     const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "../pages");
     const shell = readFileSync(path.join(root, "Shell.tsx"), "utf8");
-    expect(shell).toContain(
-      'className="app-drag flex items-center justify-between border-b border-sidebar-border',
-    );
-    expect(shell).toContain('className="app-no-drag grid h-8 w-8');
-    expect(shell).toContain('className="app-no-drag flex min-w-0 items-center gap-3"');
-    expect(shell.match(/className="app-no-drag grid h-\[30px\] w-\[34px\]/g)).toHaveLength(1);
+    const header = shell.match(
+      /className="app-drag flex items-center justify-between border-b border-sidebar-border[\s\S]*?\{!active && !activeGroup/,
+    )?.[0];
+    if (!header) throw new Error("conversation header missing app-drag region");
+    for (const marker of [
+      "aria-label={t`Open navigation`}",
+      'data-testid="restore-bots-sidebar"',
+      'data-testid="bot-settings-trigger"',
+      "title={t`Agent computer`}",
+    ]) {
+      const at = header.indexOf(marker);
+      expect(at).toBeGreaterThan(-1);
+      const after = header.slice(at);
+      const nextButton = after.indexOf("<button", 1);
+      expect(after.slice(0, nextButton === -1 ? undefined : nextButton)).toContain("app-no-drag");
+    }
   });
 
   it("moves window chrome into the conversation header when the bots sidebar is collapsed", () => {

@@ -19,9 +19,9 @@ describe("botAvatarSrc", () => {
   });
 
   it("builds a cache-busted url from id + updatedAt", () => {
-    expect(botAvatarSrc({ id: "b_1", hasAvatar: true, updatedAt: "2026-09-10T12:00:00.000Z" })).toBe(
-      "https://rakazo.example/api/bots/b_1/avatar?v=2026-09-10T12%3A00%3A00.000Z",
-    );
+    expect(
+      botAvatarSrc({ id: "b_1", hasAvatar: true, updatedAt: "2026-09-10T12:00:00.000Z" }),
+    ).toBe("https://rakazo.example/api/bots/b_1/avatar?v=2026-09-10T12%3A00%3A00.000Z");
   });
 
   it("accepts botId when id is missing", () => {

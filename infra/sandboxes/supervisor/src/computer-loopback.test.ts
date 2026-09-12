@@ -526,13 +526,14 @@ describe("space computer limit enforcement", () => {
   it("resumes existing container even if space is at limit", async () => {
     setupContainerFixture();
     vi.stubEnv("SANDBOX_MAX_COMPUTERS_PER_SPACE", "1");
+    vi.stubEnv("SANDBOX_CONTROL_VIA_LOOPBACK", "false");
 
     const existing = {
       id: "existing-container",
       inspect: vi.fn().mockResolvedValue({
         Image: "image",
         Config: {
-          User: hostComputerUser(process.getuid?.(), process.getgid?.()),
+          User: hostComputerUser(),
           Labels: {
             "rakazo.managed": "true",
             "rakazo.botId": "bot-existing",
@@ -545,8 +546,10 @@ describe("space computer limit enforcement", () => {
           PortBindings: {},
           Mounts: [],
         },
+        NetworkSettings: { Ports: {}, Networks: {} },
       }),
       start: vi.fn().mockResolvedValue(undefined),
+      remove: vi.fn().mockResolvedValue(undefined),
     };
 
     mocks.docker.getContainer.mockReturnValue(existing);

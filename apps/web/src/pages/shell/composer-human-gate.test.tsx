@@ -1,7 +1,7 @@
 import { i18n } from "@lingui/core";
+import type { ThreadMessage } from "@rakazo/contracts";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import type { ThreadMessage } from "@rakazo/contracts";
 
 vi.mock("../../components/AskCard", () => ({
   AskCard: ({ block }: { block: { text?: string } }) => (

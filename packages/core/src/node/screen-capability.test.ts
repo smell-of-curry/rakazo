@@ -95,8 +95,11 @@ describe("sealed screen capabilities", () => {
     );
     expect(url.toString()).not.toContain("fake-socket-token");
     expect(url.searchParams.get("autoconnect")).toBe("true");
-    expect(url.searchParams.get("path")).toBe("websockify");
     const socketPath = url.pathname.replace(/\/[^/]+$/, "/websockify");
+    // Stock noVNC resolves `path` from the origin root, so it must stay inside
+    // the capability prefix. The nested provider socket token stays sealed.
+    expect(url.searchParams.get("path")).toBe(socketPath.slice(1));
+    expect(url.searchParams.get("path")).not.toContain("fake-socket-token");
     expect(openScreenCapability(socketPath, "fake-secret", 101)?.target.path).toBe(
       "/websockify?token=fake-socket-token",
     );

@@ -100,7 +100,10 @@ function withIosSceneLifecycle(config) {
             "var reactNativeFactory: RCTReactNativeFactory?\n  var launchOptions: [UIApplication.LaunchOptionsKey: Any]?",
           );
         }
-        if (source.includes("didFinishLaunchingWithOptions launchOptions") && !source.includes("self.launchOptions = launchOptions")) {
+        if (
+          source.includes("didFinishLaunchingWithOptions launchOptions") &&
+          !source.includes("self.launchOptions = launchOptions")
+        ) {
           source = source.replace(
             "  ) -> Bool {\n    let delegate = ReactNativeDelegate()",
             "  ) -> Bool {\n    self.launchOptions = launchOptions\n    let delegate = ReactNativeDelegate()",
@@ -121,7 +124,11 @@ function withIosSceneLifecycle(config) {
     if (!projectName) return config;
     const filePath = `${projectName}/${SCENE_FILE}`;
     if (!project.hasFile(filePath)) {
-      project.addSourceFile(filePath, { target: project.getFirstTarget().uuid }, project.findPBXGroupKey({ name: projectName }));
+      project.addSourceFile(
+        filePath,
+        { target: project.getFirstTarget().uuid },
+        project.findPBXGroupKey({ name: projectName }),
+      );
     }
     return config;
   });

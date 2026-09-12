@@ -35,11 +35,15 @@ describe("MCP OAuth redirect allowlist", () => {
     expect(isAllowedMcpOAuthRedirect("http://localhost:49152/mcp/oauth/callback", webOrigin)).toBe(
       true,
     );
-    expect(isAllowedMcpOAuthRedirect("http://[::1]:49152/mcp/oauth/callback", webOrigin)).toBe(true);
+    expect(isAllowedMcpOAuthRedirect("http://[::1]:49152/mcp/oauth/callback", webOrigin)).toBe(
+      true,
+    );
   });
 
   it("rejects other hosts, privileged ports, and extra URL parts", () => {
-    expect(isAllowedMcpOAuthRedirect("https://evil.test/mcp/oauth/callback", webOrigin)).toBe(false);
+    expect(isAllowedMcpOAuthRedirect("https://evil.test/mcp/oauth/callback", webOrigin)).toBe(
+      false,
+    );
     expect(isAllowedMcpOAuthRedirect("http://127.0.0.1:80/mcp/oauth/callback", webOrigin)).toBe(
       false,
     );

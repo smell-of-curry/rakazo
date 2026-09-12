@@ -29,9 +29,7 @@ export function PeerReceiptCluster({
   const [expanded, setExpanded] = useState(false);
   const [anchor, setAnchor] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const peers = uniquePeersFromCluster(messages);
-  const prefix = sentOnly
-    ? t("Messaged")
-    : t("{count} messages with", { count: messages.length });
+  const prefix = sentOnly ? t("Messaged") : t("{count} messages with", { count: messages.length });
   const suffix = t("{count} Bots", { count: peers.length });
   const label = `${prefix} ${suffix}`;
 

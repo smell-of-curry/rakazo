@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  shouldContinueForHumanGate,
-  textLooksLikeHumanGate,
-} from "./human-gate.js";
+import { shouldContinueForHumanGate, textLooksLikeHumanGate } from "./human-gate.js";
 
 describe("textLooksLikeHumanGate", () => {
   it("flags secret and login asks", () => {
@@ -22,9 +19,7 @@ describe("textLooksLikeHumanGate", () => {
 
 describe("shouldContinueForHumanGate", () => {
   it("allows one continue on a prose ask", () => {
-    expect(
-      shouldContinueForHumanGate({ assembled: "Please paste your API key" }),
-    ).toBe(true);
+    expect(shouldContinueForHumanGate({ assembled: "Please paste your API key" })).toBe(true);
     expect(
       shouldContinueForHumanGate({
         assembled: "Please paste your API key",
@@ -37,8 +32,6 @@ describe("shouldContinueForHumanGate", () => {
         scripted: true,
       }),
     ).toBe(false);
-    expect(shouldContinueForHumanGate({ assembled: "Done. Calendar is connected." })).toBe(
-      false,
-    );
+    expect(shouldContinueForHumanGate({ assembled: "Done. Calendar is connected." })).toBe(false);
   });
 });

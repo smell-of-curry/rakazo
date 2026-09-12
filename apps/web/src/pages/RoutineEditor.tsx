@@ -1,11 +1,6 @@
 import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type {
-  ModelCatalogEntry,
-  ModelCredential,
-  Routine,
-  ThinkingLevel,
-} from "@rakazo/contracts";
+import type { ModelCatalogEntry, ModelCredential, Routine, ThinkingLevel } from "@rakazo/contracts";
 import { ThinkingLevelSchema } from "@rakazo/contracts";
 import {
   type CronFreq,
@@ -242,9 +237,7 @@ export function RoutineEditor({
       .catch(() => undefined);
   }, []);
   const modelKey =
-    draft.modelProvider && draft.modelId
-      ? modelOptionKey(draft.modelProvider, draft.modelId)
-      : "";
+    draft.modelProvider && draft.modelId ? modelOptionKey(draft.modelProvider, draft.modelId) : "";
   const connectedOptions: Array<{
     key: string;
     provider: string;
