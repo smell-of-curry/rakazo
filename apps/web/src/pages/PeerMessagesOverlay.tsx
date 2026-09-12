@@ -84,7 +84,7 @@ export function PeerMessagesOverlay({
               <BotAvatar color={botColor} identity={botId} size={28} />
               <BotAvatar color={peerBotColor} identity={peerBotId} size={28} />
             </div>
-            <DialogTitle className="truncate text-[15.5px] font-medium text-foreground" dir="auto">
+            <DialogTitle className="truncate text-title font-semibold text-foreground" dir="auto">
               {title}
             </DialogTitle>
           </div>
@@ -94,11 +94,11 @@ export function PeerMessagesOverlay({
         </div>
 
         {!historyReady ? (
-          <div className="grid flex-1 place-items-center px-8 text-center text-[13.5px] text-muted-foreground/80">
+          <div className="grid flex-1 place-items-center px-8 text-center text-body text-muted-foreground/80">
             <Trans>Loading…</Trans>
           </div>
         ) : historyFailed ? (
-          <div className="grid flex-1 place-items-center px-8 text-center text-[13.5px] text-muted-foreground/80">
+          <div className="grid flex-1 place-items-center px-8 text-center text-body text-muted-foreground/80">
             <div className="flex flex-col items-center gap-3">
               <Trans>Could not load this chat.</Trans>
               <Button
@@ -111,7 +111,7 @@ export function PeerMessagesOverlay({
             </div>
           </div>
         ) : !conversation || conversation.messages.length === 0 ? (
-          <div className="grid flex-1 place-items-center px-8 text-center text-[13.5px] text-muted-foreground/80">
+          <div className="grid flex-1 place-items-center px-8 text-center text-body text-muted-foreground/80">
             <Trans>No messages with {peerBotName} yet.</Trans>
           </div>
         ) : (
@@ -131,10 +131,10 @@ export function PeerMessagesOverlay({
                       sent ? "bg-accent" : "bg-muted"
                     }`}
                   >
-                    <div className="mb-1 text-[12px] text-muted-foreground/70" dir="auto">
+                    <div className="mb-1 text-small text-muted-foreground/70" dir="auto">
                       {sent ? botName : peerBotName}
                     </div>
-                    <div className="text-[14.5px] leading-[1.5] text-foreground/90" dir="auto">
+                    <div className="text-title text-foreground/90" dir="auto">
                       <ChatMarkdown>{peerMessage.text}</ChatMarkdown>
                     </div>
                   </div>
@@ -145,7 +145,7 @@ export function PeerMessagesOverlay({
         )}
 
         <div className="flex items-center gap-4 border-t border-sidebar-border px-[18px] py-3.5">
-          <p className="text-[13.5px] text-muted-foreground/80">
+          <p className="text-body text-muted-foreground/80">
             <Trans>This chat is view-only</Trans>
           </p>
         </div>

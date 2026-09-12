@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { downloadArtifactBytes } from "../lib/artifact-open";
 import { rpc } from "../lib/rpc";
 
-const fieldClass = "mt-2 w-full font-mono text-[13px] leading-relaxed";
+const fieldClass = "mt-2 w-full font-mono text-body";
 
 function rowClass(open: boolean): string {
   return `h-auto w-full justify-start whitespace-normal px-2.5 py-2.5 text-start ${open ? "bg-muted" : ""}`;
@@ -62,7 +62,7 @@ export function KnowledgeSection({
 export function SpaceMemorySection() {
   return (
     <div className="mt-6" data-testid="space-memory-documents">
-      <div className="mb-2 text-[12.5px] uppercase tracking-[0.08em] text-muted-foreground">
+      <div className="mb-2 text-caption uppercase tracking-[0.08em] text-muted-foreground">
         <Trans>Shared documents</Trans>
       </div>
       <MemoryDocumentList
@@ -156,10 +156,10 @@ function MemoryDocumentList({
 
   return (
     <div data-testid={testId}>
-      {error ? <div className="px-2.5 pb-2 text-[13px] text-destructive">{error}</div> : null}
+      {error ? <div className="px-2.5 pb-2 text-body text-destructive">{error}</div> : null}
       {loading ? <Skeleton className="h-10 w-full" /> : null}
       {!loading && docs.length === 0 && !error ? (
-        <div className="px-2.5 py-1 text-[13.5px] text-muted-foreground">
+        <div className="px-2.5 py-1 text-body text-muted-foreground">
           <Trans>Nothing remembered yet</Trans>
         </div>
       ) : null}
@@ -173,10 +173,10 @@ function MemoryDocumentList({
             className={rowClass(openId === doc.id)}
           >
             <span className="flex w-full items-baseline justify-between gap-3">
-              <span className="min-w-0 truncate text-[14px] text-foreground" dir="auto">
+              <span className="min-w-0 truncate text-title text-foreground" dir="auto">
                 {doc.path}
               </span>
-              <span className="shrink-0 text-[12px] text-muted-foreground">
+              <span className="shrink-0 text-small text-muted-foreground">
                 <Trans>rev {doc.revision}</Trans>
               </span>
             </span>
@@ -198,7 +198,7 @@ function MemoryDocumentList({
                   type="button"
                   disabled={busy || draft === doc.content}
                   onClick={() => void save(doc)}
-                  className="rounded-lg bg-muted px-3 py-1.5 text-[13px] text-foreground disabled:opacity-50"
+                  className="rounded-lg bg-muted px-3 py-1.5 text-body text-foreground disabled:opacity-50"
                 >
                   <Trans>Save</Trans>
                 </Button>
@@ -207,7 +207,7 @@ function MemoryDocumentList({
                   type="button"
                   disabled={busy}
                   onClick={() => setOpenId(null)}
-                  className="rounded-lg px-3 py-1.5 text-[13px] text-muted-foreground"
+                  className="rounded-lg px-3 py-1.5 text-body text-muted-foreground"
                 >
                   <Trans>Cancel</Trans>
                 </Button>
@@ -222,7 +222,7 @@ function MemoryDocumentList({
           type="button"
           disabled={busy}
           onClick={() => void exportMarkdown()}
-          className="mt-2 px-2.5 text-[13px] text-muted-foreground hover:text-foreground"
+          className="mt-2 px-2.5 text-body text-muted-foreground hover:text-foreground"
         >
           <Trans>Download as markdown</Trans>
         </Button>
@@ -358,10 +358,10 @@ function AgentSkills({
   const editorOpen = creating || open;
   return (
     <div data-testid="bot-knowledge-skills">
-      {error ? <div className="px-2.5 pb-2 text-[13px] text-destructive">{error}</div> : null}
+      {error ? <div className="px-2.5 pb-2 text-body text-destructive">{error}</div> : null}
       {loading ? <Skeleton className="h-10 w-full" /> : null}
       {!loading && skills.length === 0 && !editorOpen && !error ? (
-        <div className="px-2.5 py-1 text-[13.5px] text-muted-foreground">
+        <div className="px-2.5 py-1 text-body text-muted-foreground">
           <Trans>No skills yet</Trans>
         </div>
       ) : null}
@@ -375,19 +375,16 @@ function AgentSkills({
               className={`${rowClass(false)} block`}
             >
               <span className="flex w-full items-baseline justify-between gap-3">
-                <span className="min-w-0 truncate text-[14px] text-foreground" dir="auto">
+                <span className="min-w-0 truncate text-title text-foreground" dir="auto">
                   {entry.name}
                 </span>
                 {entry.readOnly ? (
-                  <span className="shrink-0 text-[12px] text-muted-foreground">
+                  <span className="shrink-0 text-small text-muted-foreground">
                     <Trans>read-only</Trans>
                   </span>
                 ) : null}
               </span>
-              <span
-                className="mt-0.5 block truncate text-[12.5px] text-muted-foreground"
-                dir="auto"
-              >
+              <span className="mt-0.5 block truncate text-small text-muted-foreground" dir="auto">
                 {entry.description}
               </span>
             </Button>
@@ -396,7 +393,7 @@ function AgentSkills({
       {editorOpen ? (
         <div className="px-2.5 pb-2">
           {open ? (
-            <div className="pb-1 text-[14px] text-foreground" dir="auto">
+            <div className="pb-1 text-title text-foreground" dir="auto">
               {open.name}
             </div>
           ) : null}
@@ -417,7 +414,7 @@ function AgentSkills({
                 type="button"
                 disabled={busy || !draft.trim() || (!creating && draft === open?.content)}
                 onClick={() => void save()}
-                className="rounded-lg bg-muted px-3 py-1.5 text-[13px] text-foreground disabled:opacity-50"
+                className="rounded-lg bg-muted px-3 py-1.5 text-body text-foreground disabled:opacity-50"
               >
                 <Trans>Save</Trans>
               </Button>
@@ -432,7 +429,7 @@ function AgentSkills({
                 setCreating(false);
                 setConfirmingDelete(false);
               }}
-              className="rounded-lg px-3 py-1.5 text-[13px] text-muted-foreground"
+              className="rounded-lg px-3 py-1.5 text-body text-muted-foreground"
             >
               {open?.readOnly ? <Trans>Close</Trans> : <Trans>Cancel</Trans>}
             </Button>
@@ -442,7 +439,7 @@ function AgentSkills({
                 type="button"
                 disabled={busy}
                 onClick={() => void remove(open)}
-                className={`ms-auto rounded-lg px-3 py-1.5 text-[13px] ${
+                className={`ms-auto rounded-lg px-3 py-1.5 text-body ${
                   confirmingDelete ? "bg-destructive/10 text-destructive" : "text-destructive"
                 }`}
               >
@@ -464,7 +461,7 @@ function AgentSkills({
             setDraft(NEW_SKILL_TEMPLATE);
             setError(null);
           }}
-          className="mt-2 px-2.5 text-[13px] text-muted-foreground hover:text-foreground"
+          className="mt-2 px-2.5 text-body text-muted-foreground hover:text-foreground"
         >
           <Trans>New skill</Trans>
         </Button>

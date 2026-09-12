@@ -84,7 +84,7 @@ export function SoftwareUpdatePanel({
       </div>
       {check ? <CheckSummary check={check} /> : null}
       {error ? (
-        <p role="alert" className="text-[12.5px] text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {error}
         </p>
       ) : null}
@@ -136,10 +136,10 @@ export function SoftwareUpdateSection({ isDeploymentOwner }: { isDeploymentOwner
         data-testid="software-update-settings"
         className="mt-5 rounded-xl border border-border bg-card px-4 py-4"
       >
-        <h3 className="text-[15px] font-medium text-foreground">
+        <h3 className="text-title font-semibold text-foreground">
           <Trans>Software update</Trans>
         </h3>
-        <p role="alert" className="mt-3 text-[12.5px] text-destructive">
+        <p role="alert" className="mt-3 text-small text-destructive">
           {error}
         </p>
       </section>
@@ -231,7 +231,7 @@ export function SoftwareUpdateSection({ isDeploymentOwner }: { isDeploymentOwner
       data-testid="software-update-settings"
       className="mt-5 rounded-xl border border-border bg-card px-4 py-4"
     >
-      <h3 className="text-[15px] font-medium text-foreground">
+      <h3 className="text-title font-semibold text-foreground">
         <Trans>Software update</Trans>
       </h3>
       <SoftwareUpdatePanel
@@ -249,26 +249,26 @@ export function SoftwareUpdateSection({ isDeploymentOwner }: { isDeploymentOwner
 function CheckSummary({ check }: { check: ServerUpdateCheck }) {
   if (check.status === "up-to-date") {
     return (
-      <p className="text-[12.5px] text-muted-foreground/80">
+      <p className="text-small text-muted-foreground/80">
         <Trans>Up to date</Trans>
       </p>
     );
   }
   if (check.status === "available") {
     return (
-      <p className="text-[12.5px] text-foreground/75">
+      <p className="text-small text-foreground/75">
         <Trans>Update available</Trans>
       </p>
     );
   }
   if (check.status === "dirty") {
     return (
-      <p className="text-[12.5px] text-destructive">
+      <p className="text-small text-destructive">
         <Trans>Checkout has local changes. Clean it before updating.</Trans>
       </p>
     );
   }
   return (
-    <p className="text-[12.5px] text-destructive">{check.reason ?? <Trans>Unavailable</Trans>}</p>
+    <p className="text-small text-destructive">{check.reason ?? <Trans>Unavailable</Trans>}</p>
   );
 }

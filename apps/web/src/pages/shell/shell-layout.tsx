@@ -521,7 +521,7 @@ export function ShellLayout(props: ShellLayoutProps) {
           <div className="rk-scroll h-full w-full overflow-y-auto px-5 py-[17px] md:w-[360px]">
             {panel === "settings" || panel === "group-settings" ? (
               <div className="mb-4 flex items-center justify-between">
-                <span className="text-[13.5px] text-muted-foreground">
+                <span className="text-body text-muted-foreground">
                   <Trans>Settings</Trans>
                 </span>
                 <div className="flex gap-1">

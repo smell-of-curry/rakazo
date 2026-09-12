@@ -3,7 +3,14 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type { MessageReaction, ThreadMessage } from "@rakazo/contracts";
 import { canReactToThreadMessage, MESSAGE_REACTIONS } from "@rakazo/contracts";
-import { isRateLimitError, isToolActivityBlock, resolveAvatarColor } from "@rakazo/core";
+import type { BubbleCluster } from "@rakazo/core";
+import {
+  copyableMessageText,
+  isRateLimitError,
+  isToolActivityBlock,
+  messageProviderLabel,
+  resolveAvatarColor,
+} from "@rakazo/core";
 import {
   cn,
   DropdownMenu,
@@ -25,9 +32,6 @@ import { MessageHoverMetadata } from "../../components/MessageHoverMetadata";
 import { SkillDraftCard } from "../../components/teach/SkillDraftCard";
 import type { ArtifactTarget } from "../../lib/artifact-open";
 import { botImageSrc } from "../../lib/bot-image-src";
-import { copyableMessageText } from "../../lib/message-text";
-import { messageProviderLabel } from "../../lib/messaging";
-import type { BubbleCluster } from "../../lib/thread-time";
 import { bubbleRadiusClass } from "../../lib/thread-time";
 import { highlightQuery } from "./find-in-chat";
 import {

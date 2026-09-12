@@ -43,7 +43,7 @@ export function ArtifactFileCard(props: ArtifactFileCardProps) {
         <button
           type="button"
           onClick={() => void startDownload()}
-          className="rounded-2xl border border-border bg-card px-4 py-3 text-left text-[14px] text-foreground hover:bg-accent"
+          className="rounded-2xl border border-border bg-card px-4 py-3 text-left text-title text-foreground hover:bg-accent"
         >
           <div className="font-medium">{props.name}</div>
           <div className="mt-1 text-muted-foreground">
@@ -70,8 +70,8 @@ export function ArtifactFileCard(props: ArtifactFileCardProps) {
               <FileText size={21} strokeWidth={1.8} />
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-[14px] font-medium">{props.name}</span>
-              <span className="mt-0.5 block text-[13px] text-muted-foreground">
+              <span className="block truncate text-title font-medium">{props.name}</span>
+              <span className="mt-0.5 block text-body text-muted-foreground">
                 {formatBytes(props.size)}
               </span>
             </span>
@@ -148,7 +148,7 @@ function MarkdownPreview({
   return (
     <>
       <header className="flex h-14 shrink-0 items-center gap-1 border-b border-border px-5">
-        <DialogTitle className="min-w-0 flex-1 truncate text-[14px] leading-5 font-medium text-foreground">
+        <DialogTitle className="min-w-0 flex-1 truncate text-title font-semibold text-foreground">
           {name}
         </DialogTitle>
         <Button
@@ -187,7 +187,7 @@ function MarkdownPreview({
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <article className="mx-auto w-full max-w-[760px] px-8 py-10 text-[16px] leading-7 text-foreground sm:px-12 sm:py-12">
+        <article className="mx-auto w-full max-w-[760px] px-8 py-10 text-title text-foreground sm:px-12 sm:py-12">
           {state.status === "loading" ? (
             <div className="text-muted-foreground">
               <Trans>Loading preview…</Trans>
@@ -207,7 +207,7 @@ function MarkdownPreview({
 
 function DownloadError({ message }: { message: string }) {
   return (
-    <div role="alert" className="mt-2 text-left text-[13px] text-destructive">
+    <div role="alert" className="mt-2 text-left text-body text-destructive">
       {message}
     </div>
   );

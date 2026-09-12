@@ -386,10 +386,10 @@ export function OnboardingPage() {
         ) : null}
         {step === "model" ? (
           <div>
-            <h1 className="text-[32px] font-medium text-foreground">
+            <h1 className="text-display font-semibold text-foreground">
               <Trans>Connect a model</Trans>
             </h1>
-            <div className="mt-8 block text-sm font-medium text-foreground">
+            <div className="mt-8 block text-small font-medium text-foreground">
               <span>
                 <Trans>Provider</Trans>
               </span>
@@ -410,7 +410,7 @@ export function OnboardingPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="mt-6 block text-sm text-foreground">
+            <div className="mt-6 block text-body text-foreground">
               {isOpenAiCompatible ? (
                 <>
                   <label htmlFor={`${fieldId}-base-url`} className="block font-medium">
@@ -568,7 +568,7 @@ export function OnboardingPage() {
                   <div className="rounded-lg border border-border px-3.5 py-3">
                     {oauth.mode === "auth-url" ? (
                       <>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-small text-muted-foreground">
                           <Trans>
                             Finish signing in at{" "}
                             <a
@@ -598,13 +598,13 @@ export function OnboardingPage() {
                             <Trans>Submit</Trans>
                           </Button>
                         </div>
-                        <p className="mt-2 text-sm text-muted-foreground">
+                        <p className="mt-2 text-small text-muted-foreground">
                           <Trans>Waiting for sign-in…</Trans>
                         </p>
                       </>
                     ) : (
                       <>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-small text-muted-foreground">
                           <Trans>
                             Enter this code at{" "}
                             <a
@@ -617,10 +617,10 @@ export function OnboardingPage() {
                             </a>
                           </Trans>
                         </p>
-                        <p className="mt-2 font-mono text-[22px] tracking-[0.2em] text-foreground">
+                        <p className="mt-2 font-mono text-display tracking-[0.2em] text-foreground">
                           {oauth.userCode}
                         </p>
-                        <p className="mt-2 text-sm text-muted-foreground">
+                        <p className="mt-2 text-small text-muted-foreground">
                           <Trans>Waiting for sign-in…</Trans>
                         </p>
                       </>
@@ -635,7 +635,7 @@ export function OnboardingPage() {
             ) : null}
             {acceptsKey ? (
               isOpenAiCompatible ? (
-                <details className="mt-4 text-sm text-muted-foreground">
+                <details className="mt-4 text-small text-muted-foreground">
                   <summary className="w-fit cursor-pointer select-none">
                     <Trans>API key</Trans>
                   </summary>
@@ -652,7 +652,7 @@ export function OnboardingPage() {
               ) : (
                 <label
                   htmlFor={`${fieldId}-api-key`}
-                  className="mt-4 block text-sm font-medium text-foreground"
+                  className="mt-4 block text-small font-medium text-foreground"
                 >
                   {subscriptionSignIn ? <Trans>Or paste an API key</Trans> : <Trans>API key</Trans>}
                   <Input
@@ -667,8 +667,8 @@ export function OnboardingPage() {
                 </label>
               )
             ) : null}
-            {notice ? <p className="mt-3 text-sm text-success">{notice}</p> : null}
-            {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+            {notice ? <p className="mt-3 text-body text-success">{notice}</p> : null}
+            {error ? <p className="mt-3 text-body text-destructive">{error}</p> : null}
             <div className="mt-6 flex gap-3">
               <Button disabled={!canSaveModel} onClick={() => void saveModel()}>
                 <Trans>Continue</Trans>
@@ -690,7 +690,7 @@ export function OnboardingPage() {
           <div>
             {error ? (
               <div>
-                <p className="text-sm text-destructive">{error}</p>
+                <p className="text-body text-destructive">{error}</p>
                 <Button className="mt-4" onClick={() => void createFirstBot()}>
                   <Trans>Try again</Trans>
                 </Button>

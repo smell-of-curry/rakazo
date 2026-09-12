@@ -222,7 +222,7 @@ export function TeachComputerOverlayControl({
           <>
             <Label
               htmlFor="teach-goal-input"
-              className="text-[13px] font-normal text-muted-foreground"
+              className="text-small font-normal text-muted-foreground"
             >
               <Trans>What result will you demonstrate?</Trans>
             </Label>
@@ -235,7 +235,7 @@ export function TeachComputerOverlayControl({
               placeholder={t`Export this week's list from the CRM and drop it in the shared folder`}
             />
             {error ? (
-              <div role="alert" className="text-[13px] text-destructive">
+              <div role="alert" className="text-body text-destructive">
                 {error}
               </div>
             ) : null}
@@ -258,11 +258,11 @@ export function TeachComputerOverlayControl({
         ) : (
           <>
             {error ? (
-              <div role="alert" className="text-[13px] text-destructive">
+              <div role="alert" className="text-body text-destructive">
                 {error}
               </div>
             ) : (
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-body text-muted-foreground">
                 <Trans>Recording started. Refresh the view to continue.</Trans>
               </p>
             )}

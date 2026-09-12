@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  COMPUTER_STATUS_CHIP_LABELS,
-  computerStatusChip,
-  computerStatusChipLabel,
-} from "./computer-status.js";
+import { computerStatusChip } from "./computer-status.js";
 
 const computer = {
   state: "stopped" as const,
@@ -61,16 +57,5 @@ describe("computerStatusChip", () => {
     expect(
       computerStatusChip({ ...computer, state: "running", screenAvailable: true }, "waiting_input"),
     ).toEqual({ kind: "live", tone: "muted" });
-  });
-});
-
-describe("computerStatusChipLabel", () => {
-  it("uses the pane copy table", () => {
-    expect(computerStatusChipLabel("live")).toBe("Live");
-    expect(computerStatusChipLabel("sleeping")).toBe("Sleeping");
-    expect(computerStatusChipLabel("setting_up")).toBe("Setting up…");
-    expect(computerStatusChipLabel("needs_you")).toBe("Needs you");
-    expect(computerStatusChipLabel("off")).toBe("Off");
-    expect(COMPUTER_STATUS_CHIP_LABELS.live).toBe("Live");
   });
 });

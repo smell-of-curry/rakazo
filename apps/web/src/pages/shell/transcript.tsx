@@ -1,11 +1,17 @@
 import { useLingui } from "@lingui/react/macro";
 import type { MessageReaction, ThreadMessage } from "@rakazo/contracts";
 import {
+  bubbleCluster,
+  formatThreadTimestamp,
   isComposerDockedAskMessage,
   isPeerReceiptBlocks,
   isRateLimitError,
   isToolActivityBlock,
+  parseRateLimitRetrySeconds,
   projectMessageReactions,
+  shouldInsertThreadTimestamp,
+  threadMovedDown,
+  threadSenderKey,
 } from "@rakazo/core";
 import type { GroupAvatarMember } from "@rakazo/ui-web";
 import { cn } from "@rakazo/ui-web";
@@ -18,14 +24,7 @@ import { PeerReceiptCluster } from "../../components/ai/PeerReceiptCluster";
 import { messageHoverRevealClass } from "../../components/MessageHoverMetadata";
 import type { ArtifactTarget } from "../../lib/artifact-open";
 import { condensePeerReceipts } from "../../lib/condense-peer-receipts";
-import {
-  bubbleCluster,
-  formatThreadTimestamp,
-  parseRateLimitRetrySeconds,
-  shouldInsertThreadTimestamp,
-  threadSenderKey,
-} from "../../lib/thread-time";
-import { transcriptIsNearEnd, transcriptMovedDown } from "../../lib/transcript-scroll";
+import { transcriptIsNearEnd } from "../../lib/transcript-scroll";
 import { collectFindMatches, type FindableMessage, FindInChat } from "./find-in-chat";
 import { MessageHoverActions, MessageView, previewMessageText } from "./message-view";
 
@@ -270,7 +269,7 @@ export const Transcript = memo(function Transcript({
           }
         }}
         onScroll={(event) => {
-          const scrolledDown = transcriptMovedDown(
+          const scrolledDown = threadMovedDown(
             lastScrollTop.current,
             event.currentTarget.scrollTop,
           );

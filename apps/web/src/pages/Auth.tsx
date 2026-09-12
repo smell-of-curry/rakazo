@@ -10,8 +10,8 @@ import { clearSpaceSelection } from "../lib/rpc";
 type AuthMode = "in" | "up" | "forgot";
 type PasswordResetCapabilities = { passwordReset: boolean; resetUrl: string | null };
 
-const fieldClass = "mt-2 h-12 rounded-xl px-4 text-base md:text-base";
-const submitClass = "mt-3 h-12 w-full rounded-xl text-base";
+const fieldClass = "mt-2 h-12 rounded-xl px-4 text-body";
+const submitClass = "mt-3 h-12 w-full rounded-xl text-body";
 const AUTH_CAPABILITIES_TIMEOUT_MS = 8_000;
 const MAX_AUTH_CAPABILITIES_RESPONSE_BYTES = 64 * 1024;
 
@@ -191,7 +191,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
                 </Button>
               </div>
               {mode === "in" && reset?.passwordReset ? (
-                <div className="mt-2 text-right text-sm">
+                <div className="mt-2 text-right text-body">
                   <Link to="/forgot-password" className="font-medium text-foreground">
                     <Trans>Forgot password?</Trans>
                   </Link>
@@ -200,7 +200,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
             </div>
           ) : null}
           {error ? (
-            <p role="alert" className="mt-3 w-full text-sm text-destructive">
+            <p role="alert" className="mt-3 w-full text-body text-destructive">
               {error}
             </p>
           ) : null}
@@ -281,7 +281,7 @@ export function PasswordResetPage() {
     <AuthFrame onSubmit={submit} title={<Trans>Choose a new password</Trans>}>
       {complete ? (
         <div role="status" className="w-full text-center">
-          <p className="text-lg">
+          <p className="text-display">
             <Trans>Password updated</Trans>
           </p>
           <Link to="/sign-in" className="mt-6 inline-block font-medium">
@@ -304,7 +304,7 @@ export function PasswordResetPage() {
             className="mt-4"
           />
           {error ? (
-            <p role="alert" className="mt-3 w-full text-sm text-destructive">
+            <p role="alert" className="mt-3 w-full text-body text-destructive">
               {error}
             </p>
           ) : null}
@@ -341,7 +341,7 @@ function AuthFrame({
           <span className="h-5 w-[9px] rounded-full bg-primary" />
           <span className="h-5 w-[9px] rounded-full bg-primary" />
         </div>
-        <h1 aria-live="polite" className="mb-9 mt-7 text-4xl font-medium tracking-tight">
+        <h1 aria-live="polite" className="mb-9 mt-7 text-display font-semibold tracking-tight">
           {title}
         </h1>
         {children}

@@ -237,12 +237,12 @@ export function CallView({
         className="max-w-[420px] rounded-3xl p-6 text-center sm:max-w-[420px]"
       >
         <DialogHeader className="items-center gap-2">
-          <div className="text-[13px] uppercase tracking-[0.12em] text-muted-foreground/80">
+          <div className="text-caption uppercase tracking-[0.12em] text-muted-foreground/80">
             <Trans>Call</Trans>
           </div>
-          <DialogTitle className="text-[22px]">{botName}</DialogTitle>
+          <DialogTitle className="text-title font-semibold">{botName}</DialogTitle>
         </DialogHeader>
-        <div className="mt-1 text-[15px] text-foreground/75">
+        <div className="mt-1 text-title text-foreground/75">
           {phase === "listening" ? (
             <Trans>Listening…</Trans>
           ) : phase === "speaking" ? (
@@ -251,10 +251,10 @@ export function CallView({
             <Trans>Working…</Trans>
           )}
         </div>
-        <p className="min-h-[3.2em] text-[14.5px] leading-[1.5] text-muted-foreground">
+        <p className="min-h-[3.2em] text-title text-muted-foreground">
           {phase === "listening" ? heard || t`Say something. Silence sends it.` : caption}
         </p>
-        {error ? <p className="text-[13px] text-destructive">{error}</p> : null}
+        {error ? <p className="text-body text-destructive">{error}</p> : null}
         <div className="mt-2 flex justify-center gap-3">
           <Button variant="outline" className="rounded-full" onClick={interrupt}>
             <Trans>Interrupt</Trans>
@@ -263,7 +263,7 @@ export function CallView({
             <Trans>Hang up</Trans>
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground/80">
+        <p className="text-small text-muted-foreground/80">
           <Trans>Space interrupts · Esc hangs up</Trans>
         </p>
       </DialogContent>

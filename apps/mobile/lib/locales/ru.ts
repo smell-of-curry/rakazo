@@ -620,4 +620,6 @@ export const RU_MESSAGES: Record<string, string> = {
   "Waiting for authorization": "Ожидание авторизации",
   Disabled: "Отключено",
   "{count} messages with {name}": "{count} сообщений с {name}",
+  "{first} and {second}": "{first} и {second}",
+  "{first}, {second} and {n} more": "{first}, {second} и ещё {n}",
 };

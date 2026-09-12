@@ -604,4 +604,6 @@ export const ZH_MESSAGES: Record<string, string> = {
   "Waiting for authorization": "等待授权",
   Disabled: "已停用",
   "{count} messages with {name}": "{count} 条消息，与 {name}",
+  "{first} and {second}": "{first} 和 {second}",
+  "{first}, {second} and {n} more": "{first}、{second} 等另外 {n} 个",
 };

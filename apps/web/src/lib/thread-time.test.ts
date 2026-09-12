@@ -1,5 +1,6 @@
+import { bubbleCluster } from "@rakazo/core";
 import { describe, expect, it } from "vitest";
-import { bubbleCluster, bubbleRadiusClass } from "./thread-time";
+import { bubbleRadiusClass } from "./thread-time";
 
 describe("bubble grouping classes", () => {
   it("collapses inner corners on clustered bubbles", () => {

@@ -34,7 +34,7 @@ function ScopePicker({
   onChange: (scope: "isolated" | "shared") => void;
 }) {
   return (
-    <div className="text-[13.5px] text-muted-foreground">
+    <div className="text-small text-muted-foreground">
       <Trans>Default scope</Trans>
       <div className="mt-2 flex gap-2">
         {(["isolated", "shared"] as const).map((option) => (
@@ -155,10 +155,10 @@ export function MemorySettingsOverlay({
       {!embedded ? (
         <div className="flex items-start justify-between px-6 pt-6 sm:px-8 sm:pt-7">
           <div>
-            <DialogTitle className="text-2xl font-medium text-foreground">
+            <DialogTitle className="text-title font-semibold text-foreground">
               <Trans>Memory</Trans>
             </DialogTitle>
-            <DialogDescription className="mt-1 text-[13.5px] text-muted-foreground/70">
+            <DialogDescription className="mt-1 text-small text-muted-foreground/70">
               {registration?.description ?? (
                 <Trans>Manage the Space semantic memory provider.</Trans>
               )}
@@ -173,24 +173,24 @@ export function MemorySettingsOverlay({
           </DialogClose>
         </div>
       ) : (
-        <p className="px-6 pt-1 text-[13.5px] text-muted-foreground/70 sm:px-8">
+        <p className="px-6 pt-1 text-small text-muted-foreground/70 sm:px-8">
           {registration?.description ?? <Trans>Manage the Space semantic memory provider.</Trans>}
         </p>
       )}
 
       <div className="rk-scroll min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
-        {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
+        {error ? <p className="mb-4 text-body text-destructive">{error}</p> : null}
 
         {config === undefined ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-body text-muted-foreground">
             <Trans>Loading memory settings…</Trans>
           </p>
         ) : config ? (
           <div className="rounded-xl border border-border px-4 py-3">
-            <div className="text-[12.5px] uppercase tracking-[0.08em] text-muted-foreground/80">
+            <div className="text-caption uppercase tracking-[0.08em] text-muted-foreground/80">
               <Trans>Connected</Trans>
             </div>
-            <div className="mt-1 text-[15px] text-foreground">
+            <div className="mt-1 text-title text-foreground">
               {registration?.connectedLabel(config) ?? config.provider}
             </div>
             <div className="mt-3">
@@ -241,7 +241,7 @@ export function MemorySettingsOverlay({
             <registration.SettingsForm busy={busy} onConnect={connect} />
           </>
         ) : (
-          <p className="text-sm text-destructive">
+          <p className="text-body text-destructive">
             <Trans>The selected memory provider is not available in this build.</Trans>
           </p>
         )}

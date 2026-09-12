@@ -39,13 +39,13 @@ export function TeachRecordingChrome({
         data-testid="teach-recording-overlay"
         className="flex min-w-0 flex-1 flex-col gap-1 px-3"
       >
-        <div className="truncate text-[13px] text-foreground">
+        <div className="truncate text-body text-foreground">
           <Trans>Recording: {recording.goal}</Trans>
         </div>
-        <div className="text-[12px] text-muted-foreground">
+        <div className="text-small text-muted-foreground">
           <Trans>{remaining} left · bot is watching, not acting</Trans>
         </div>
-        <div className="text-[12px] text-destructive">
+        <div className="text-small text-destructive">
           <Trans>Do not type passwords into the demo. Use Take control for credentials.</Trans>
         </div>
       </div>
@@ -57,13 +57,13 @@ export function TeachRecordingChrome({
       data-testid="teach-recording"
       className="rounded-[11px] border border-border bg-card px-3 py-3"
     >
-      <div className="text-[14px] text-foreground">
+      <div className="text-title text-foreground">
         <Trans>Recording: {recording.goal}</Trans>
       </div>
-      <div className="mt-1 text-[13px] text-muted-foreground">
+      <div className="mt-1 text-body text-muted-foreground">
         <Trans>{remaining} left · bot is watching, not acting</Trans>
       </div>
-      <div className="mt-2 text-[13px] text-destructive">
+      <div className="mt-2 text-body text-destructive">
         <Trans>Do not type passwords into the demo. Use Take control for credentials.</Trans>
       </div>
       <Button

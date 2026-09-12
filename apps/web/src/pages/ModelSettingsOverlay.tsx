@@ -369,10 +369,10 @@ export function ModelSettingsOverlay({
       {!embedded ? (
         <DialogHeader className="flex-row items-start justify-between px-6 pt-6 sm:px-8 sm:pt-7">
           <div>
-            <DialogTitle className="text-2xl text-foreground">
+            <DialogTitle className="text-title font-semibold text-foreground">
               <Trans>Models</Trans>
             </DialogTitle>
-            <DialogDescription className="mt-1 text-[13.5px] text-muted-foreground/70">
+            <DialogDescription className="mt-1 text-small text-muted-foreground/70">
               {description}
             </DialogDescription>
           </div>
@@ -383,19 +383,19 @@ export function ModelSettingsOverlay({
           </DialogClose>
         </DialogHeader>
       ) : (
-        <p className="px-6 pt-1 text-[13.5px] text-muted-foreground/70 sm:px-8">{description}</p>
+        <p className="px-6 pt-1 text-small text-muted-foreground/70 sm:px-8">{description}</p>
       )}
 
       <div
         className={`mx-6 rounded-xl border border-border px-4 py-3 sm:mx-8 ${embedded ? "mt-4" : "mt-5"}`}
       >
-        <div className="text-[12.5px] uppercase tracking-[0.08em] text-muted-foreground/80">
+        <div className="text-caption uppercase tracking-[0.08em] text-muted-foreground/80">
           <Trans>Active model</Trans>
         </div>
-        <div className="mt-1 text-[16px] text-foreground">
+        <div className="mt-1 text-title text-foreground">
           {currentEntry?.label ?? me?.defaultModel ?? t`Deployment default`}
         </div>
-        <div className="mt-1 text-[13px] text-muted-foreground">
+        <div className="mt-1 text-small text-muted-foreground">
           {currentEntry?.providerName ?? me?.defaultProvider ?? (
             <Trans>Configured by deployment</Trans>
           )}
@@ -404,7 +404,7 @@ export function ModelSettingsOverlay({
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
         <div className="flex min-h-0 shrink-0 flex-col md:w-[310px]">
-          <div className="mb-3 text-[13.5px] text-muted-foreground">
+          <div className="mb-3 text-small text-muted-foreground">
             <Trans>Providers</Trans>
           </div>
           <label className="sr-only" htmlFor="model-provider-search">
@@ -431,17 +431,17 @@ export function ModelSettingsOverlay({
                     }`}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] text-foreground">
+                      <span className="block truncate text-title text-foreground">
                         {group.name}
                       </span>
-                      <span className="mt-0.5 block text-[12px] text-muted-foreground/80">
+                      <span className="mt-0.5 block text-small text-muted-foreground/80">
                         <Plural value={group.entries.length} one="# model" other="# models" />
                         {" · "}
                         {localizedProviderHint(group.entries[0]!)}
                       </span>
                     </span>
                     {connected ? (
-                      <span className="text-[12px] text-success">
+                      <span className="text-small text-success">
                         <Trans>Connected</Trans>
                       </span>
                     ) : null}
@@ -449,7 +449,7 @@ export function ModelSettingsOverlay({
                 );
               })
             ) : (
-              <p className="px-3.5 py-4 text-[13px] text-muted-foreground">
+              <p className="px-3.5 py-4 text-small text-muted-foreground">
                 <Trans>No providers found.</Trans>
               </p>
             )}
@@ -457,11 +457,11 @@ export function ModelSettingsOverlay({
         </div>
 
         <div ref={detailScrollRef} className="rk-scroll min-h-0 min-w-0 flex-1 overflow-y-auto">
-          {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
-          {notice ? <p className="mb-4 text-sm text-success">{notice}</p> : null}
+          {error ? <p className="mb-4 text-body text-destructive">{error}</p> : null}
+          {notice ? <p className="mb-4 text-body text-success">{notice}</p> : null}
           {selected ? (
             <>
-              <div className="block text-[13.5px] text-muted-foreground">
+              <div className="block text-small text-muted-foreground">
                 {isOpenAiCompatible ? (
                   <>
                     <label className="block" htmlFor="model-base-url">
@@ -476,7 +476,7 @@ export function ModelSettingsOverlay({
                         className="mt-2 h-10 text-foreground"
                       />
                     </label>
-                    <details className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
+                    <details className="mt-2 text-small text-muted-foreground">
                       <summary className="w-fit cursor-pointer select-none">
                         <Trans>Setup help</Trans>
                       </summary>
@@ -540,7 +540,7 @@ export function ModelSettingsOverlay({
                         <Button
                           type="button"
                           variant="link"
-                          className="mt-2 h-auto px-0 text-[13px] text-muted-foreground underline"
+                          className="mt-2 h-auto px-0 text-body text-muted-foreground underline"
                           onClick={() => setModelId(probeModels[0] ?? "")}
                         >
                           <Trans>Use a found model</Trans>
@@ -624,24 +624,22 @@ export function ModelSettingsOverlay({
                 )}
               </div>
               {!isOpenAiCompatible && selected.billing ? (
-                <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
-                  {selected.billing}
-                </p>
+                <p className="mt-2 text-small text-muted-foreground">{selected.billing}</p>
               ) : null}
 
               {!isOpenAiCompatible ? (
                 <div className="mt-5 rounded-xl border border-border px-4 py-3">
-                  <div className="text-[12.5px] uppercase tracking-[0.08em] text-muted-foreground/80">
+                  <div className="text-caption uppercase tracking-[0.08em] text-muted-foreground/80">
                     <Trans>Personal credential</Trans>
                   </div>
-                  <div className="mt-1 text-[15px] text-foreground">
+                  <div className="mt-1 text-title text-foreground">
                     {credential ? (
                       <Trans>Connected · {credential.label}</Trans>
                     ) : (
                       <Trans>Not connected</Trans>
                     )}
                   </div>
-                  <div className="mt-1 text-[13px] text-muted-foreground">
+                  <div className="mt-1 text-small text-muted-foreground">
                     {credential ? (
                       <Trans>Stored securely. Never shown here.</Trans>
                     ) : (
@@ -657,7 +655,7 @@ export function ModelSettingsOverlay({
                     <div className="rounded-xl border border-border px-4 py-3">
                       {oauth.mode === "auth-url" ? (
                         <>
-                          <p className="text-sm leading-[1.5] text-muted-foreground">
+                          <p className="text-small text-muted-foreground">
                             <Trans>
                               Finish signing in at{" "}
                               <a
@@ -679,7 +677,7 @@ export function ModelSettingsOverlay({
                               autoComplete="off"
                               spellCheck={false}
                               placeholder="http://localhost:53692/callback?code=…"
-                              className="text-foreground md:text-[13px]"
+                              className="text-foreground md:text-body"
                             />
                             <Button
                               type="button"
@@ -691,13 +689,13 @@ export function ModelSettingsOverlay({
                               <Trans>Submit</Trans>
                             </Button>
                           </div>
-                          <p className="mt-2 text-sm text-muted-foreground">
+                          <p className="mt-2 text-small text-muted-foreground">
                             <Trans>Waiting for sign-in…</Trans>
                           </p>
                         </>
                       ) : (
                         <>
-                          <p className="text-sm leading-[1.5] text-muted-foreground">
+                          <p className="text-small text-muted-foreground">
                             <Trans>
                               Enter this code at{" "}
                               <a
@@ -710,10 +708,10 @@ export function ModelSettingsOverlay({
                               </a>
                             </Trans>
                           </p>
-                          <p className="mt-2 font-mono text-[22px] tracking-[0.2em] text-foreground">
+                          <p className="mt-2 font-mono text-display tracking-[0.2em] text-foreground">
                             {oauth.userCode}
                           </p>
-                          <p className="mt-2 text-sm text-muted-foreground">
+                          <p className="mt-2 text-small text-muted-foreground">
                             <Trans>Waiting for sign-in…</Trans>
                           </p>
                         </>
@@ -740,7 +738,7 @@ export function ModelSettingsOverlay({
               {acceptsKey ? (
                 <div className="mt-5">
                   {isOpenAiCompatible ? (
-                    <details className="text-[13.5px] text-muted-foreground">
+                    <details className="text-small text-muted-foreground">
                       <summary className="w-fit cursor-pointer select-none">
                         <Trans>API key</Trans>
                       </summary>
@@ -756,7 +754,7 @@ export function ModelSettingsOverlay({
                     </details>
                   ) : (
                     <label
-                      className="block text-[13.5px] text-muted-foreground"
+                      className="block text-small text-muted-foreground"
                       htmlFor="model-api-key"
                     >
                       {credential ? (
@@ -802,7 +800,7 @@ export function ModelSettingsOverlay({
               ) : null}
 
               {selected.auth === "oauth" && !subscriptionSignIn ? (
-                <p className="mt-5 text-sm leading-[1.5] text-muted-foreground">
+                <p className="mt-5 text-small text-muted-foreground">
                   <Trans>
                     This subscription sign-in is not available in Rakazo yet. Use a deployment
                     credential or choose another provider.
@@ -1061,7 +1059,7 @@ function ModelPicker({
         aria-controls={listboxId}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-transparent px-3 text-start text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-transparent px-3 text-start text-body text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
         onClick={() => setOpen((current) => !current)}
         onKeyDown={onTriggerKeyDown}
       >
@@ -1088,7 +1086,7 @@ function ModelPicker({
               setHighlightedIndex(0);
             }}
             onKeyDown={onSearchKeyDown}
-            className="w-full border-b border-border bg-transparent px-3 py-2.5 text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground/80"
+            className="w-full border-b border-border bg-transparent px-3 py-2.5 text-body text-foreground outline-none placeholder:text-muted-foreground/80"
           />
           <div
             id={listboxId}
@@ -1098,7 +1096,7 @@ function ModelPicker({
           >
             {groupRanges.map((group) => (
               <div key={group.name}>
-                <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
+                <p className="px-3 pb-1 pt-2 text-caption font-medium uppercase tracking-[0.08em] text-muted-foreground/80">
                   {group.name}
                 </p>
                 {group.entries.map((option, groupIndex) => {
@@ -1120,7 +1118,7 @@ function ModelPicker({
               </div>
             ))}
             {filteredOptions.length === 0 ? (
-              <p className="px-3 py-2 text-[13px] text-muted-foreground">
+              <p className="px-3 py-2 text-small text-muted-foreground">
                 <Trans>No matching models</Trans>
               </p>
             ) : null}
@@ -1161,7 +1159,7 @@ function ModelOption({
       role="option"
       aria-selected={option.id === value}
       tabIndex={highlighted ? 0 : -1}
-      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-start text-[13.5px] text-foreground outline-none hover:bg-accent focus-visible:bg-accent ${
+      className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-start text-body text-foreground outline-none hover:bg-accent focus-visible:bg-accent ${
         highlighted || option.id === value ? "bg-accent" : ""
       }`}
       onClick={() => choose(index)}
@@ -1169,7 +1167,7 @@ function ModelOption({
     >
       <span className="min-w-0 truncate">{option.label}</span>
       {option.billing.toLowerCase().includes("free") ? (
-        <span className="shrink-0 text-[12px] text-muted-foreground">{t`Free`}</span>
+        <span className="shrink-0 text-small text-muted-foreground">{t`Free`}</span>
       ) : null}
     </button>
   );

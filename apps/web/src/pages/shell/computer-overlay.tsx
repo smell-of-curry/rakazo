@@ -6,6 +6,7 @@ import type {
   TaughtSkill,
   ThreadSnapshot,
 } from "@rakazo/contracts";
+import { computerStatusChip } from "@rakazo/core";
 import { Button } from "@rakazo/ui-web";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
@@ -14,7 +15,6 @@ import { ComputerMaintenanceActions } from "../../components/ComputerMaintenance
 import { TeachCaptureOverlay } from "../../components/teach/TeachCaptureOverlay";
 import { TeachComputerOverlayControl } from "../../components/teach/TeachComputerOverlay";
 import { TeachRecordingChrome, TeachStopButton } from "../../components/teach/TeachRecordingChrome";
-import { computerStatusChip } from "../../lib/computer-screen";
 import { rpc } from "../../lib/rpc";
 import { computerCanShowScreen } from "../../lib/thread-events";
 import {

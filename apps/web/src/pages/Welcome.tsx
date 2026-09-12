@@ -17,7 +17,7 @@ export function WelcomePage() {
           </div>
           <div className="text-[76px] leading-none tracking-[-0.03em] text-foreground">Rakazo</div>
         </div>
-        <p className="max-w-[600px] text-center text-[27px] leading-[1.4] text-foreground/75">
+        <p className="max-w-[600px] text-center text-display text-foreground/75">
           <Trans>
             Your team of always-on agents
             <br />
@@ -27,7 +27,7 @@ export function WelcomePage() {
         <button
           type="button"
           onClick={() => navigate("/sign-up")}
-          className="app-no-drag rounded-full bg-accent px-[34px] py-[15px] text-[19px] text-foreground transition hover:scale-[1.04] hover:bg-accent"
+          className="app-no-drag rounded-full bg-accent px-[34px] py-[15px] text-display text-foreground transition hover:scale-[1.04] hover:bg-accent"
         >
           <Trans>Sign up</Trans>&nbsp;&nbsp;→
         </button>

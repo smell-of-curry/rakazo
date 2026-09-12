@@ -108,10 +108,10 @@ export function ApprovalRulesSettings() {
 
   return (
     <div data-testid="action-confirmation-settings" className="pt-5">
-      <h3 className="text-[15px] font-medium text-foreground">
+      <h3 className="text-title font-semibold text-foreground">
         <Trans>Action confirmations</Trans>
       </h3>
-      <p className="mt-2 text-[13.5px] leading-[1.5] text-muted-foreground">
+      <p className="mt-2 text-small text-muted-foreground">
         <Trans>
           Bots act without asking by default. Add an exception only when you want to review a type
           of action first.
@@ -143,23 +143,23 @@ export function ApprovalRulesSettings() {
           onCheckedChange={(checked) => void toggleAutoReview(checked)}
         />
         <div>
-          <Label htmlFor={autoReviewId} className="text-[14px] font-normal text-foreground/75">
+          <Label htmlFor={autoReviewId} className="text-small font-normal text-muted-foreground">
             <Trans>Flag unexpected actions</Trans>
           </Label>
           {autoReview?.enabled && !autoReview.checkerAvailable ? (
-            <p className="mt-1 text-[13px] text-muted-foreground">
+            <p className="mt-1 text-small text-muted-foreground">
               <Trans>Add a model in Settings to use this.</Trans>
             </p>
           ) : null}
         </div>
       </div>
-      {error ? <p className="mt-3 text-[13px] text-destructive">{error}</p> : null}
+      {error ? <p className="mt-3 text-body text-destructive">{error}</p> : null}
       {loading ? (
-        <p className="mt-4 text-[13px] text-muted-foreground">
+        <p className="mt-4 text-body text-muted-foreground">
           <Trans>Loading rules…</Trans>
         </p>
       ) : rules.length === 0 ? (
-        <p className="mt-4 text-[13px] text-muted-foreground">
+        <p className="mt-4 text-body text-muted-foreground">
           <Trans>No exceptions. Actions run automatically.</Trans>
         </p>
       ) : (
@@ -169,7 +169,7 @@ export function ApprovalRulesSettings() {
               key={rule.id}
               className="flex items-center justify-between gap-3 rounded-lg border border-border px-3.5 py-2"
             >
-              <span className="text-[13.5px] text-foreground/75">{describeRule(rule)}</span>
+              <span className="text-body text-foreground/75">{describeRule(rule)}</span>
               <Button
                 variant="ghost"
                 size="sm"

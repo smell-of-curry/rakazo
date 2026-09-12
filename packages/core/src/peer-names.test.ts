@@ -1,15 +1,40 @@
 import { describe, expect, it } from "vitest";
-import { formatPeerNames } from "./peer-names.js";
+import { peerNameParts } from "./peer-names.js";
 
-describe("formatPeerNames", () => {
-  it("joins one, two, and many names", () => {
-    expect(formatPeerNames(["Ken"])).toBe("Ken");
-    expect(formatPeerNames(["Ken", "Ally"])).toBe("Ken and Ally");
-    expect(formatPeerNames(["Ken", "Ally", "Dan"])).toBe("Ken, Ally, and Dan");
+describe("peerNameParts", () => {
+  it("keeps first-seen order and drops blanks and repeats", () => {
+    expect(peerNameParts([" Ken ", "Ally", "Ken", "", "Dan"])).toEqual({
+      names: ["Ken", "Ally", "Dan"],
+      first: "Ken",
+      second: "Ally",
+      overflow: 1,
+    });
   });
 
-  it("drops blanks and repeats", () => {
-    expect(formatPeerNames([" Ken ", "Ken", ""])).toBe("Ken");
-    expect(formatPeerNames([])).toBe("");
+  it("covers one, two, many, and empty", () => {
+    expect(peerNameParts(["Ken"])).toEqual({
+      names: ["Ken"],
+      first: "Ken",
+      second: undefined,
+      overflow: 0,
+    });
+    expect(peerNameParts(["Ken", "Ally"])).toEqual({
+      names: ["Ken", "Ally"],
+      first: "Ken",
+      second: "Ally",
+      overflow: 0,
+    });
+    expect(peerNameParts(["Ken", "Ally", "Jo", "Pat"])).toEqual({
+      names: ["Ken", "Ally", "Jo", "Pat"],
+      first: "Ken",
+      second: "Ally",
+      overflow: 2,
+    });
+    expect(peerNameParts([])).toEqual({
+      names: [],
+      first: undefined,
+      second: undefined,
+      overflow: 0,
+    });
   });
 });

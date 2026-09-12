@@ -102,11 +102,11 @@ export function ScratchpadSection({ botId }: { botId: string }) {
 
   return (
     <div className="mt-6" data-testid="bot-scratchpad">
-      <div className="mb-3 text-[14px] text-muted-foreground">
+      <div className="mb-3 text-title font-semibold text-foreground">
         <Trans>Open work</Trans>
       </div>
       {items.length === 0 ? (
-        <div className="py-1 text-[13.5px] text-muted-foreground/80">
+        <div className="py-1 text-body text-muted-foreground/80">
           <Trans>None yet</Trans>
         </div>
       ) : (
@@ -124,18 +124,18 @@ export function ScratchpadSection({ botId }: { botId: string }) {
             />
             <div className="min-w-0 flex-1">
               <div
-                className={`text-start text-[14.5px] ${item.status === "done" ? "text-muted-foreground/80 line-through" : "text-foreground"}`}
+                className={`text-start text-title ${item.status === "done" ? "text-muted-foreground/80 line-through" : "text-foreground"}`}
                 dir="auto"
               >
                 {item.title}
               </div>
               {item.notes ? (
-                <div className="mt-0.5 text-[12.5px] text-muted-foreground/80" dir="auto">
+                <div className="mt-0.5 text-small text-muted-foreground/80" dir="auto">
                   {item.notes}
                 </div>
               ) : null}
             </div>
-            <span className="shrink-0 text-[12px] text-muted-foreground/80">{item.status}</span>
+            <span className="shrink-0 text-small text-muted-foreground/80">{item.status}</span>
             {item.status === "open" ? (
               <Button
                 variant="ghost"
@@ -196,7 +196,7 @@ export function ScratchpadSection({ botId }: { botId: string }) {
           <Trans>Add</Trans>
         </Button>
       </form>
-      {error ? <div className="mt-2 text-[13px] text-destructive">{error}</div> : null}
+      {error ? <div className="mt-2 text-body text-destructive">{error}</div> : null}
     </div>
   );
 }

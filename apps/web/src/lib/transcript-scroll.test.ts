@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  transcriptCanSnapAfterFrame,
-  transcriptIsNearEnd,
-  transcriptMovedDown,
-} from "./transcript-scroll.js";
+import { transcriptCanSnapAfterFrame, transcriptIsNearEnd } from "./transcript-scroll.js";
 
 describe("transcriptIsNearEnd", () => {
   it("follows only while the viewport is within 80px of the latest message", () => {
@@ -28,13 +24,5 @@ describe("transcriptCanSnapAfterFrame", () => {
     const queuedTranscript = { scrollTop: 950 };
     const replacementTranscript = { scrollTop: 950 };
     expect(transcriptCanSnapAfterFrame(replacementTranscript, queuedTranscript, 950)).toBe(false);
-  });
-});
-
-describe("transcriptMovedDown", () => {
-  it("does not treat an uninitialized baseline as downward movement", () => {
-    expect(transcriptMovedDown(null, 920)).toBe(false);
-    expect(transcriptMovedDown(950, 920)).toBe(false);
-    expect(transcriptMovedDown(920, 950)).toBe(true);
   });
 });

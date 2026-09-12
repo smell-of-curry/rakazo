@@ -16,7 +16,7 @@ type SkillDraftBlock = {
 
 function fieldLabel(id: string, title: React.ReactNode) {
   return (
-    <Label htmlFor={id} className="mt-3 mb-1 text-[13px] font-normal text-muted-foreground">
+    <Label htmlFor={id} className="mt-3 mb-1 text-small font-normal text-muted-foreground">
       {title}
     </Label>
   );
@@ -72,10 +72,10 @@ export function SkillDraftCard({
       data-testid="skill-draft-card"
       className="w-[min(520px,92%)] rounded-2xl border border-border bg-card px-5 py-4"
     >
-      <div className="text-[15px] font-medium text-foreground">
+      <div className="text-title font-semibold text-foreground">
         <Trans>Draft skill</Trans>
       </div>
-      <div className="mt-1 text-[13.5px] text-muted-foreground">{block.goal}</div>
+      <div className="mt-1 text-body text-muted-foreground">{block.goal}</div>
       {fieldLabel("skill-draft-name", <Trans>Name</Trans>)}
       <Input id="skill-draft-name" value={name} onChange={(event) => setName(event.target.value)} />
       {fieldLabel("skill-draft-when", <Trans>When to use</Trans>)}

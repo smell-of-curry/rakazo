@@ -136,14 +136,14 @@ export function CommandPalette({
                       {titleTag ? (
                         <Badge
                           variant="secondary"
-                          className="max-w-[40%] truncate rounded-full px-1.5 py-0 text-[11px] font-normal text-muted-foreground"
+                          className="max-w-[40%] truncate rounded-full px-1.5 py-0 text-caption font-normal text-muted-foreground"
                         >
                           {titleTag}
                         </Badge>
                       ) : null}
                     </div>
                     {subtitle ? (
-                      <div className="mt-0.5 truncate text-[13px] text-muted-foreground" dir="auto">
+                      <div className="mt-0.5 truncate text-body text-muted-foreground" dir="auto">
                         {subtitle}
                       </div>
                     ) : null}

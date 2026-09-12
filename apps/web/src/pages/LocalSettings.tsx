@@ -18,7 +18,7 @@ export function LocalSettingsPage() {
   return (
     <main className="h-full overflow-auto bg-background px-6 py-12">
       <div className="mx-auto max-w-xl space-y-6">
-        <h1 className="text-2xl font-medium">
+        <h1 className="text-title font-semibold">
           <Trans>Local Server Settings</Trans>
         </h1>
         {error ? (

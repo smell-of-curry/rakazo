@@ -55,7 +55,7 @@ export function HostComputerPrompt({ initialMe }: { initialMe?: Me }) {
     <Dialog open>
       <DialogContent showCloseButton={false} className="rounded-2xl p-6 sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="text-[22px]">
+          <DialogTitle className="text-title font-semibold">
             <Trans>Where should bots run?</Trans>
           </DialogTitle>
           <DialogDescription className="space-y-2 leading-relaxed">
@@ -65,7 +65,7 @@ export function HostComputerPrompt({ initialMe }: { initialMe?: Me }) {
                 bots work with your local files and tools.
               </Trans>
             </span>
-            <span className="block text-xs text-muted-foreground/80">
+            <span className="block text-small text-muted-foreground/80">
               <Trans>
                 Local access lets bots run commands without asking. Avoid it on shared or public
                 servers.
@@ -73,7 +73,7 @@ export function HostComputerPrompt({ initialMe }: { initialMe?: Me }) {
             </span>
           </DialogDescription>
         </DialogHeader>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p className="text-body text-destructive">{error}</p> : null}
         <div className="flex flex-col gap-2">
           <Button
             variant="outline"

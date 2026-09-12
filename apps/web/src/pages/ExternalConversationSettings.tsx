@@ -80,16 +80,16 @@ export function ExternalConversationSettings({
   return (
     <div data-testid="external-conversation-settings">
       <div className="mb-6">
-        <h2 className="truncate text-[17px] font-medium text-foreground" dir="auto">
+        <h2 className="truncate text-title font-semibold text-foreground" dir="auto">
           {conversation.displayName || t`External conversation`}
         </h2>
-        <p className="mt-1 truncate text-[12.5px] text-muted-foreground">
+        <p className="mt-1 truncate text-small text-muted-foreground">
           {conversation.participantNames.join(", ")}
         </p>
       </div>
 
       <fieldset>
-        <legend className="text-[13.5px] text-muted-foreground">
+        <legend className="text-small text-muted-foreground">
           <Trans>Listening</Trans>
         </legend>
         <div className="mt-2 grid grid-cols-3 gap-1 rounded-lg bg-muted/40 p-1">
@@ -108,7 +108,7 @@ export function ExternalConversationSettings({
                 setMode(option.value);
                 setSaved(false);
               }}
-              className={`min-h-9 rounded-md px-2 text-[12px] leading-4 transition-colors ${
+              className={`min-h-9 rounded-md px-2 text-small transition-colors ${
                 mode === option.value
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -120,7 +120,7 @@ export function ExternalConversationSettings({
         </div>
       </fieldset>
 
-      <label className="mt-6 block text-[13.5px] text-muted-foreground">
+      <label className="mt-6 block text-small text-muted-foreground">
         <span className="flex items-center justify-between gap-3">
           <Trans>Room guidance</Trans>
           {rules !== null ? (
@@ -137,7 +137,7 @@ export function ExternalConversationSettings({
               <RotateCcw size={14} strokeWidth={1.8} />
             </button>
           ) : (
-            <span className="text-[11.5px] text-muted-foreground/70">
+            <span className="text-caption text-muted-foreground/70">
               <Trans>{bot.name} default</Trans>
             </span>
           )}
@@ -151,12 +151,12 @@ export function ExternalConversationSettings({
           }}
           placeholder={t`Engage when... Ignore...`}
           rows={6}
-          className="mt-2 w-full resize-y rounded-lg border border-border bg-transparent px-3 py-2.5 text-[13.5px] leading-5 text-foreground outline-none focus:border-muted-foreground"
+          className="mt-2 w-full resize-y rounded-lg border border-border bg-transparent px-3 py-2.5 text-body text-foreground outline-none focus:border-muted-foreground"
         />
       </label>
 
       <div className="mt-6 border-t border-border pt-5">
-        <h3 className="text-[13.5px] text-muted-foreground">
+        <h3 className="text-title font-semibold text-foreground">
           <Trans>Automated senders</Trans>
         </h3>
         {senders.length > 0 ? (
@@ -169,7 +169,7 @@ export function ExternalConversationSettings({
               return (
                 <div key={sender.id} className="py-3">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="min-w-0 truncate text-[13.5px] text-foreground">
+                    <span className="min-w-0 truncate text-body text-foreground">
                       {sender.name}
                     </span>
                     <select
@@ -182,7 +182,7 @@ export function ExternalConversationSettings({
                           event.target.value as AutomatedSenderPolicyMode,
                         )
                       }
-                      className="max-w-[165px] rounded-md border border-border bg-background px-2 py-1.5 text-[12.5px] text-foreground"
+                      className="max-w-[165px] rounded-md border border-border bg-background px-2 py-1.5 text-small text-foreground"
                     >
                       {senderModes.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -192,7 +192,7 @@ export function ExternalConversationSettings({
                     </select>
                   </div>
                   {policy.mode === "rollup" ? (
-                    <label className="mt-2 flex items-center justify-end gap-2 text-[12px] text-muted-foreground">
+                    <label className="mt-2 flex items-center justify-end gap-2 text-small text-muted-foreground">
                       <Trans>Every</Trans>
                       <input
                         aria-label={t`${sender.name} rollup hours`}
@@ -211,7 +211,7 @@ export function ExternalConversationSettings({
                           }));
                           setSaved(false);
                         }}
-                        className="w-16 rounded-md border border-border bg-transparent px-2 py-1 text-end text-[12.5px] text-foreground"
+                        className="w-16 rounded-md border border-border bg-transparent px-2 py-1 text-end text-small text-foreground"
                       />
                       <Trans>hours</Trans>
                     </label>
@@ -221,18 +221,18 @@ export function ExternalConversationSettings({
             })}
           </div>
         ) : (
-          <p className="mt-2 text-[12.5px] leading-5 text-muted-foreground/70">
+          <p className="mt-2 text-small text-muted-foreground/70">
             <Trans>Automated senders will appear after they post here.</Trans>
           </p>
         )}
       </div>
 
       {!effectiveListening ? (
-        <p className="mt-5 text-[12.5px] leading-5 text-muted-foreground/70">
+        <p className="mt-5 text-small text-muted-foreground/70">
           <Trans>{bot.name} will still respond to direct mentions.</Trans>
         </p>
       ) : null}
-      {error ? <p className="mt-3 text-[13px] text-destructive">{error}</p> : null}
+      {error ? <p className="mt-3 text-body text-destructive">{error}</p> : null}
       <div className="mt-6 flex min-h-10 items-center gap-3">
         <Button
           disabled={saving}

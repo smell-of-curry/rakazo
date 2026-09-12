@@ -1,6 +1,3 @@
-export type { ComputerStatusChip, ComputerStatusChipKind } from "@rakazo/core";
-export { computerStatusChip } from "@rakazo/core";
-
 export function novncEmbedSocketPath(url: string): string {
   const parsed = new URL(url);
   if (parsed.pathname.includes("/novnc/session/")) {

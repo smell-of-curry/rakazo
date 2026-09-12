@@ -11,18 +11,6 @@ export type ComputerStatusChipSource = {
   takeoverRequested?: boolean;
 };
 
-export const COMPUTER_STATUS_CHIP_LABELS: Record<ComputerStatusChipKind, string> = {
-  live: "Live",
-  sleeping: "Sleeping",
-  setting_up: "Setting up…",
-  needs_you: "Needs you",
-  off: "Off",
-};
-
-export function computerStatusChipLabel(kind: ComputerStatusChipKind): string {
-  return COMPUTER_STATUS_CHIP_LABELS[kind];
-}
-
 /** Pane/overlay chip. Never return the raw computer or run status string. */
 export function computerStatusChip(
   computer: ComputerStatusChipSource | null | undefined,

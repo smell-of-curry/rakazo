@@ -91,7 +91,7 @@ export function ComputerMaintenanceActions({
             <Trans>Restore the last saved workspace. Unsaved work on the computer is lost.</Trans>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {error ? <p className="text-[13px] text-destructive">{error}</p> : null}
+        {error ? <p className="text-body text-destructive">{error}</p> : null}
         <AlertDialogFooter>
           <AlertDialogCancel>
             <Trans>Cancel</Trans>
@@ -149,7 +149,7 @@ export function ComputerMaintenanceActions({
               {pending === "update" ? <Trans>Updating…</Trans> : <Trans>Update computer</Trans>}
             </DropdownMenuItem>
           ) : null}
-          {error ? <p className="px-1.5 py-1 text-[12.5px] text-destructive">{error}</p> : null}
+          {error ? <p className="px-1.5 py-1 text-small text-destructive">{error}</p> : null}
         </DropdownMenuContent>
       </DropdownMenu>
       {resetDialog}

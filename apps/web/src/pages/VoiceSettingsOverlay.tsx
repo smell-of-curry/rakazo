@@ -150,7 +150,7 @@ export function VoiceSettingsOverlay({
       {!embedded ? (
         <div className="flex items-start justify-between px-6 pt-6 sm:px-8 sm:pt-7">
           <div>
-            <DialogTitle className="text-2xl font-medium text-foreground">
+            <DialogTitle className="text-title font-semibold text-foreground">
               <Trans>Voice</Trans>
             </DialogTitle>
           </div>
@@ -166,7 +166,7 @@ export function VoiceSettingsOverlay({
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
         <div className="flex min-h-0 shrink-0 flex-col md:w-[280px]">
-          <div className="mb-3 text-[13.5px] text-muted-foreground">
+          <div className="mb-3 text-small text-muted-foreground">
             <Trans>Providers</Trans>
           </div>
           <div className="rk-scroll overflow-y-auto rounded-xl border border-border">
@@ -188,8 +188,8 @@ export function VoiceSettingsOverlay({
                   }`}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] text-foreground">{entry.name}</span>
-                    <span className="mt-0.5 block text-[12px] text-muted-foreground/80">
+                    <span className="block truncate text-title text-foreground">{entry.name}</span>
+                    <span className="mt-0.5 block text-small text-muted-foreground/80">
                       {entry.transcribe ? (
                         <Trans>Speak + transcribe</Trans>
                       ) : (
@@ -198,7 +198,7 @@ export function VoiceSettingsOverlay({
                     </span>
                   </span>
                   {connected ? (
-                    <span className="text-[12px] text-success">
+                    <span className="text-small text-success">
                       <Trans>Connected</Trans>
                     </span>
                   ) : null}
@@ -210,12 +210,12 @@ export function VoiceSettingsOverlay({
 
         <div className="rk-scroll min-h-0 min-w-0 flex-1 overflow-y-auto">
           {loading ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-body text-muted-foreground">
               <Trans>Loading voice providers…</Trans>
             </p>
           ) : null}
-          {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
-          {notice ? <p className="mb-4 text-sm text-success">{notice}</p> : null}
+          {error ? <p className="mb-4 text-body text-destructive">{error}</p> : null}
+          {notice ? <p className="mb-4 text-body text-success">{notice}</p> : null}
           {selected ? (
             <>
               <Field className="mt-5">

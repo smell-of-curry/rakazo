@@ -1,9 +1,17 @@
-/** Unique peer names: `Ken`, `Ken and Ally`, `Ken, Ally, and Dan`. */
-export function formatPeerNames(names: readonly string[]): string {
+export type PeerNameParts = {
+  names: string[];
+  first: string | undefined;
+  second: string | undefined;
+  overflow: number;
+};
+
+/** Unique names in first-seen order, plus the first two and overflow count. */
+export function peerNameParts(names: readonly string[]): PeerNameParts {
   const unique = [...new Set(names.map((name) => name.trim()).filter(Boolean))];
-  if (unique.length === 0) return "";
-  if (unique.length === 1) return unique[0]!;
-  if (unique.length === 2) return `${unique[0]} and ${unique[1]}`;
-  const head = unique.slice(0, -1).join(", ");
-  return `${head}, and ${unique[unique.length - 1]}`;
+  return {
+    names: unique,
+    first: unique[0],
+    second: unique[1],
+    overflow: Math.max(0, unique.length - 2),
+  };
 }

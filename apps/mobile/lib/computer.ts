@@ -1,4 +1,5 @@
 import type { ComputerMode, ComputerStatus as ContractComputerStatus } from "@rakazo/contracts";
+import type { ComputerStatusChipKind } from "@rakazo/core";
 import { t } from "./i18n";
 
 export const COMPUTER_HEARTBEAT_MS = 60_000;
@@ -88,4 +89,19 @@ export function controlLabel(computer: ComputerStatus | null, name: string, botI
 
 export function computerLabel(mode: ComputerMode | undefined, name: string) {
   return mode === "dedicated" ? t("{name}’s computer", { name }) : t("Team Computer");
+}
+
+export function computerStatusChipLabel(kind: ComputerStatusChipKind): string {
+  switch (kind) {
+    case "live":
+      return t("Live");
+    case "sleeping":
+      return t("Sleeping");
+    case "setting_up":
+      return t("Setting up…");
+    case "needs_you":
+      return t("Needs you");
+    case "off":
+      return t("Off");
+  }
 }

@@ -12,14 +12,14 @@ export function SpaceSearchResults({
 }) {
   if (loading) {
     return (
-      <div className="px-3 py-4 text-[14px] text-muted-foreground">
+      <div className="px-3 py-4 text-body text-muted-foreground">
         <Trans>Searching…</Trans>
       </div>
     );
   }
   if (!hits.length) {
     return (
-      <div className="px-3 py-4 text-[14px] text-muted-foreground">
+      <div className="px-3 py-4 text-body text-muted-foreground">
         <Trans>No results</Trans>
       </div>
     );
@@ -34,14 +34,14 @@ export function SpaceSearchResults({
           className="rounded-xl px-2.5 py-[11px] text-start hover:bg-background"
         >
           <div className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-[15px] font-medium text-foreground" dir="auto">
+            <span className="truncate text-title font-medium text-foreground" dir="auto">
               {hit.title}
             </span>
-            <span className="shrink-0 text-[12px] uppercase tracking-wide text-muted-foreground/80">
+            <span className="shrink-0 text-small uppercase tracking-wide text-muted-foreground/80">
               {hit.kind}
             </span>
           </div>
-          <div className="mt-0.5 truncate text-[13px] text-muted-foreground" dir="auto">
+          <div className="mt-0.5 truncate text-small text-muted-foreground" dir="auto">
             {hit.groupName ?? hit.botName} · {hit.snippet}
           </div>
         </button>

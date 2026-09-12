@@ -1,5 +1,6 @@
 import { i18n } from "@lingui/core";
 import type { ThreadMessage } from "@rakazo/contracts";
+import { peerNameParts, uniquePeersFromCluster } from "@rakazo/core";
 import { darkTokens } from "@rakazo/ui-tokens";
 import {
   BotAvatar,
@@ -9,7 +10,6 @@ import {
   DropdownMenuTrigger,
 } from "@rakazo/ui-web";
 import { botImageSrc } from "../../lib/bot-image-src";
-import { uniquePeersFromCluster } from "../../lib/condense-peer-receipts";
 
 export type PeerReceiptPeerLook = {
   color: string;
@@ -27,18 +27,20 @@ export type PeerReceiptClusterProps = {
 };
 
 export function formatPeerNames(names: readonly string[]): string {
-  if (names.length <= 1) return names[0] ?? "";
-  if (names.length === 2) {
+  const { first, second, overflow } = peerNameParts(names);
+  if (!first) return "";
+  if (!second) return first;
+  if (overflow === 0) {
     return i18n._({
       id: "{first} and {second}",
       message: "{first} and {second}",
-      values: { first: names[0], second: names[1] },
+      values: { first, second },
     });
   }
   return i18n._({
     id: "{first}, {second} and {n} more",
     message: "{first}, {second} and {n} more",
-    values: { first: names[0], second: names[1], n: names.length - 2 },
+    values: { first, second, n: overflow },
   });
 }
 

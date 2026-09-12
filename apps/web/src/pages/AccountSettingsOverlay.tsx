@@ -57,21 +57,21 @@ export function GeneralSettingsPanels({
   return (
     <div className="space-y-5">
       <section className="rounded-xl border border-border px-4 py-4">
-        <h3 className="text-[15px] font-medium text-foreground">
+        <h3 className="text-title font-semibold text-foreground">
           <Trans>Account</Trans>
         </h3>
-        <p className="mt-3 text-[14px] text-foreground/75">{name}</p>
-        {email ? <p className="mt-1 text-[13px] text-muted-foreground/70">{email}</p> : null}
+        <p className="mt-3 text-title text-foreground/75">{name}</p>
+        {email ? <p className="mt-1 text-small text-muted-foreground/70">{email}</p> : null}
       </section>
 
       <ChangePasswordSection email={email} />
 
       {messagingEnabled && onOpenMessaging ? (
         <section className="rounded-xl border border-border px-4 py-4">
-          <h3 className="text-[15px] font-medium text-foreground">
+          <h3 className="text-title font-semibold text-foreground">
             <Trans>Messaging</Trans>
           </h3>
-          <p className="mt-3 text-[13px] text-muted-foreground/70">
+          <p className="mt-3 text-small text-muted-foreground/70">
             <Trans>Chat apps, group channels, and agent connections.</Trans>
           </p>
           <Button variant="secondary" className="mt-3 rounded-full" onClick={onOpenMessaging}>
@@ -81,7 +81,7 @@ export function GeneralSettingsPanels({
       ) : null}
 
       <section className="rounded-xl border border-border px-4 py-4">
-        <h3 className="text-[15px] font-medium text-foreground">
+        <h3 className="text-title font-semibold text-foreground">
           <Trans>Appearance</Trans>
         </h3>
         <AppearancePicker
@@ -94,7 +94,7 @@ export function GeneralSettingsPanels({
       </section>
 
       <section className="rounded-xl border border-border px-4 py-4">
-        <h3 className="text-[15px] font-medium text-foreground">
+        <h3 className="text-title font-semibold text-foreground">
           <Trans>Language</Trans>
         </h3>
         <UiLocalePicker value={locale} onChange={chooseLocale} />
@@ -107,12 +107,12 @@ export function GeneralSettingsPanels({
       ) : null}
 
       <details data-testid="advanced-settings" className="group rounded-xl border border-border">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 text-[14px] text-foreground/75">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 text-title text-foreground/75">
           <span>
-            <span className="block text-[15px] text-foreground">
+            <span className="block text-title font-semibold text-foreground">
               <Trans>Advanced</Trans>
             </span>
-            <span className="mt-1 block text-[12.5px] text-muted-foreground/80">
+            <span className="mt-1 block text-small text-muted-foreground/80">
               <Trans>Optional controls most people never need</Trans>
             </span>
           </span>
@@ -142,17 +142,17 @@ export function UsageSettingsPanel({
       data-testid="usage-settings"
       className="rounded-xl border border-border px-4 py-4 outline-none"
     >
-      <h3 className="text-[15px] font-medium text-foreground">
+      <h3 className="text-title font-semibold text-foreground">
         <Trans>Usage</Trans>
       </h3>
       {usage ? (
-        <p className="mt-3 text-[14px] text-foreground/75">
+        <p className="mt-3 text-title text-foreground/75">
           <Trans>
             {usage.runs} runs · {usage.inputTokens + usage.outputTokens} tokens
           </Trans>
         </p>
       ) : null}
-      <p className={`text-[12.5px] text-muted-foreground/80 ${usage ? "mt-2" : "mt-3"}`}>
+      <p className={`text-small text-muted-foreground/80 ${usage ? "mt-2" : "mt-3"}`}>
         <Trans>Model spend uses your provider keys.</Trans>
       </p>
     </div>
@@ -165,10 +165,10 @@ export function ComputerSettingsPanel() {
       data-testid="computers-setup-settings"
       className="rounded-xl border border-border px-4 py-4"
     >
-      <h3 className="text-[15px] font-medium text-foreground">
+      <h3 className="text-title font-semibold text-foreground">
         <Trans>Computers</Trans>
       </h3>
-      <ComputersUnavailableHint className="mt-3 text-[13px] leading-relaxed text-muted-foreground" />
+      <ComputersUnavailableHint className="mt-3 text-small text-muted-foreground" />
     </div>
   );
 }
@@ -227,7 +227,7 @@ function ChangePasswordSection({ email }: { email?: string | null }) {
 
   return (
     <section className="rounded-xl border border-border px-4 py-4">
-      <h3 className="text-[15px] font-medium text-foreground">
+      <h3 className="text-title font-semibold text-foreground">
         <Trans>Password</Trans>
       </h3>
       <div className="mt-3 grid gap-3">
@@ -261,7 +261,7 @@ function ChangePasswordSection({ email }: { email?: string | null }) {
         />
       </div>
       {error ? (
-        <p role="alert" className="mt-3 text-[12.5px] text-destructive">
+        <p role="alert" className="mt-3 text-small text-destructive">
           {error}
         </p>
       ) : null}
@@ -332,7 +332,7 @@ function AppearancePicker({
           data-testid={`ui-appearance-${option.value}`}
           pressed={option.value === value}
           onPressedChange={() => onChange(option.value)}
-          className="text-[13px] aria-pressed:bg-background aria-pressed:shadow-sm"
+          className="text-body aria-pressed:bg-background aria-pressed:shadow-sm"
         >
           {option.label}
         </Toggle>
@@ -442,7 +442,7 @@ function UiLocalePicker({
         aria-controls={listboxId}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-transparent px-3 text-start text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50"
+        className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-transparent px-3 text-start text-body text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50"
         onClick={() => setOpen((current) => !current)}
         onKeyDown={onTriggerKeyDown}
       >
@@ -468,7 +468,7 @@ function UiLocalePicker({
               role="option"
               aria-selected={code === value}
               tabIndex={index === highlightedIndex ? 0 : -1}
-              className={`w-full rounded-md px-2 py-1.5 text-start text-sm outline-none hover:bg-accent focus-visible:bg-accent ${
+              className={`w-full rounded-md px-2 py-1.5 text-start text-body outline-none hover:bg-accent focus-visible:bg-accent ${
                 code === value ? "bg-accent" : ""
               }`}
               onClick={() => choose(index)}

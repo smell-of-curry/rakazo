@@ -1,11 +1,10 @@
 import type { MessageBlock } from "@rakazo/contracts";
-import { uniquePeersFromCluster } from "@rakazo/core";
+import { peerNameParts, uniquePeersFromCluster } from "@rakazo/core";
 import { ActionSheetIOS, Platform, Pressable, Text } from "react-native";
 import { mobileTokens, typeScale } from "../lib/appearance";
 import { t } from "../lib/i18n";
 import { presentMessageActionSheet } from "../lib/message-action-sheet";
 import { useResolvedAppearance } from "../lib/native";
-import { formatPeerNames } from "../lib/peer-names";
 import { BotAvatar } from "./bot-avatar";
 
 export type PeerReceiptLook = {
@@ -14,6 +13,14 @@ export type PeerReceiptLook = {
   status?: string;
   imageSrc?: string;
 };
+
+function formatPeerNames(names: readonly string[]): string {
+  const { first, second, overflow } = peerNameParts(names);
+  if (!first) return "";
+  if (!second) return first;
+  if (overflow === 0) return t("{first} and {second}", { first, second });
+  return t("{first}, {second} and {n} more", { first, second, n: overflow });
+}
 
 export function PeerReceiptCluster({
   messages,

@@ -1,4 +1,4 @@
-import { isNearThreadEnd, threadMovedDown } from "@rakazo/core";
+import { isNearThreadEnd } from "@rakazo/core";
 
 export function transcriptIsNearEnd(
   element: Pick<HTMLElement, "scrollHeight" | "scrollTop" | "clientHeight">,
@@ -12,8 +12,4 @@ export function transcriptCanSnapAfterFrame(
   queuedScrollTop: number,
 ): boolean {
   return element === queuedElement && queuedElement.scrollTop === queuedScrollTop;
-}
-
-export function transcriptMovedDown(previousScrollTop: number | null, scrollTop: number): boolean {
-  return threadMovedDown(previousScrollTop, scrollTop);
 }

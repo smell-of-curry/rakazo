@@ -1,12 +1,9 @@
 import { i18n } from "@lingui/core";
 import type { ComputerStatus } from "@rakazo/contracts";
+import type { ComputerStatusChip, ComputerStatusChipKind } from "@rakazo/core";
 import { Monitor } from "lucide-react";
 import type { ReactNode } from "react";
-import {
-  type ComputerStatusChip,
-  type ComputerStatusChipKind,
-  novncEmbedSocketPath,
-} from "../../lib/computer-screen";
+import { novncEmbedSocketPath } from "../../lib/computer-screen";
 
 export function embeddableScreenUrl(url: string | null): string | null {
   if (!url) return null;

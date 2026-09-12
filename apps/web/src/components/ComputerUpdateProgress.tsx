@@ -91,7 +91,7 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
             )}
             <span className="text-center">
               <span className="block">{title(update)}</span>
-              <span className="block text-xs text-muted-foreground">
+              <span className="block text-small text-muted-foreground">
                 {labels[COMPUTER_UPDATE_STAGES.indexOf(update.stage)]}
               </span>
             </span>
@@ -112,7 +112,7 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
             data-testid="computer-update-dialog"
           >
             <div className="border-b border-border px-6 py-5">
-              <DialogTitle className="text-lg font-semibold">{title(selected)}</DialogTitle>
+              <DialogTitle className="text-title font-semibold">{title(selected)}</DialogTitle>
             </div>
             {!computerUpdateNeedsAttention(selected) ? (
               <ol className="space-y-4 px-6 py-6" aria-label={t`Update progress`}>
@@ -131,7 +131,7 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
                       key={stage}
                       aria-current={index === current ? "step" : undefined}
                       className={cn(
-                        "flex items-center gap-3 text-base",
+                        "flex items-center gap-3 text-title",
                         index === current ? "text-foreground" : "text-muted-foreground",
                       )}
                     >
@@ -154,7 +154,7 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
             {computerUpdateNeedsAttention(selected) ? (
               <p
                 role="alert"
-                className="mx-6 my-6 rounded-xl bg-muted px-4 py-4 text-sm text-muted-foreground"
+                className="mx-6 my-6 rounded-xl bg-muted px-4 py-4 text-body text-muted-foreground"
               >
                 {selected.status === "interrupted" ? (
                   <Trans>Recovery is unavailable until the previous operation has stopped.</Trans>
@@ -170,7 +170,7 @@ export function ComputerUpdateProgress({ onCompleted }: { onCompleted: () => voi
               </span>
             )}
             {error ? (
-              <p role="alert" className="px-6 pb-3 text-sm text-destructive">
+              <p role="alert" className="px-6 pb-3 text-body text-destructive">
                 <Trans>Could not complete action</Trans>
               </p>
             ) : null}

@@ -1,10 +1,9 @@
 import { i18n } from "@lingui/core";
 import type { Bot, ComputerStatus, Me, Routine, ThreadSnapshot } from "@rakazo/contracts";
-import { isActive } from "@rakazo/core";
+import { computerStatusChip, isActive } from "@rakazo/core";
 import { Button } from "@rakazo/ui-web";
 import { Settings, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { computerStatusChip } from "../../lib/computer-screen";
 import { computerCanShowScreen } from "../../lib/thread-events";
 import { draftFromRoutine, emptyRoutineDraft, type RoutineDraftState } from "../routine-draft";
 import { RoutineListHeader, RoutineListRow } from "../routine-list";

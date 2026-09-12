@@ -1,4 +1,5 @@
 import type { ComputerMode, ComputerReleaseReason, Routine } from "@rakazo/contracts";
+import { computerStatusChip, describeRoutineSchedule } from "@rakazo/core";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
@@ -17,6 +18,7 @@ import {
   COMPUTER_HEARTBEAT_MS,
   type ComputerStatus,
   computerBootInFlight,
+  computerStatusChipLabel,
   controlLabel,
   embeddableScreenUrl,
   previewPlaceholder,
@@ -24,10 +26,8 @@ import {
   SCREEN_URL_OPEN_ATTEMPTS,
 } from "../lib/computer";
 import { createComputerRefresh } from "../lib/computer-refresh";
-import { computerStatusChip } from "../lib/computer-status";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
-import { describeRoutineSchedule } from "../lib/routine-schedule";
 
 export default function Computer() {
   const { t } = useI18n();
@@ -54,11 +54,12 @@ export default function Computer() {
 
   const hasControl = computer?.controlHolder === "user" && computer.controlBotId === botId;
   const label = t("{name}’s computer", { name });
-  const statusChip = computerStatusChip({
-    state: computer?.state,
+  const chip = computerStatusChip({
+    state: booting ? "booting" : computer?.state,
+    screenAvailable: computer?.state === "running" && !booting,
     takeoverRequested: computer?.takeoverRequested,
-    booting,
   });
+  const statusChip = computerStatusChipLabel(chip.kind);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -357,7 +358,13 @@ export default function Computer() {
                 {routine.name}
               </Text>
               <Text style={{ color: tokens.mutedForeground, ...typeScale.small }} numberOfLines={1}>
-                {describeRoutineSchedule(routine.crons, routine.active)}
+                {describeRoutineSchedule({
+                  active: routine.active,
+                  crons: routine.crons,
+                  webhookEnabled: routine.webhookEnabled,
+                  githubEnabled: routine.githubEnabled,
+                  messageProvider: routine.messageProvider,
+                })}
               </Text>
             </View>
           </Pressable>
