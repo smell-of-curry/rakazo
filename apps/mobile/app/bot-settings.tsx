@@ -11,7 +11,7 @@ import {
 import { AVATAR_COLORS, AVATAR_SHAPE_KEYS } from "@rakazo/core";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { BotAvatar } from "../components/bot-avatar";
 import { ComputerModePicker } from "../components/computer-mode-picker";
 import {
@@ -21,7 +21,9 @@ import {
   type MobileModelCredential,
   rpc,
 } from "../lib/api";
+import { typeScale } from "../lib/appearance";
 import { botAvatarSrc } from "../lib/bot-avatar-src";
+import { confirmDeleteBot } from "../lib/bot-lifecycle";
 import { useI18n } from "../lib/i18n";
 import { presentMessageActionSheet } from "../lib/message-action-sheet";
 import { useMobileTokens, useResolvedAppearance } from "../lib/native";
@@ -29,6 +31,7 @@ import { pickFromLibrary } from "../lib/pick-attachments";
 
 type BotSettingsRecord = MobileBot & {
   description?: string;
+  instructions?: string;
 };
 
 type ModelOption = {
@@ -53,6 +56,9 @@ export default function BotSettingsScreen() {
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [notifyOnFinish, setNotifyOnFinish] = useState(true);
+  const [saved, setSaved] = useState(false);
   const [color, setColor] = useState<string>(AVATAR_COLORS[0]?.hex ?? "#8B5CF6");
   const [avatarShape, setAvatarShape] = useState<string | null>(null);
   const [hasAvatar, setHasAvatar] = useState(false);
@@ -77,6 +83,8 @@ export default function BotSettingsScreen() {
         setName(next.name);
         setTitle(next.title);
         setDescription(next.description ?? "");
+        setInstructions(next.instructions ?? "");
+        setNotifyOnFinish(next.notifyOnFinish);
         setColor(next.color);
         setAvatarShape(next.avatarShape);
         setHasAvatar(next.hasAvatar);
@@ -254,7 +262,7 @@ export default function BotSettingsScreen() {
     }
   }
 
-  async function save() {
+  async function persist() {
     if (!botId || !bot || pending) return;
     setPending(true);
     setError(null);
@@ -272,14 +280,13 @@ export default function BotSettingsScreen() {
         modelProvider?: string | null;
         modelId?: string | null;
         thinkingLevel?: ThinkingLevel | null;
+        notifyOnFinish?: boolean;
       } = { botId };
       if (profile.name !== bot.name) input.name = profile.name;
       if (profile.title !== bot.title) input.title = profile.title;
-      if (profile.description !== (bot.description ?? "")) {
-        input.description = profile.description;
-        // Keep instructions in sync with description (same as web BotSettings).
-        input.instructions = profile.instructions;
-      }
+      if (profile.description !== (bot.description ?? "")) input.description = profile.description;
+      if (instructions !== (bot.instructions ?? "")) input.instructions = instructions;
+      if (notifyOnFinish !== bot.notifyOnFinish) input.notifyOnFinish = notifyOnFinish;
       if (color !== bot.color) input.color = color;
       if (avatarShape !== bot.avatarShape) {
         const parsed = AvatarShapeSchema.safeParse(avatarShape);
@@ -301,11 +308,11 @@ export default function BotSettingsScreen() {
       if (computerMode !== bot.computerMode) {
         await rpc("bots/setComputer", { botId, mode: computerMode });
       }
-      // Use key presence so clearing title/description to "" still persists.
       if (Object.keys(input).length > 1) {
         await rpc("bots/update", input);
+        setBot({ ...bot, ...input, name: profile.name, title: profile.title });
       }
-      router.back();
+      setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Could not save bot"));
     } finally {
@@ -315,15 +322,23 @@ export default function BotSettingsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: t("Chat settings") }} />
+      <Stack.Screen options={{ title: t("Settings") }} />
       <ScrollView
         style={{ flex: 1, backgroundColor: tokens.background }}
         contentContainerStyle={{ padding: 24 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
+        {saved ? (
+          <Text style={{ color: tokens.mutedForeground, ...typeScale.caption, marginBottom: 8 }}>
+            {t("Saved")}
+          </Text>
+        ) : null}
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.title, marginBottom: 12 }}>
+          {t("Profile")}
+        </Text>
         {bot ? (
-          <View style={{ alignItems: "center", marginBottom: 24 }}>
+          <View style={{ alignItems: "center", marginBottom: 16 }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("Avatar Studio")}
@@ -339,12 +354,13 @@ export default function BotSettingsScreen() {
             </Pressable>
           </View>
         ) : null}
-        <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.caption }}>{t("Name")}</Text>
         <TextInput
           value={name}
           maxLength={BOT_NAME_MAX_LENGTH}
           onChangeText={setName}
-          placeholder={t("Name this bot")}
+          onBlur={() => void persist()}
+          placeholder={t("Name")}
           placeholderTextColor={tokens.mutedForeground}
           style={{
             marginTop: 8,
@@ -352,16 +368,18 @@ export default function BotSettingsScreen() {
             borderRadius: 11,
             padding: 16,
             color: tokens.foreground,
+            ...typeScale.body,
           }}
         />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
+        <Text style={{ color: tokens.mutedForeground, marginTop: 16, ...typeScale.caption }}>
           {t("Title")}
         </Text>
         <TextInput
           value={title}
           maxLength={BOT_TITLE_MAX_LENGTH}
           onChangeText={setTitle}
-          placeholder={t("Describe what this bot does")}
+          onBlur={() => void persist()}
+          placeholder={t("Title")}
           placeholderTextColor={tokens.mutedForeground}
           style={{
             marginTop: 8,
@@ -369,16 +387,18 @@ export default function BotSettingsScreen() {
             borderRadius: 11,
             padding: 16,
             color: tokens.foreground,
+            ...typeScale.body,
           }}
         />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
+        <Text style={{ color: tokens.mutedForeground, marginTop: 16, ...typeScale.caption }}>
           {t("Description")}
         </Text>
         <TextInput
           value={description}
           maxLength={BOT_DESCRIPTION_MAX_LENGTH}
           onChangeText={setDescription}
-          placeholder={t("What this bot is for")}
+          onBlur={() => void persist()}
+          placeholder={t("Description")}
           placeholderTextColor={tokens.mutedForeground}
           multiline
           style={{
@@ -387,11 +407,42 @@ export default function BotSettingsScreen() {
             borderRadius: 11,
             padding: 16,
             color: tokens.foreground,
-            minHeight: 120,
+            ...typeScale.body,
+            minHeight: 80,
             textAlignVertical: "top",
           }}
         />
-        <ComputerModePicker value={computerMode} onChange={setComputerMode} />
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.title, marginTop: 28 }}>
+          {t("Instructions")}
+        </Text>
+        <TextInput
+          value={instructions}
+          onChangeText={setInstructions}
+          onBlur={() => void persist()}
+          placeholder={t("Instructions")}
+          placeholderTextColor={tokens.mutedForeground}
+          multiline
+          style={{
+            marginTop: 8,
+            backgroundColor: tokens.muted,
+            borderRadius: 11,
+            padding: 16,
+            color: tokens.foreground,
+            ...typeScale.body,
+            minHeight: 100,
+            textAlignVertical: "top",
+          }}
+        />
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.title, marginTop: 28 }}>
+          {t("Computer")}
+        </Text>
+        <ComputerModePicker
+          value={computerMode}
+          onChange={(mode) => {
+            setComputerMode(mode);
+            void persist();
+          }}
+        />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("Advanced")}
@@ -474,21 +525,54 @@ export default function BotSettingsScreen() {
           </View>
         ) : null}
         {error ? <Text style={{ color: tokens.destructive, marginTop: 16 }}>{error}</Text> : null}
-        <Pressable
-          onPress={() => void save()}
-          disabled={!name.trim() || pending || !bot}
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.title, marginTop: 28 }}>
+          {t("Notifications")}
+        </Text>
+        <View
           style={{
-            marginTop: 24,
-            backgroundColor: tokens.primary,
-            borderRadius: 11,
-            padding: 16,
+            marginTop: 8,
+            minHeight: 48,
+            flexDirection: "row",
             alignItems: "center",
-            opacity: !name.trim() || pending || !bot ? 0.4 : 1,
+            justifyContent: "space-between",
           }}
         >
-          <Text style={{ color: tokens.primaryForeground, fontSize: 16 }}>
-            {pending ? t("Saving…") : t("Save")}
+          <Text style={{ color: tokens.foreground, ...typeScale.body }}>{t("Notifications")}</Text>
+          <Switch
+            value={notifyOnFinish}
+            onValueChange={(value) => {
+              setNotifyOnFinish(value);
+              void persist();
+            }}
+          />
+        </View>
+        <Text style={{ color: tokens.destructive, ...typeScale.title, marginTop: 28 }}>
+          {t("Danger")}
+        </Text>
+        <Pressable
+          onPress={() =>
+            Alert.alert(t("Clear conversation?"), undefined, [
+              { text: t("Cancel"), style: "cancel" },
+              {
+                text: t("Clear conversation"),
+                style: "destructive",
+                onPress: () => void rpc("threads/clear", { botId }).catch(() => undefined),
+              },
+            ])
+          }
+          style={{ marginTop: 12, minHeight: 44, justifyContent: "center" }}
+        >
+          <Text style={{ color: tokens.destructive, ...typeScale.body }}>
+            {t("Clear conversation")}
           </Text>
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            confirmDeleteBot({ id: botId ?? "", name: name || t("Bot") }, () => router.replace("/"))
+          }
+          style={{ minHeight: 44, justifyContent: "center" }}
+        >
+          <Text style={{ color: tokens.destructive, ...typeScale.body }}>{t("Delete bot")}</Text>
         </Pressable>
       </ScrollView>
       <Modal

@@ -1,5 +1,5 @@
-import type { ComputerMode, ComputerReleaseReason } from "@rakazo/contracts";
-import { useLocalSearchParams, useNavigation } from "expo-router";
+import type { ComputerMode, ComputerReleaseReason, Routine } from "@rakazo/contracts";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import {
@@ -12,11 +12,11 @@ import { ComputerMaintenanceActions } from "../components/computer-maintenance-a
 import { ComputerModePicker } from "../components/computer-mode-picker";
 import { NativeSymbol } from "../components/native-symbol";
 import { currentApiBase, rpc } from "../lib/api";
+import { typeScale } from "../lib/appearance";
 import {
   COMPUTER_HEARTBEAT_MS,
   type ComputerStatus,
   computerBootInFlight,
-  computerLabel,
   controlLabel,
   embeddableScreenUrl,
   previewPlaceholder,
@@ -24,16 +24,20 @@ import {
   SCREEN_URL_OPEN_ATTEMPTS,
 } from "../lib/computer";
 import { createComputerRefresh } from "../lib/computer-refresh";
+import { computerStatusChip } from "../lib/computer-status";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
+import { describeRoutineSchedule } from "../lib/routine-schedule";
 
 export default function Computer() {
   const { t } = useI18n();
   const tokens = useMobileTokens();
   const navigation = useNavigation();
+  const router = useRouter();
   const { botId, name: nameParam } = useLocalSearchParams<{ botId?: string; name?: string }>();
   const name = nameParam || t("Bot");
   const [computer, setComputer] = useState<ComputerStatus | null>(null);
+  const [routines, setRoutines] = useState<Routine[]>([]);
   const [screenUrl, setScreenUrl] = useState<string | null>(null);
   const [screenError, setScreenError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,11 +53,39 @@ export default function Computer() {
   useEffect(() => setScreenError(null), [embeddedScreenUrl]);
 
   const hasControl = computer?.controlHolder === "user" && computer.controlBotId === botId;
-  const label = computerLabel(computer?.mode, name);
+  const label = t("{name}’s computer", { name });
+  const statusChip = computerStatusChip({
+    state: computer?.state,
+    takeoverRequested: computer?.takeoverRequested,
+    booting,
+  });
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: label });
-  }, [label, navigation]);
+    navigation.setOptions({
+      title: label,
+      headerRight: () => (
+        <View
+          style={{
+            borderRadius: 999,
+            backgroundColor: tokens.muted,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+          }}
+        >
+          <Text style={{ color: tokens.mutedForeground, ...typeScale.caption }}>
+            {t(statusChip)}
+          </Text>
+        </View>
+      ),
+    });
+  }, [label, navigation, statusChip, t, tokens]);
+
+  useEffect(() => {
+    if (!botId) return;
+    void rpc<Routine[]>("routines/list", { botId })
+      .then(setRoutines)
+      .catch(() => setRoutines([]));
+  }, [botId]);
 
   const refreshController = useMemo(
     () =>
@@ -296,6 +328,41 @@ export default function Computer() {
         disabled={switching}
         onChange={(mode) => void setComputerMode(mode)}
       />
+      <View style={{ marginTop: 24, gap: 8 }}>
+        <Text style={{ color: tokens.foreground, ...typeScale.title }}>{t("Routines")}</Text>
+        {routines.map((routine) => (
+          <Pressable
+            key={routine.id}
+            onPress={() =>
+              router.push({
+                pathname: "/routine",
+                params: { botId: botId ?? "", botName: name, routineId: routine.id },
+              })
+            }
+            style={{
+              minHeight: 48,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <NativeSymbol
+              ios="clock"
+              android="time-outline"
+              size={16}
+              color={tokens.mutedForeground}
+            />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ color: tokens.foreground, ...typeScale.body }} numberOfLines={1}>
+                {routine.name}
+              </Text>
+              <Text style={{ color: tokens.mutedForeground, ...typeScale.small }} numberOfLines={1}>
+                {describeRoutineSchedule(routine.crons, routine.active)}
+              </Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
 
       <Modal
         visible={booting || computerOpen}
@@ -475,7 +542,7 @@ function ComputerReleaseActions({
     takeoverRequested
       ? [
           { label: t("Skip"), reason: "skipped" },
-          { label: t("I’m done"), reason: "done", primary: true },
+          { label: t("Done"), reason: "done", primary: true },
         ]
       : [{ label: t("Release") }];
   return (

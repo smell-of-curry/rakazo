@@ -20,14 +20,15 @@ import {
   cloudAgentHttpsUrl,
   condensePeerReceipts,
   isApprovalAskBlock,
-  isComposerDockedAskMessage,
   isRateLimitError,
   isRunTerminalEvent,
   isSecretAskBlock,
   latestAnswerableAskMessageId,
   mentionChipKey,
   mentionStillInPrompt,
+  needsYou,
   projectMessageReactions,
+  rateLimitRetryDelayMs,
   resolveComposerSendPlan,
   SLASH_ACTIONS,
   type SlashActionId,
@@ -91,16 +92,13 @@ import {
   shouldApplyMobileThreadRefresh,
   subscribeThread,
 } from "../lib/api";
-import { mobileTokens } from "../lib/appearance";
+import { mobileTokens, typeScale } from "../lib/appearance";
 import { type MobileArtifactTarget, openMobileArtifact } from "../lib/artifact-open";
 import { botAvatarSrc } from "../lib/bot-avatar-src";
 import { confirmDeleteBot } from "../lib/bot-lifecycle";
-import {
-  isHumanGateComposerError,
-  isWaitingTakeover,
-  latestComputerNeedsYouText,
-  unansweredAskBlock,
-} from "../lib/composer-human-gate";
+import { isHumanGateComposerError } from "../lib/composer-human-gate";
+import type { ComputerStatus } from "../lib/computer";
+import { computerStatusChip } from "../lib/computer-status";
 import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
 import { dateLocaleForUi, t, useI18n } from "../lib/i18n";
 import { saveLastBotId } from "../lib/last-bot";
@@ -129,6 +127,7 @@ import {
   ThreadScrollBehavior,
   type ThreadScrollState,
 } from "../lib/thread-scroll";
+import { formatThreadTimestamp, shouldShowThreadTimestamp } from "../lib/thread-time";
 import { speakText } from "../lib/voice";
 
 type PendingAttachment = PickedAttachment & { threadKey: string };
@@ -325,6 +324,7 @@ function Thread() {
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [computer, setComputer] = useState<ComputerStatus | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [markdownPreview, setMarkdownPreview] = useState<MarkdownArtifactPreviewTarget | null>(
     null,
@@ -531,6 +531,30 @@ function Thread() {
     return activeBotId.current === targetBotId && activeGroupId.current === targetGroupId;
   }
 
+  const computerLive = computerStatusChip({
+    state: computer?.state,
+    takeoverRequested: computer?.takeoverRequested,
+    runStatus: currentBotStatus,
+  });
+
+  useEffect(() => {
+    if (!botId || inGroup) {
+      setComputer(null);
+      return;
+    }
+    let cancelled = false;
+    void rpc<ComputerStatus>("computer/status", { botId })
+      .then((next) => {
+        if (!cancelled) setComputer(next);
+      })
+      .catch(() => {
+        if (!cancelled) setComputer(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [botId, currentBotStatus, inGroup]);
+
   useLayoutEffect(() => {
     navigation.setOptions({
       title: displayName || t("Thread"),
@@ -546,7 +570,7 @@ function Thread() {
           style={{
             flexDirection: "row",
             alignItems: "center",
-            gap: 10,
+            gap: 8,
             maxWidth: 220,
           }}
         >
@@ -555,14 +579,14 @@ function Thread() {
               color={currentBot.color}
               shape={currentBot.avatarShape}
               identity={currentBot.id}
-              size={34}
+              size={24}
               muted={!currentBot.notifyOnFinish}
               imageSrc={botAvatarSrc(currentBot)}
             />
           ) : null}
           <Text
             numberOfLines={1}
-            style={{ color: tokens.foreground, fontSize: 18, fontWeight: "600" }}
+            style={{ color: tokens.foreground, ...typeScale.body, fontWeight: "500" }}
           >
             {displayName || t("Thread")}
           </Text>
@@ -588,18 +612,38 @@ function Thread() {
             />
           </Pressable>
         ) : (
-          <Pressable accessibilityLabel={t("Bot actions")} hitSlop={8} onPress={showBotActions}>
-            <NativeSymbol
-              ios="ellipsis"
-              android="ellipsis-horizontal"
-              size={21}
-              color={tokens.foreground}
-            />
-          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Pressable
+              accessibilityLabel={t("Open computer")}
+              hitSlop={8}
+              onPress={() =>
+                router.push({
+                  pathname: "/computer",
+                  params: { botId: botId ?? "", name: displayName ?? t("Bot") },
+                })
+              }
+            >
+              <NativeSymbol
+                ios="desktopcomputer"
+                android="desktop-outline"
+                size={20}
+                color={computerLive === "Live" ? tokens.primary : tokens.mutedForeground}
+              />
+            </Pressable>
+            <Pressable accessibilityLabel={t("Bot actions")} hitSlop={8} onPress={showBotActions}>
+              <NativeSymbol
+                ios="ellipsis"
+                android="ellipsis-horizontal"
+                size={21}
+                color={tokens.foreground}
+              />
+            </Pressable>
+          </View>
         ),
     });
   }, [
     botId,
+    computerLive,
     currentBot,
     currentBotStatus,
     displayName,
@@ -1287,24 +1331,10 @@ function Thread() {
   }
 
   const answerableAskMessageId = latestAnswerableAskMessageId(snap);
-  const dockedAskMessage = answerableAskMessageId
-    ? (snap?.messages.find((message) => message.id === answerableAskMessageId) ?? undefined)
-    : undefined;
-  const dockedAsk = unansweredAskBlock(dockedAskMessage);
-  const needsComputer = isWaitingTakeover(snap);
-  const takeoverReason = needsComputer ? latestComputerNeedsYouText(snap?.messages) : undefined;
-  const hideComposerError =
-    (Boolean(dockedAsk) || needsComputer) && isHumanGateComposerError(error);
+  const gate = needsYou(snap);
+  const hideComposerError = gate.kind !== null && isHumanGateComposerError(error);
   const runError = snap?.run?.status === "failed" ? (snap.run.error ?? null) : null;
-  const transcriptRows = useMemo(
-    () =>
-      condensePeerReceipts(
-        visibleMessages.filter(
-          (message) => !isComposerDockedAskMessage(message, answerableAskMessageId),
-        ),
-      ),
-    [answerableAskMessageId, visibleMessages],
-  );
+  const transcriptRows = useMemo(() => condensePeerReceipts(visibleMessages), [visibleMessages]);
   const liveRows = useMemo(() => [...transcriptRows].reverse(), [transcriptRows]);
   const messagesById = useMemo(
     () => new Map((snap?.messages ?? []).map((message) => [message.id, message])),
@@ -1421,6 +1451,10 @@ function Thread() {
   function renderTranscriptRow(
     row: CondensedTranscriptRow<MobileMessage>,
     options?: { enableJump?: boolean },
+    neighbors?: {
+      older?: CondensedTranscriptRow<MobileMessage>;
+      newer?: CondensedTranscriptRow<MobileMessage>;
+    },
   ) {
     if (row.type === "peerCluster") {
       const firstId = row.messages[0]?.id;
@@ -1451,10 +1485,28 @@ function Thread() {
         </View>
       );
     }
-    return renderMessageRow(row.message, options);
+    return renderMessageRow(row.message, options, neighbors);
   }
 
-  function renderMessageRow(message: MobileMessage, options?: { enableJump?: boolean }) {
+  function sameBubbleSender(left?: MobileMessage, right?: MobileMessage) {
+    if (!left || !right || left.role !== right.role) return false;
+    if (isCenteredAgentEvent(left.blocks) || isCenteredAgentEvent(right.blocks)) return false;
+    if (left.role === "user") return true;
+    return (left.botId ?? botId) === (right.botId ?? botId);
+  }
+
+  function neighborMessage(row?: CondensedTranscriptRow<MobileMessage>) {
+    return row?.type === "message" ? row.message : undefined;
+  }
+
+  function renderMessageRow(
+    message: MobileMessage,
+    options?: { enableJump?: boolean },
+    neighbors?: {
+      older?: CondensedTranscriptRow<MobileMessage>;
+      newer?: CondensedTranscriptRow<MobileMessage>;
+    },
+  ) {
     const actionProps = messageActionProps(message);
     const messageReactions = reactionView.reactions.get(message.id);
     const activityBotId =
@@ -1465,6 +1517,12 @@ function Thread() {
       ? (snap?.members?.find((member) => member.botId === activityBotId) ??
         (currentBot?.id === activityBotId ? currentBot : undefined))
       : undefined;
+    const older = neighborMessage(neighbors?.older);
+    const newer = neighborMessage(neighbors?.newer);
+    const groupedWithOlder = sameBubbleSender(message, older);
+    const groupedWithNewer = sameBubbleSender(message, newer);
+    const showTimestamp = shouldShowThreadTimestamp(message.createdAt, older?.createdAt);
+    const userBubble = message.role === "user";
     return (
       <View
         key={message.id}
@@ -1482,12 +1540,12 @@ function Thread() {
             : undefined
         }
         style={{
-          marginTop: 12,
+          marginTop: groupedWithNewer ? 2 : 12,
           width: "100%",
           flexDirection: "row",
           alignItems: "flex-start",
           gap: 8,
-          justifyContent: message.role === "user" ? "flex-end" : "flex-start",
+          justifyContent: userBubble ? "flex-end" : "flex-start",
         }}
       >
         {activityBotId ? (
@@ -1513,6 +1571,19 @@ function Thread() {
             flexShrink: 1,
           }}
         >
+          {showTimestamp && message.createdAt ? (
+            <Text
+              style={{
+                width: "100%",
+                textAlign: "center",
+                color: tokens.mutedForeground,
+                ...typeScale.caption,
+                marginBottom: 6,
+              }}
+            >
+              {formatThreadTimestamp(message.createdAt, new Date(), dateLocaleForUi())}
+            </Text>
+          ) : null}
           <Pressable accessible={false} onLongPress={actionProps.onLongPress}>
             <MessageBubble
               botId={botId ?? snap?.members?.[0]?.botId ?? ""}
@@ -1521,6 +1592,8 @@ function Thread() {
               botName={displayName}
               bots={mentionBots}
               members={snap?.members}
+              groupedWithOlder={groupedWithOlder}
+              groupedWithNewer={groupedWithNewer}
               replyPreview={
                 message.replyToMessageId ? messagesById.get(message.replyToMessageId) : undefined
               }
@@ -1566,6 +1639,16 @@ function Thread() {
     );
   }
 
+  const rateLimitError =
+    snap?.run?.error && isRateLimitError(snap.run.error) ? snap.run.error : null;
+  const rateLimitSeconds = rateLimitError
+    ? Math.max(1, Math.round(rateLimitRetryDelayMs(rateLimitError, 1) / 1000))
+    : null;
+  const workingStatusText = rateLimitSeconds
+    ? t("Rate limited · retrying in {s}s", { s: rateLimitSeconds })
+    : computerLive === "Setting up…"
+      ? t("Setting up {name}'s computer…", { name: currentBot?.name ?? t("Bot") })
+      : null;
   const workingFooter =
     !inGroup && currentBot && isWorkingStatus(currentBotStatus) && !hasLiveProgress ? (
       <View
@@ -1573,9 +1656,10 @@ function Thread() {
         accessibilityRole="text"
         style={{
           flexDirection: "row",
-          alignItems: "center",
+          alignItems: "flex-end",
           minHeight: 40,
           marginTop: 12,
+          gap: 8,
         }}
       >
         <BotAvatar
@@ -1585,7 +1669,51 @@ function Thread() {
           size={28}
           imageSrc={botAvatarSrc(currentBot)}
         />
-        <Text style={{ color: tokens.mutedForeground, fontSize: 13.5, marginLeft: 8 }}>
+        <View
+          style={{
+            backgroundColor: tokens.muted,
+            borderRadius: 18,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            maxWidth: "72%",
+          }}
+        >
+          {workingStatusText ? (
+            <Text style={{ color: tokens.mutedForeground, ...typeScale.small }}>
+              {workingStatusText}
+            </Text>
+          ) : (
+            <View style={{ flexDirection: "row", gap: 4, paddingVertical: 2 }}>
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: tokens.mutedForeground,
+                }}
+              />
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: tokens.mutedForeground,
+                  opacity: 0.6,
+                }}
+              />
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: tokens.mutedForeground,
+                  opacity: 0.3,
+                }}
+              />
+            </View>
+          )}
+        </View>
+        <Text style={{ position: "absolute", width: 0, height: 0, opacity: 0 }}>
           {t("{name} is working", { name: currentBot.name })}
         </Text>
       </View>
@@ -1659,9 +1787,6 @@ function Thread() {
       keyboardVerticalOffset={headerHeight}
       style={{ flex: 1, backgroundColor: tokens.background, paddingHorizontal: 20 }}
     >
-      {error && !hideComposerError ? (
-        <Text style={{ color: tokens.mutedForeground, marginTop: 12 }}>{error}</Text>
-      ) : null}
       {runError ? (
         <Text style={{ color: tokens.destructive, marginTop: 12 }}>{runError}</Text>
       ) : null}
@@ -1674,7 +1799,16 @@ function Thread() {
             maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           >
             {loadEarlierControl}
-            {transcriptRows.map((row) => renderTranscriptRow(row, { enableJump: true }))}
+            {transcriptRows.map((row, index) =>
+              renderTranscriptRow(
+                row,
+                { enableJump: true },
+                {
+                  older: transcriptRows[index - 1],
+                  newer: transcriptRows[index + 1],
+                },
+              ),
+            )}
             {workingFooter}
           </ScrollView>
         ) : (
@@ -1720,7 +1854,12 @@ function Thread() {
             }}
             ListFooterComponent={loadEarlierControl}
             ListHeaderComponent={workingFooter}
-            renderItem={({ item }) => renderTranscriptRow(item)}
+            renderItem={({ item, index }) =>
+              renderTranscriptRow(item, undefined, {
+                older: liveRows[index + 1],
+                newer: liveRows[index - 1],
+              })
+            }
           />
         )}
         {!showPinnedPage && threadScrollState.detached ? (
@@ -1969,72 +2108,34 @@ function Thread() {
             ))}
           </View>
         ) : null}
-        {dockedAskMessage && dockedAsk ? (
-          <View testID="composer-ask-dock" style={{ marginTop: 12 }}>
-            <MessageBubble
-              botId={botId ?? snap?.members?.[0]?.botId ?? ""}
-              groupId={groupId}
-              message={dockedAskMessage}
-              botName={displayName}
-              bots={mentionBots}
-              members={snap?.members}
-              canAnswer
-              onAnswer={answerMessage}
-              onOpenBot={openBot}
-              onPreviewMarkdown={setMarkdownPreview}
-              actionProps={messageActionProps(dockedAskMessage)}
-            />
-          </View>
-        ) : needsComputer ? (
-          <Pressable
-            testID="composer-takeover-dock"
-            accessibilityLabel={t("Needs you")}
-            onPress={() => {
-              const targetBotId = snap?.run?.botId ?? botId;
-              if (!targetBotId) return;
-              router.push({
-                pathname: "/computer",
-                params: { botId: targetBotId, name: displayName ?? t("Bot") },
-              });
-            }}
-            style={{
-              marginTop: 12,
-              borderRadius: 14,
-              backgroundColor: `${tokens.warning}26`,
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-            }}
-          >
-            <Text style={{ color: tokens.warning, fontSize: 13 }}>{t("Needs you")}</Text>
-            {takeoverReason ? (
-              <Text style={{ color: tokens.warning, opacity: 0.8, fontSize: 12, marginTop: 4 }}>
-                {takeoverReason}
-              </Text>
-            ) : null}
-          </Pressable>
-        ) : null}
         <View
           style={{
             flexDirection: "row",
             gap: 8,
-            marginTop: 16,
-            alignItems: "flex-end",
+            marginTop: 8,
+            alignItems: "center",
+            minHeight: 40,
+            backgroundColor: tokens.card,
+            borderWidth: 1,
+            borderColor: tokens.border,
+            borderRadius: 999,
+            paddingHorizontal: 6,
           }}
         >
           <Pressable
             accessibilityLabel={t("Attach file")}
             onPress={showAttachMenu}
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
+              width: 28,
+              height: 28,
+              borderRadius: 14,
               borderWidth: 1,
               borderColor: tokens.border,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <NativeSymbol ios="plus" android="add" size={18} color={tokens.mutedForeground} />
+            <NativeSymbol ios="plus" android="add" size={16} color={tokens.mutedForeground} />
           </Pressable>
           <View
             style={{
@@ -2043,11 +2144,8 @@ function Thread() {
               flexWrap: "wrap",
               alignItems: "center",
               gap: 6,
-              backgroundColor: tokens.card,
-              borderRadius: 20,
-              paddingHorizontal: 10,
-              paddingVertical: 8,
-              minHeight: 44,
+              minHeight: 40,
+              paddingVertical: 4,
             }}
           >
             {selectedSkill ? (
@@ -2122,53 +2220,107 @@ function Thread() {
                 flexShrink: 1,
                 minWidth: 96,
                 color: tokens.foreground,
+                ...typeScale.body,
                 paddingVertical: 2,
                 maxHeight: 100,
                 writingDirection: "auto",
               }}
             />
           </View>
-          <Pressable
-            accessibilityLabel={t("Send")}
-            disabled={sending || !canSend}
-            onPress={() => void send()}
-            style={{
-              backgroundColor: tokens.primary,
-              borderRadius: 22,
-              width: 44,
-              height: 44,
-              alignItems: "center",
-              justifyContent: "center",
-              opacity: sending || !canSend ? 0.5 : 1,
-            }}
-          >
-            <NativeSymbol
-              ios="arrow.up"
-              android="arrow-up"
-              size={18}
-              color={tokens.primaryForeground}
-            />
-          </Pressable>
           {working ? (
             <Pressable
               accessibilityLabel={t("Stop")}
               disabled={sending}
               onPress={() => void stop()}
               style={{
-                borderColor: tokens.border,
-                borderWidth: 1,
-                borderRadius: 22,
-                width: 44,
-                height: 44,
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                backgroundColor: tokens.primary,
                 alignItems: "center",
                 justifyContent: "center",
                 opacity: sending ? 0.5 : 1,
               }}
             >
-              <NativeSymbol ios="stop.fill" android="stop" size={15} color={tokens.foreground} />
+              <NativeSymbol
+                ios="stop.fill"
+                android="stop"
+                size={12}
+                color={tokens.primaryForeground}
+              />
+            </Pressable>
+          ) : canSend ? (
+            <Pressable
+              accessibilityLabel={t("Send")}
+              disabled={sending}
+              onPress={() => void send()}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: tokens.primary,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: sending ? 0.5 : 1,
+              }}
+            >
+              <NativeSymbol
+                ios="arrow.up"
+                android="arrow-up"
+                size={14}
+                color={tokens.primaryForeground}
+              />
+            </Pressable>
+          ) : (
+            <Pressable
+              accessibilityLabel={t("Voice")}
+              onPress={() => router.push("/voice")}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: tokens.primary,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <NativeSymbol
+                ios="mic.fill"
+                android="mic"
+                size={14}
+                color={tokens.primaryForeground}
+              />
+            </Pressable>
+          )}
+          {working && canSend ? (
+            <Pressable
+              accessibilityLabel={t("Send")}
+              disabled={sending}
+              onPress={() => void send()}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                backgroundColor: tokens.primary,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: sending ? 0.5 : 1,
+              }}
+            >
+              <NativeSymbol
+                ios="arrow.up"
+                android="arrow-up"
+                size={14}
+                color={tokens.primaryForeground}
+              />
             </Pressable>
           ) : null}
         </View>
+        {error && !hideComposerError ? (
+          <Text style={{ color: tokens.destructive, ...typeScale.small, marginTop: 6 }}>
+            {error}
+          </Text>
+        ) : null}
       </View>
       <Modal
         visible={botActionsOpen}
@@ -2338,6 +2490,8 @@ const MessageBubble = memo(function MessageBubble({
   onAnswer,
   onOpenBot,
   onPreviewMarkdown,
+  groupedWithOlder,
+  groupedWithNewer,
   actionProps,
 }: {
   botId: string;
@@ -2347,6 +2501,8 @@ const MessageBubble = memo(function MessageBubble({
   message: MobileMessage;
   members?: MobileSnapshot["members"];
   replyPreview?: MobileMessage;
+  groupedWithOlder?: boolean;
+  groupedWithNewer?: boolean;
   canAnswer: boolean;
   onAnswer: (message: MobileMessage, answer: string) => Promise<void>;
   onOpenBot: (botId: string, name: string) => void;
@@ -2356,6 +2512,7 @@ const MessageBubble = memo(function MessageBubble({
   const colorScheme = useResolvedAppearance();
   const tokens = mobileTokens();
   const { t } = useI18n();
+  const router = useRouter();
   const [peerExpanded, setPeerExpanded] = useState(false);
   const artifactTarget: MobileArtifactTarget = groupId ? { groupId } : { botId };
   const cardBotId = message.botId ?? botId;
@@ -2367,6 +2524,61 @@ const MessageBubble = memo(function MessageBubble({
     (block): block is Extract<MessageBlock, { kind: "ask" }> =>
       block.kind === "ask" && !isApprovalAskBlock(block) && !block.actions?.length,
   );
+  const computerGate = message.blocks.find(
+    (block): block is Extract<MessageBlock, { kind: "computer" }> =>
+      block.kind === "computer" && block.state === "Needs you",
+  );
+  if (computerGate) {
+    const dismissed = computerGate.status === "dismissed";
+    const answered = computerGate.status === "answered";
+    return (
+      <View
+        style={{
+          width: "90%",
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: tokens.border,
+          backgroundColor: tokens.card,
+          padding: 12,
+          opacity: answered || dismissed ? 0.6 : 1,
+        }}
+      >
+        {computerGate.text ? (
+          <Text style={{ color: tokens.foreground, ...typeScale.body }}>{computerGate.text}</Text>
+        ) : null}
+        {dismissed ? (
+          <Text style={{ color: tokens.mutedForeground, ...typeScale.caption, marginTop: 8 }}>
+            {t("Dismissed")}
+          </Text>
+        ) : answered ? (
+          <NativeSymbol ios="checkmark" android="checkmark" size={16} />
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("Open computer")}
+            onPress={() =>
+              router.push({
+                pathname: "/computer",
+                params: { botId: cardBotId, name: botName ?? t("Bot") },
+              })
+            }
+            style={{
+              marginTop: 12,
+              alignSelf: "flex-start",
+              borderRadius: 12,
+              backgroundColor: tokens.muted,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+            }}
+          >
+            <Text style={{ color: tokens.foreground, ...typeScale.body, fontWeight: "600" }}>
+              {t("Open computer")}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
   if (ask) {
     return (
       <View style={{ gap: 8, width: "100%" }}>
@@ -2677,9 +2889,9 @@ const MessageBubble = memo(function MessageBubble({
             borderRadius: 18,
             borderWidth: 1,
             borderColor: tokens.border,
-            backgroundColor: askBlock.status === "answered" ? tokens.muted : tokens.card,
-            paddingHorizontal: 16,
-            paddingVertical: 14,
+            backgroundColor: tokens.card,
+            padding: 12,
+            opacity: askBlock.status === "answered" || askBlock.status === "dismissed" ? 0.6 : 1,
           }}
         >
           {askBlock.text ? (
@@ -2708,7 +2920,13 @@ const MessageBubble = memo(function MessageBubble({
             <AskActions
               actions={askBlock.actions}
               selectedId={askBlock.status === "answered" ? askBlock.answer : undefined}
-              disabled={askBlock.status === "answered" || !canAnswer || !onAnswer}
+              disabled={
+                askBlock.status === "answered" ||
+                askBlock.status === "dismissed" ||
+                !canAnswer ||
+                !onAnswer
+              }
+              dismissed={askBlock.status === "dismissed"}
               allowOther={!isApprovalAskBlock(askBlock)}
               accessibilityActions={actionProps.accessibilityActions}
               onAccessibilityAction={actionProps.onAccessibilityAction}
@@ -2909,6 +3127,8 @@ const MessageBubble = memo(function MessageBubble({
           message={{ ...message, blocks: segment.blocks }}
           speaker={index === firstContent ? speaker : undefined}
           replyPreview={index === firstContent ? replyPreview : undefined}
+          groupedWithOlder={groupedWithOlder}
+          groupedWithNewer={groupedWithNewer}
           actionProps={actionProps}
         />
       ))}
@@ -2929,35 +3149,46 @@ function MessageTextCard({
   message,
   speaker,
   replyPreview,
+  groupedWithOlder,
+  groupedWithNewer,
   actionProps,
 }: {
   message: MobileMessage;
   speaker?: string;
   replyPreview?: MobileMessage;
+  groupedWithOlder?: boolean;
+  groupedWithNewer?: boolean;
   actionProps: MessageActionProps;
 }) {
   const colorScheme = useResolvedAppearance();
   const tokens = mobileTokens();
   const contentText = blockText(message);
   if (!contentText) return null;
+  const userBubble = message.role === "user";
+  const radius = 18;
+  const inner = 6;
   return (
     <Pressable
       {...actionProps}
       style={{
         flexShrink: 1,
         minWidth: 0,
-        maxWidth: "100%",
-        backgroundColor: message.role === "user" ? tokens.secondary : tokens.muted,
-        padding: 12,
-        borderRadius: 20,
+        maxWidth: "72%",
+        backgroundColor: userBubble ? tokens.chatUser : tokens.muted,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: radius,
+        borderTopLeftRadius: !userBubble && groupedWithOlder ? inner : radius,
+        borderBottomLeftRadius: !userBubble && groupedWithNewer ? inner : radius,
+        borderTopRightRadius: userBubble && groupedWithOlder ? inner : radius,
+        borderBottomRightRadius: userBubble && groupedWithNewer ? inner : radius,
       }}
     >
       {speaker ? (
         <Text
           style={{
             color: tokens.mutedForeground,
-            fontSize: 12.5,
-            fontWeight: "600",
+            ...typeScale.captionMedium,
             marginBottom: 4,
           }}
         >
@@ -2967,8 +3198,8 @@ function MessageTextCard({
       {replyPreview ? (
         <Text
           style={{
-            color: message.role === "user" ? tokens.secondaryForeground : tokens.mutedForeground,
-            fontSize: 12.5,
+            color: userBubble ? tokens.chatUserForeground : tokens.mutedForeground,
+            ...typeScale.caption,
             marginBottom: 6,
           }}
           numberOfLines={2}
@@ -2976,10 +3207,8 @@ function MessageTextCard({
           {previewMessageText(replyPreview)}
         </Text>
       ) : null}
-      {message.role === "user" ? (
-        <Text style={{ color: tokens.secondaryForeground, fontSize: 15.5, lineHeight: 23 }}>
-          {contentText}
-        </Text>
+      {userBubble ? (
+        <Text style={{ color: tokens.chatUserForeground, ...typeScale.thread }}>{contentText}</Text>
       ) : (
         <ChatMarkdown
           palette={tokens}
@@ -3059,14 +3288,10 @@ function AskBlock({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const answered = ask.status === "answered";
+  const dismissed = ask.status === "dismissed";
   const secretInput = isSecretAskBlock(ask);
-  const secretLabel =
-    ask.purpose === "password"
-      ? t("Password")
-      : ask.purpose === "api_key"
-        ? t("API key")
-        : t("Code");
-  const submitLabel = secretInput ? t("Save") : t("Send answer");
+  const secretLabel = t("Paste value");
+  const submitLabel = secretInput ? t("Save securely") : t("Send");
   const submittingLabel = secretInput ? t("Saving…") : t("Sending…");
 
   async function submit() {
@@ -3089,40 +3314,53 @@ function AskBlock({
     <View
       style={{
         width: "90%",
-        borderRadius: 18,
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: tokens.border,
-        backgroundColor: answered ? tokens.muted : tokens.card,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
+        backgroundColor: tokens.card,
+        padding: 12,
         gap: 10,
+        opacity: answered || dismissed ? 0.6 : 1,
       }}
     >
       <Text
         {...actionProps}
-        style={{ color: tokens.foreground, fontSize: 15.5, fontWeight: "600" }}
+        style={{ color: tokens.foreground, ...typeScale.body, fontWeight: "600" }}
       >
         {ask.text}
       </Text>
       {secretInput && ask.credential ? (
-        <Text style={{ color: tokens.mutedForeground, fontSize: 13.5 }}>
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.small }}>
           {ask.credential.origin}
         </Text>
       ) : null}
       {ask.detail && !secretInput ? (
-        <Text style={{ color: tokens.mutedForeground, fontSize: 13.5 }}>{ask.detail}</Text>
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.small }}>{ask.detail}</Text>
       ) : null}
-      {answered ? (
-        <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>
-          {secretInput ? t("Saved") : t("Answered: {answer}", { answer: ask.answer ?? t("Done") })}
+      {dismissed ? (
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.caption }}>
+          {t("Dismissed")}
         </Text>
+      ) : answered ? (
+        secretInput ? (
+          <>
+            <Text style={{ color: tokens.mutedForeground, ...typeScale.body }}>{t("Saved")}</Text>
+            <Text style={{ color: tokens.mutedForeground, ...typeScale.small }}>
+              {t("Stored securely, never shown to your bot")}
+            </Text>
+          </>
+        ) : (
+          <Text style={{ color: tokens.mutedForeground, ...typeScale.body }}>
+            {ask.answer ?? t("Done")}
+          </Text>
+        )
       ) : canAnswer ? (
         <>
           <TextInput
             accessibilityLabel={secretInput ? secretLabel : t("Answer")}
             value={answer}
             onChangeText={setAnswer}
-            placeholder={secretInput ? secretLabel : t("Type your answer")}
+            placeholder={secretInput ? secretLabel : t("Type an answer")}
             placeholderTextColor={tokens.mutedForeground}
             secureTextEntry={secretInput}
             autoComplete="off"
@@ -3138,6 +3376,7 @@ function AskBlock({
               color: tokens.foreground,
               paddingHorizontal: 12,
               paddingVertical: 9,
+              ...typeScale.body,
             }}
           />
           <Pressable

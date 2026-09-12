@@ -73,6 +73,19 @@ describe("mobile appearance", () => {
     expect(resolveMobileAppearance()).toBe("light");
   });
 
+  it("exposes the shared type scale", async () => {
+    const { typeScale } = await import("./appearance");
+    expect(typeScale.micro.fontSize).toBe(10);
+    expect(typeScale.caption.fontSize).toBe(11);
+    expect(typeScale.small.fontSize).toBe(12);
+    expect(typeScale.body.fontSize).toBe(13);
+    expect(typeScale.thread.fontSize).toBe(15);
+    expect(typeScale.title.fontSize).toBe(15);
+    expect(typeScale.largeTitle.fontSize).toBe(17);
+    expect(typeScale.display.fontSize).toBe(20);
+    expect(typeScale.mono.fontFamily).toBe("Menlo");
+  });
+
   it("flips user bubble tokens when appearance switches with an existing preference", async () => {
     const { mobileTokens, setAppearancePreference, subscribeAppearance } = await import(
       "./appearance"

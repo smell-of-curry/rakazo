@@ -1756,7 +1756,7 @@ describe("mobile thread event reduction", () => {
       runId: "run-1",
       seq: 9,
     });
-    expect(repeated?.cursor).toBe(9);
+    expect(repeated).toBe(waiting);
     expect(repeated?.run).toBe(waiting?.run);
   });
 
@@ -1805,10 +1805,15 @@ describe("mobile thread event reduction", () => {
       seq: 12,
     });
 
-    expect(waiting?.run).toEqual({ id: "run-peer", botId: "bot-peer", status: "waiting_takeover" });
-    expect(waiting?.activeRuns).toEqual([
+    expect(waiting?.run).toMatchObject({
+      id: "run-peer",
+      botId: "bot-peer",
+      status: "waiting_takeover",
+      trigger: "bot_message",
+    });
+    expect(waiting?.activeRuns?.map((run) => ({ id: run.id, status: run.status }))).toEqual([
       { id: "run-user", status: "running" },
-      { id: "run-peer", botId: "bot-peer", status: "waiting_takeover" },
+      { id: "run-peer", status: "waiting_takeover" },
     ]);
     expect(waiting?.messages.some((message) => message.id.startsWith("progress:"))).toBe(false);
     expect(waiting?.computer?.busyBotName).toBeNull();

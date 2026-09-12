@@ -1,5 +1,6 @@
 import type { ComputerMode } from "@rakazo/contracts";
 import { Pressable, Text, View } from "react-native";
+import { typeScale } from "../lib/appearance";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
 
@@ -16,7 +17,7 @@ export function ComputerModePicker({
   const tokens = useMobileTokens();
   return (
     <View style={{ marginTop: 16 }}>
-      <Text style={{ color: tokens.mutedForeground, marginBottom: 8, fontSize: 14 }}>
+      <Text style={{ color: tokens.mutedForeground, marginBottom: 8, ...typeScale.caption }}>
         {t("Computer")}
       </Text>
       <View style={{ flexDirection: "row", gap: 8 }}>

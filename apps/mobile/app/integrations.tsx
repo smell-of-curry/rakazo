@@ -23,7 +23,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { rpc } from "../lib/api";
-import { mobileTokens } from "../lib/appearance";
+import { mobileTokens, typeScale } from "../lib/appearance";
 import { useI18n } from "../lib/i18n";
 import { loadLastBotId } from "../lib/last-bot";
 import { native, useThemedStyles } from "../lib/native";
@@ -95,6 +95,7 @@ export default function Integrations() {
   const [sourceError, setSourceError] = useState<string | null>(null);
   const [lastBotId, setLastBotId] = useState("");
   const [catalogReady, setCatalogReady] = useState(false);
+  const [tab, setTab] = useState<"marketplace" | "installed">("marketplace");
   const [labelDrafts, setLabelDrafts] = useState<Record<string, string>>({});
   const [detailKey, setDetailKey] = useState<{ connectorId: string; slug: string } | null>(null);
   const [tools, setTools] = useState<ConnectionTool[]>([]);
@@ -588,8 +589,69 @@ export default function Integrations() {
 
         {catalogError ? <Text style={styles.error}>{catalogError}</Text> : null}
 
+        {!detailItem ? (
+          <View style={styles.segment}>
+            {(["marketplace", "installed"] as const).map((value) => (
+              <Pressable
+                key={value}
+                accessibilityRole="button"
+                accessibilityState={{ selected: tab === value }}
+                onPress={() => setTab(value)}
+                style={[styles.segmentItem, tab === value && styles.segmentItemSelected]}
+              >
+                <Text style={styles.segmentLabel}>
+                  {value === "marketplace" ? t("Marketplace") : t("Installed")}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
         {detailItem ? (
           renderDetail(detailItem)
+        ) : tab === "installed" ? (
+          <View style={styles.catalogStack}>
+            {connections.map((row) => {
+              const status =
+                row.status === "connected"
+                  ? "connected"
+                  : row.status === "pending"
+                    ? "waiting"
+                    : "disabled";
+              const statusLabel =
+                status === "connected"
+                  ? t("Connected")
+                  : status === "waiting"
+                    ? t("Waiting for authorization")
+                    : t("Disabled");
+              return (
+                <View key={row.id} style={styles.installedRow}>
+                  <View style={styles.installedBody}>
+                    <Text style={styles.installedName} numberOfLines={1}>
+                      {row.displayName}
+                    </Text>
+                    <Text style={styles.chip}>{statusLabel}</Text>
+                  </View>
+                  {status === "waiting" ? (
+                    <Pressable
+                      onPress={() => {
+                        const item = catalog.find(
+                          (entry) =>
+                            entry.connectorId === row.connectorId && entry.slug === row.provider,
+                        );
+                        if (item) void connect(item);
+                      }}
+                    >
+                      <Text style={styles.link}>{t("Reopen")}</Text>
+                    </Pressable>
+                  ) : null}
+                  <Pressable onPress={() => void revokeAccount(row)}>
+                    <Text style={styles.link}>{t("Remove")}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
         ) : (
           <>
             {!catalogReady ? <ActivityIndicator color={native.fillPressed} /> : null}
@@ -846,6 +908,31 @@ function createIntegrationsStyles() {
     authToggle: { minHeight: 42, justifyContent: "center" },
     catalogGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
     catalogStack: { gap: 8 },
+    segment: {
+      flexDirection: "row",
+      backgroundColor: native.fill,
+      borderRadius: 10,
+      padding: 2,
+    },
+    segmentItem: {
+      flex: 1,
+      minHeight: 32,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 8,
+    },
+    segmentItemSelected: { backgroundColor: native.fillPressed },
+    segmentLabel: { color: native.label, ...typeScale.captionMedium },
+    installedRow: {
+      minHeight: 56,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 8,
+    },
+    installedBody: { flex: 1, minWidth: 0, gap: 4 },
+    installedName: { color: native.label, ...typeScale.bodySemibold },
+    chip: { color: native.secondaryLabel, ...typeScale.micro },
     catalogCell: { flexGrow: 1, flexBasis: "47%", maxWidth: "49%" },
     row: {
       minHeight: 56,

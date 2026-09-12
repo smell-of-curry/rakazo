@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { Alert, Pressable, Text, TextInput, View, type ViewProps } from "react-native";
-import { mobileTokens } from "../lib/appearance";
+import { mobileTokens, typeScale } from "../lib/appearance";
 import { useI18n } from "../lib/i18n";
 import { NativeSymbol } from "./native-symbol";
 
 type AskAction = { id: string; label: string };
 
-const KNOWN_ASK_ACTION_LABELS: Record<string, string> = {
-  allow: "Allow once",
-  always: "Always allow",
-  deny: "Deny",
-};
+function actionLabel(action: AskAction, actions: AskAction[], t: (id: string) => string): string {
+  if (action.id === "always") return t("Always allow");
+  if (action.id === "deny") return t("Deny");
+  if (action.id === "allow") {
+    return actions.some((item) => item.id === "always") ? t("Allow once") : t("Allow");
+  }
+  return action.label;
+}
 
 export function AskActions({
   actions,
@@ -18,6 +21,7 @@ export function AskActions({
   selectedId,
   onAnswer,
   allowOther,
+  dismissed,
   accessibilityActions,
   onAccessibilityAction,
 }: {
@@ -26,6 +30,7 @@ export function AskActions({
   selectedId?: string;
   onAnswer: (answer: string) => Promise<void>;
   allowOther?: boolean;
+  dismissed?: boolean;
   accessibilityActions?: ViewProps["accessibilityActions"];
   onAccessibilityAction?: ViewProps["onAccessibilityAction"];
 }) {
@@ -37,7 +42,7 @@ export function AskActions({
   const customSelected = Boolean(selectedId) && !actions.some((action) => action.id === selectedId);
 
   async function submit(answer: string) {
-    if (disabled || submitting) return;
+    if (disabled || submitting || !answer) return;
     setPendingAction(answer);
     try {
       await onAnswer(answer);
@@ -54,7 +59,6 @@ export function AskActions({
   return (
     <View style={{ marginTop: 12, gap: 6 }}>
       {actions.map((action) => {
-        const emphasized = action.id === "allow" || action.id === "always";
         const selected = selectedId === action.id;
         const faded = Boolean(selectedId) && !selected;
         return (
@@ -74,11 +78,7 @@ export function AskActions({
               borderRadius: 12,
               paddingHorizontal: 14,
               paddingVertical: 12,
-              backgroundColor: selected
-                ? tokens.background
-                : emphasized && !selectedId
-                  ? tokens.muted
-                  : "transparent",
+              backgroundColor: selected ? tokens.background : "transparent",
               borderWidth: 1,
               borderColor: tokens.border,
               opacity: faded ? 0.35 : selected ? 1 : disabled || submitting ? 0.7 : 1,
@@ -88,15 +88,11 @@ export function AskActions({
               style={{
                 flex: 1,
                 color: tokens.foreground,
-                fontSize: 15,
-                fontWeight: selected || emphasized ? "600" : "400",
+                ...typeScale.body,
+                fontWeight: selected ? "600" : "400",
               }}
             >
-              {pendingAction === action.id
-                ? t("Sending…")
-                : Object.hasOwn(KNOWN_ASK_ACTION_LABELS, action.id)
-                  ? t(KNOWN_ASK_ACTION_LABELS[action.id]!)
-                  : action.label}
+              {pendingAction === action.id ? t("Sending…") : actionLabel(action, actions, t)}
             </Text>
             {selected ? <NativeSymbol ios="checkmark" android="checkmark" size={16} /> : null}
           </Pressable>
@@ -109,7 +105,7 @@ export function AskActions({
             accessibilityLabel={t("Answer")}
             value={other}
             onChangeText={setOther}
-            placeholder={t("Type your answer")}
+            placeholder={t("Type an answer")}
             placeholderTextColor={tokens.mutedForeground}
             editable={!submitting}
             onSubmitEditing={() => void submit(other.trim())}
@@ -121,11 +117,12 @@ export function AskActions({
               color: tokens.foreground,
               paddingHorizontal: 12,
               paddingVertical: 9,
+              ...typeScale.body,
             }}
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t("Send answer")}
+            accessibilityLabel={t("Send")}
             disabled={!other.trim() || submitting}
             onPress={() => void submit(other.trim())}
             style={{
@@ -137,14 +134,19 @@ export function AskActions({
               backgroundColor: tokens.muted,
             }}
           >
-            <Text style={{ color: tokens.foreground, fontSize: 15, fontWeight: "600" }}>
-              {pendingAction && pendingAction === other.trim() ? t("Sending…") : t("Send answer")}
+            <Text style={{ color: tokens.foreground, ...typeScale.body, fontWeight: "600" }}>
+              {pendingAction && pendingAction === other.trim() ? t("Sending…") : t("Send")}
             </Text>
           </Pressable>
         </>
       ) : allowOther && customSelected ? (
-        <Text style={{ color: tokens.mutedForeground, fontSize: 13.5, fontWeight: "600" }}>
-          {t("Answered: {answer}", { answer: selectedId ?? t("Done") })}
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.body, fontWeight: "600" }}>
+          {selectedId}
+        </Text>
+      ) : null}
+      {dismissed ? (
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.caption }}>
+          {t("Dismissed")}
         </Text>
       ) : null}
     </View>

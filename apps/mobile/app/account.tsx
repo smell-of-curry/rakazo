@@ -28,6 +28,7 @@ import {
   getCachedAppearancePreference,
   mobileTokens,
   setAppearancePreference,
+  typeScale,
 } from "../lib/appearance";
 import { explicitSignInRoute } from "../lib/auth-routing";
 import { confirmDeleteBot } from "../lib/bot-lifecycle";
@@ -294,7 +295,6 @@ export default function Account() {
             <Text style={styles.settingsTitle}>{t("Notifications")}</Text>
             <NotificationSwitch
               label={t("Live working status")}
-              detail={t("While agents are working")}
               value={notifications.liveConnection}
               disabled={notificationPending || !notificationsReady}
               onChange={(liveConnection) =>
@@ -303,14 +303,12 @@ export default function Account() {
             />
             <NotificationSwitch
               label={t("Agent messages")}
-              detail={t("Replies and completed work")}
               value={notifications.messages}
               disabled={notificationPending || !notificationsReady}
               onChange={(messages) => void updateNotifications({ ...notifications, messages })}
             />
             <NotificationSwitch
               label={t("Scheduled tasks")}
-              detail={t("Alerts from routines")}
               value={notifications.scheduledTasks}
               disabled={notificationPending || !notificationsReady}
               onChange={(scheduledTasks) =>
@@ -319,7 +317,6 @@ export default function Account() {
             />
             <NotificationSwitch
               label={t("Needs attention")}
-              detail={t("Questions, approvals, takeover")}
               value={notifications.needsAttention}
               disabled={notificationPending || !notificationsReady}
               onChange={(needsAttention) =>
@@ -477,13 +474,11 @@ export default function Account() {
 
 function NotificationSwitch({
   label,
-  detail,
   value,
   disabled,
   onChange,
 }: {
   label: string;
-  detail: string;
   value: boolean;
   disabled: boolean;
   onChange: (value: boolean) => void;
@@ -498,12 +493,10 @@ function NotificationSwitch({
       }}
     >
       <View style={{ flex: 1 }}>
-        <Text style={{ color: native.label, fontSize: 15 }}>{label}</Text>
-        <Text style={{ color: native.secondaryLabel, fontSize: 12.5, marginTop: 2 }}>{detail}</Text>
+        <Text style={{ color: native.label, ...typeScale.body }}>{label}</Text>
       </View>
       <Switch
         accessibilityLabel={label}
-        accessibilityHint={detail}
         disabled={disabled}
         value={value}
         onValueChange={onChange}
@@ -532,12 +525,11 @@ function createAccountStyles() {
     },
     name: {
       color: native.label,
-      fontSize: 20,
-      fontWeight: "600",
+      ...typeScale.display,
     },
     email: {
       color: native.secondaryLabel,
-      fontSize: 15,
+      ...typeScale.body,
     },
     button: {
       minHeight: 50,
@@ -548,8 +540,7 @@ function createAccountStyles() {
     },
     buttonLabel: {
       color: native.label,
-      fontSize: 17,
-      fontWeight: "600",
+      ...typeScale.largeTitle,
     },
     archivedSection: {
       borderRadius: 16,
@@ -559,8 +550,9 @@ function createAccountStyles() {
     },
     sectionTitle: {
       color: native.secondaryLabel,
-      fontSize: 14,
-      fontWeight: "600",
+      ...typeScale.captionMedium,
+      textTransform: "uppercase",
+      letterSpacing: 0.66,
     },
     archivedRow: {
       flexDirection: "row",
@@ -570,12 +562,11 @@ function createAccountStyles() {
     archivedName: {
       flex: 1,
       color: native.label,
-      fontSize: 16,
+      ...typeScale.body,
     },
     restoreLabel: {
       color: native.label,
-      fontSize: 14,
-      fontWeight: "600",
+      ...typeScale.bodySemibold,
     },
     archivedDeleteLabel: {
       color: tokens.destructive,
@@ -616,13 +607,11 @@ function createAccountStyles() {
     },
     appearanceLabel: {
       color: native.label,
-      fontSize: 14,
-      fontWeight: "600",
+      ...typeScale.bodySemibold,
     },
     settingsTitle: {
       color: native.label,
-      fontSize: 17,
-      fontWeight: "600",
+      ...typeScale.bodySemibold,
     },
     settingsTrailing: {
       flexDirection: "row",
@@ -632,7 +621,7 @@ function createAccountStyles() {
     },
     settingsValue: {
       color: native.secondaryLabel,
-      fontSize: 15,
+      ...typeScale.body,
     },
     chevron: {
       color: native.secondaryLabel,
@@ -646,7 +635,7 @@ function createAccountStyles() {
     },
     versionLine: {
       color: native.tertiaryLabel,
-      fontSize: 12,
+      ...typeScale.small,
       textAlign: "center",
     },
     dangerZone: {
@@ -658,8 +647,7 @@ function createAccountStyles() {
     },
     dangerTitle: {
       color: tokens.destructive,
-      fontSize: 17,
-      fontWeight: "600",
+      ...typeScale.bodySemibold,
     },
     password: {
       height: 48,

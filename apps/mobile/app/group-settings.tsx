@@ -1,9 +1,9 @@
-import { GROUP_MEMBER_MAX, GROUP_MEMBER_MIN } from "@rakazo/contracts";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, TextInput } from "react-native";
 import { BotMemberPicker } from "../components/bot-member-picker";
 import { type MobileBot, type MobileGroup, rpc } from "../lib/api";
+import { typeScale } from "../lib/appearance";
 import { useI18n } from "../lib/i18n";
 import { useMobileTokens } from "../lib/native";
 
@@ -47,7 +47,7 @@ export default function GroupSettingsScreen() {
       const memberIds = group.members.map((member) => member.botId).join(",");
       if (selected.join(",") !== memberIds) input.botIds = selected;
       if (input.name || input.botIds) await rpc("groups/update", input);
-      router.back();
+      if (input.name && group) setGroup({ ...group, name: name.trim() });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Could not save group"));
     } finally {
@@ -82,11 +82,12 @@ export default function GroupSettingsScreen() {
         style={{ flex: 1, backgroundColor: tokens.background }}
         contentContainerStyle={{ padding: 24 }}
       >
-        <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.caption }}>{t("Name")}</Text>
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder={t("Group name")}
+          onBlur={() => void save()}
+          placeholder={t("Name")}
           placeholderTextColor={tokens.mutedForeground}
           style={{
             marginTop: 8,
@@ -94,10 +95,10 @@ export default function GroupSettingsScreen() {
             borderRadius: 11,
             padding: 14,
             color: tokens.foreground,
-            fontSize: 16,
+            ...typeScale.body,
           }}
         />
-        <Text style={{ color: tokens.mutedForeground, fontSize: 14, marginTop: 20 }}>
+        <Text style={{ color: tokens.mutedForeground, ...typeScale.caption, marginTop: 20 }}>
           {t("Members")}
         </Text>
         <BotMemberPicker
@@ -107,33 +108,6 @@ export default function GroupSettingsScreen() {
           disabled={pending}
         />
         {error ? <Text style={{ color: tokens.destructive, marginTop: 12 }}>{error}</Text> : null}
-        <Pressable
-          onPress={() => void save()}
-          disabled={
-            !name.trim() ||
-            selected.length < GROUP_MEMBER_MIN ||
-            selected.length > GROUP_MEMBER_MAX ||
-            pending
-          }
-          style={{
-            marginTop: 24,
-            backgroundColor: tokens.primary,
-            opacity:
-              !name.trim() ||
-              selected.length < GROUP_MEMBER_MIN ||
-              selected.length > GROUP_MEMBER_MAX ||
-              pending
-                ? 0.5
-                : 1,
-            borderRadius: 11,
-            padding: 14,
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: tokens.primaryForeground, fontSize: 16, fontWeight: "600" }}>
-            {pending ? t("Saving…") : t("Save")}
-          </Text>
-        </Pressable>
         <Pressable
           onPress={remove}
           style={{
