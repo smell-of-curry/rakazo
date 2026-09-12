@@ -143,38 +143,21 @@ function choiceAskCheckpoint(actions: Array<{ id: string; label: string }>): str
   return JSON.stringify({ kind: CHOICE_ASK_CHECKPOINT_KIND, actions });
 }
 
-function isOpenGateBlock(block: unknown): boolean {
-  if (!block || typeof block !== "object") return false;
-  const row = block as { kind?: unknown; status?: unknown; state?: unknown };
-  if (row.kind === "ask") return row.status !== "answered" && row.status !== "dismissed";
-  if (row.kind === "computer") {
-    return row.state === "Needs you" && row.status !== "dismissed";
-  }
-  return false;
-}
-
+/**
+ * A run already parked on a gate keeps that gate; a second pause is a no-op that returns the
+ * current cursor. Only the run status decides this: the takeover card is published before the
+ * pause, so scanning message blocks would mistake the card being paused for an older gate.
+ */
 async function existingPendingGate(
   tx: Prisma.TransactionClient,
   runId: string,
   threadId: string,
 ): Promise<{ threadId: string; seq: number } | null> {
-  const messages = await tx.message.findMany({
-    where: { runId },
-    select: { blocks: true },
-    orderBy: { seq: "desc" },
-    take: 40,
+  const waiting = await tx.run.findFirst({
+    where: { id: runId, status: { in: ["waiting_input", "waiting_takeover"] } },
+    select: { id: true },
   });
-  const hasOpen = messages.some((message) => {
-    const blocks = Array.isArray(message.blocks) ? message.blocks : [];
-    return blocks.some(isOpenGateBlock);
-  });
-  if (!hasOpen) {
-    const waiting = await tx.run.findFirst({
-      where: { id: runId, status: { in: ["waiting_input", "waiting_takeover"] } },
-      select: { id: true },
-    });
-    if (!waiting) return null;
-  }
+  if (!waiting) return null;
   const last = await tx.event.findFirst({
     where: { runId },
     orderBy: { seq: "desc" },

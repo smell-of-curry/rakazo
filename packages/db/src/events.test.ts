@@ -449,11 +449,7 @@ describe("pauseRunForInput", () => {
       attempt: { updateMany: vi.fn() },
       message: {
         create: vi.fn(),
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            { blocks: [{ kind: "ask", text: "Which city?", status: "pending" }] },
-          ]),
+        findMany: vi.fn().mockResolvedValue([]),
       },
       event: {
         create: vi.fn(),
@@ -505,7 +501,15 @@ describe("pauseRunForTakeover", () => {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       thread: { update: vi.fn().mockResolvedValue({ nextEventSeq: 8 }) },
-      message: { findMany: vi.fn().mockResolvedValue([]) },
+      // The executor publishes the Needs you card before pausing; that card must not read as
+      // an older open gate or the run stays running with the card on screen.
+      message: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { blocks: [{ kind: "computer", state: "Needs you", text: "Sign in" }] },
+          ]),
+      },
       event: {
         create: vi.fn(async ({ data }: { data: { seq: number; type: string } }) => ({
           ...event(data.seq),
@@ -537,6 +541,11 @@ describe("pauseRunForTakeover", () => {
       ),
     ).resolves.toBe(true);
 
+    expect(tx.run.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "run-1", status: { in: ["waiting_input", "waiting_takeover"] } },
+      }),
+    );
     expect(tx.run.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ status: "running", leaseFence: 3 }),
