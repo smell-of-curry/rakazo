@@ -1,10 +1,13 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { selectedAskActionLabel } from "@rakazo/core";
 import { describe, expect, it } from "vitest";
 
+const askCardSource = () => readFileSync(join(import.meta.dirname, "AskCard.tsx"), "utf8");
+
 describe("AskCard", () => {
   it("keeps the free-text field visible", () => {
-    const src = readFileSync(new URL("./AskCard.tsx", import.meta.url), "utf8");
+    const src = askCardSource();
     expect(src).toContain("Type your answer");
     expect(src).toContain("Send answer");
     expect(src).not.toContain("Send it");
@@ -12,14 +15,14 @@ describe("AskCard", () => {
   });
 
   it("keeps a free-text field on choice cards", () => {
-    const src = readFileSync(new URL("./AskCard.tsx", import.meta.url), "utf8");
+    const src = askCardSource();
     expect(src).toContain("choiceOther");
     expect(src).toContain('data-testid="ask-other"');
     expect(src).toContain("!approvalActions && !secretInput");
   });
 
   it("marks the chosen action instead of a muted secondary button", () => {
-    const src = readFileSync(new URL("./AskCard.tsx", import.meta.url), "utf8");
+    const src = askCardSource();
     expect(src).toContain(
       "justify-between bg-background font-medium text-foreground disabled:opacity-100",
     );

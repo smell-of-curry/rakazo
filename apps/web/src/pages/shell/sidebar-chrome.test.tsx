@@ -1,5 +1,5 @@
 import { i18n } from "@lingui/core";
-import { renderToStaticMarkup } from "react-dom/server";
+import { render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
 import { PinnedGrid } from "./pinned-grid";
 import { BotTitleCapsule, SidebarChatRow, SidebarSectionHeader } from "./sidebar-chrome";
@@ -11,13 +11,15 @@ describe("sidebar chrome", () => {
   });
 
   it("hides empty title capsules", () => {
-    expect(renderToStaticMarkup(<BotTitleCapsule title="  " />)).toBe("");
-    expect(renderToStaticMarkup(<BotTitleCapsule title="Ops" />)).toContain("Ops");
-    expect(renderToStaticMarkup(<BotTitleCapsule title="Ops" />)).toContain("rounded-full");
+    const { container, rerender } = render(<BotTitleCapsule title="  " />);
+    expect(container).toBeEmptyDOMElement();
+    rerender(<BotTitleCapsule title="Ops" />);
+    expect(screen.getByText("Ops")).toBeInTheDocument();
+    expect(container.innerHTML).toContain("rounded-full");
   });
 
   it("renders a 3-column pin grid without a Pinned heading", () => {
-    const html = renderToStaticMarkup(
+    const { container } = render(
       <PinnedGrid
         items={[
           {
@@ -39,21 +41,21 @@ describe("sidebar chrome", () => {
         ]}
       />,
     );
-    expect(html).toContain('data-sidebar-group="pinned"');
-    expect(html).toContain("grid-cols-3");
-    expect(html).toContain('data-roster-bot-id="bot-1"');
-    expect(html).toContain("data-roster-bot-name");
-    expect(html).toContain("Chief");
-    expect(html).toContain("Needs you");
-    expect(html).not.toContain("Ops");
-    expect(html).toContain("Crew");
-    expect(html).not.toContain("Pinned");
-    expect(html).not.toContain('data-roster-bot-id="grp-1"');
-    expect(html.match(/ignored/g)).toBeNull();
+    expect(container.querySelector('[data-sidebar-group="pinned"]')).toBeTruthy();
+    expect(container.innerHTML).toContain("grid-cols-3");
+    expect(container.querySelector('[data-roster-bot-id="bot-1"]')).toBeTruthy();
+    expect(container.querySelector("[data-roster-bot-name]")).toBeTruthy();
+    expect(screen.getByText("Chief")).toBeInTheDocument();
+    expect(screen.getByText("Needs you")).toBeInTheDocument();
+    expect(screen.queryByText("Ops")).toBeNull();
+    expect(screen.getByText("Crew")).toBeInTheDocument();
+    expect(screen.queryByText("Pinned")).toBeNull();
+    expect(container.querySelector('[data-roster-bot-id="grp-1"]')).toBeNull();
+    expect(container.textContent?.match(/ignored/g)).toBeNull();
   });
 
   it("puts bot title in a capsule beside the preview", () => {
-    const html = renderToStaticMarkup(
+    const { container } = render(
       <SidebarChatRow
         kind="bot"
         chatId="bot-1"
@@ -65,20 +67,20 @@ describe("sidebar chrome", () => {
         selected
       />,
     );
-    expect(html).toContain('data-roster-bot-id="bot-1"');
-    expect(html).toContain("data-roster-bot-name");
-    expect(html).toContain("Ops");
-    expect(html).toContain("Ship it");
-    expect(html).toContain("8:43 AM");
-    expect(html).toContain("bg-sidebar-accent");
-    expect(html).toContain("rounded-full");
-    expect(html).not.toContain("text-[13.5px]");
+    expect(container.querySelector('[data-roster-bot-id="bot-1"]')).toBeTruthy();
+    expect(container.querySelector("[data-roster-bot-name]")).toBeTruthy();
+    expect(screen.getByText("Ops")).toBeInTheDocument();
+    expect(screen.getByText("Ship it")).toBeInTheDocument();
+    expect(screen.getByText("8:43 AM")).toBeInTheDocument();
+    expect(container.innerHTML).toContain("bg-sidebar-accent");
+    expect(container.innerHTML).toContain("rounded-full");
+    expect(container.innerHTML).not.toContain("text-[13.5px]");
   });
 
   it.each(["waiting_takeover", "waiting_input"] as const)(
     "shows Needs you instead of raw %s",
     (status) => {
-      const html = renderToStaticMarkup(
+      const { container } = render(
         <SidebarChatRow
           kind="bot"
           chatId="bot-1"
@@ -89,17 +91,17 @@ describe("sidebar chrome", () => {
           unread
         />,
       );
-      expect(html).toContain("Needs you");
-      expect(html).toContain("bg-warning/15");
-      expect(html).toContain("text-warning");
-      expect(html).toContain("8:43 AM");
-      expect(html).toContain("rounded-full");
-      expect(html).not.toContain(status);
+      expect(screen.getByText("Needs you")).toBeInTheDocument();
+      expect(container.innerHTML).toContain("bg-warning/15");
+      expect(container.innerHTML).toContain("text-warning");
+      expect(screen.getByText("8:43 AM")).toBeInTheDocument();
+      expect(container.innerHTML).toContain("rounded-full");
+      expect(container.innerHTML).not.toContain(status);
     },
   );
 
   it("hides queued/running instead of dumping the raw status", () => {
-    const html = renderToStaticMarkup(
+    const { container } = render(
       <SidebarChatRow
         kind="bot"
         chatId="bot-1"
@@ -109,20 +111,21 @@ describe("sidebar chrome", () => {
         status="queued"
       />,
     );
-    expect(html).toContain("8:43 AM");
-    expect(html).not.toContain("queued");
-    expect(html).not.toContain("running");
-    expect(html).not.toContain("Needs you");
+    expect(screen.getByText("8:43 AM")).toBeInTheDocument();
+    expect(container.innerHTML).not.toContain("queued");
+    expect(container.innerHTML).not.toContain("running");
+    expect(screen.queryByText("Needs you")).toBeNull();
   });
 
   it("styles section headers as small uppercase tracking", () => {
-    const html = renderToStaticMarkup(
-      <SidebarSectionHeader title="PokeBedrock" collapsed={false} />,
+    const { container } = render(<SidebarSectionHeader title="PokeBedrock" collapsed={false} />);
+    expect(screen.getByRole("button", { name: "PokeBedrock" })).toBeInTheDocument();
+    expect(container.innerHTML).toContain("uppercase");
+    expect(container.innerHTML).toContain("tracking-[0.06em]");
+    expect(container.innerHTML).toContain("text-muted-foreground");
+    expect(screen.getByRole("button", { name: "PokeBedrock" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
     );
-    expect(html).toContain("PokeBedrock");
-    expect(html).toContain("uppercase");
-    expect(html).toContain("tracking-[0.06em]");
-    expect(html).toContain("text-muted-foreground");
-    expect(html).toContain('aria-expanded="true"');
   });
 });

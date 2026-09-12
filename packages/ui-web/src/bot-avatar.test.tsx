@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { avatarIdentitySeed } from "@rakazo/core";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -114,7 +115,7 @@ describe("BotAvatar", () => {
     expect(idle).toContain("rakazo-organic-avatar-eyes-working");
     expect(idle).toContain("rakazo-organic-avatar-body-idle");
     expect(idle).toContain("rakazo-organic-avatar-body-working");
-    expect(readFileSync(new URL("./styles.css", import.meta.url), "utf8")).not.toMatch(
+    expect(readFileSync(join(import.meta.dirname, "styles.css"), "utf8")).not.toMatch(
       /data-working[^}]+animation:/s,
     );
   });
