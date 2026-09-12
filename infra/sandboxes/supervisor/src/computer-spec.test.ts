@@ -139,6 +139,7 @@ describe("graphical computer spec", () => {
     const browser = readFileSync(path.join(root, "rakazo-browser"), "utf8");
     const desktop = readFileSync(path.join(root, "rakazo-browser.desktop"), "utf8");
     expect(dockerfile).toMatch(/chromium/);
+    expect(dockerfile).toMatch(/openssh-client/);
     expect(dockerfile).toMatch(/rakazo-browser\.desktop/);
     expect(dockerfile).toMatch(/control.py/);
     expect(dockerfile).toMatch(/USER 1000:1000/);
@@ -197,6 +198,7 @@ describe("graphical computer spec", () => {
 
       try {
         expect(run(":1")).toContain(`--user-data-dir=${home}/.browser-profiles/chromium`);
+        expect(run(":1")).toContain("--restore-last-session");
         expect(run(":1").some((arg) => arg.startsWith("--remote-debugging-port="))).toBe(true);
         expect(run(":2")).toContain(`--user-data-dir=${home}/.browser-profiles/chromium-screen-2`);
         expect(run(":2")).toContain("--remote-debugging-port=9223");
@@ -258,6 +260,7 @@ describe("graphical computer spec", () => {
         const flags = readFileSync(capture, "utf8");
         expect(flags).toMatch(/--hide-crash-restore-bubble/);
         expect(flags).toMatch(/--disable-session-crashed-bubble/);
+        expect(flags).toMatch(/--restore-last-session/);
 
         const updatedPrefs = readFileSync(prefsPath, "utf8");
         expect(updatedPrefs).toContain('"exit_type":"Normal"');

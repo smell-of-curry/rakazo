@@ -1,7 +1,12 @@
+import type { RakazoDesktop } from "./desktop";
+import { desktopBridge } from "./desktop";
 import { rpc } from "./rpc";
 
 export const MCP_OAUTH_CHANNEL = "rakazo-mcp-oauth";
-const MCP_OAUTH_TIMEOUT_MS = 2 * 60 * 1000;
+export const MCP_OAUTH_TIMEOUT_MS = 10 * 60 * 1000;
+export const MCP_OAUTH_POLL_MS = 1500;
+const LOOPBACK_PORT_MIN = 49152;
+const LOOPBACK_PORT_SPAN = 16383;
 
 export type McpOauthResult =
   | "connected"
@@ -9,13 +14,80 @@ export type McpOauthResult =
   | "already_connected"
   | "authorization_not_requested";
 
-/** Run the browser OAuth popup flow for an MCP server: request an
- * authorization URL, open the popup, and wait until the callback page
- * broadcasts completion or the popup is closed without finishing.
- *
- * The BroadcastChannel (not window.opener) is the completion signal because
- * provider login pages with COOP sever the opener link. */
+/** Desktop uses a loopback callback (Robinhood rejects many public HTTPS
+ * callbacks after login). Other clients keep the in-app popup. */
 export async function connectMcpOauth(serverId: string): Promise<McpOauthResult> {
+  const desktopAuth = desktopBridge()?.oauth;
+  if (desktopAuth?.open) {
+    return await connectMcpOauthDesktop(serverId, { ...desktopAuth, open: desktopAuth.open });
+  }
+  return await connectMcpOauthPopup(serverId);
+}
+
+export function loopbackMcpRedirectUri(random = Math.random): string {
+  const port = LOOPBACK_PORT_MIN + Math.floor(random() * LOOPBACK_PORT_SPAN);
+  return `http://127.0.0.1:${port}/mcp/oauth/callback`;
+}
+
+async function connectMcpOauthDesktop(
+  serverId: string,
+  desktopAuth: NonNullable<RakazoDesktop["oauth"]> & {
+    open: (authorizationUrl: string) => Promise<void>;
+  },
+): Promise<McpOauthResult> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const started = await rpc.mcp.oauth.begin({
+      serverId,
+      redirectUri: loopbackMcpRedirectUri(),
+    });
+    if (started.status !== "authorization_required") return started.status;
+    try {
+      return await waitForDesktopMcpOauth(started.sessionId, started.authorizationUrl, desktopAuth);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("Could not open browser sign-in");
+}
+
+async function waitForDesktopMcpOauth(
+  sessionId: string,
+  authorizationUrl: string,
+  desktopAuth: NonNullable<RakazoDesktop["oauth"]> & {
+    open: (authorizationUrl: string) => Promise<void>;
+  },
+): Promise<McpOauthResult> {
+  return await new Promise<McpOauthResult>((resolve, reject) => {
+    let settled = false;
+    let timeoutTimer = 0;
+    const finish = (result: McpOauthResult) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutTimer);
+      unsubscribe();
+      void desktopAuth.cancel?.(authorizationUrl).catch(() => undefined);
+      resolve(result);
+    };
+    const unsubscribe = desktopAuth.onCallback((callback) => {
+      if (callback.state !== sessionId) return;
+      void rpc.mcp.oauth
+        .complete({ sessionId, code: callback.code, state: sessionId })
+        .then(() => finish("connected"))
+        .catch(() => finish("cancelled"));
+    });
+    timeoutTimer = window.setTimeout(() => finish("cancelled"), MCP_OAUTH_TIMEOUT_MS);
+    void desktopAuth.open(authorizationUrl).catch((error: unknown) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutTimer);
+      unsubscribe();
+      reject(error);
+    });
+  });
+}
+
+async function connectMcpOauthPopup(serverId: string): Promise<McpOauthResult> {
   const started = await rpc.mcp.oauth.begin({
     serverId,
     redirectUri: `${window.location.origin}/mcp/oauth/callback`,
@@ -24,10 +96,9 @@ export async function connectMcpOauth(serverId: string): Promise<McpOauthResult>
   const popup = window.open(
     started.authorizationUrl,
     MCP_OAUTH_CHANNEL,
-    "popup,width=560,height=720",
+    "popup,width=1024,height=800",
   );
   if (!popup) {
-    // Popup blocked: navigate this tab instead; the callback page returns to /app.
     window.location.assign(started.authorizationUrl);
     return "cancelled";
   }

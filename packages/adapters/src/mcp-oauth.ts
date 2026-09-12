@@ -35,6 +35,41 @@ export type OAuthMaterial = {
 type ServerRef = { id: string; endpoint: string | null; secretId: string | null };
 type ActorRef = { spaceId: string; userId: string };
 
+const LOOPBACK_REDIRECT_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
+
+/** Web-app callback, or a desktop loopback listener the Electron shell already captures. */
+export function isAllowedMcpOAuthRedirect(redirectUri: string, webOrigin: string): boolean {
+  let target: URL;
+  let expected: URL;
+  try {
+    target = new URL(redirectUri);
+    expected = new URL("/mcp/oauth/callback", webOrigin);
+  } catch {
+    return false;
+  }
+  if (target.href === expected.href) return true;
+  if (target.protocol !== "http:") return false;
+  if (!LOOPBACK_REDIRECT_HOSTS.has(target.hostname)) return false;
+  if (target.username || target.password || target.search || target.hash) return false;
+  if (target.pathname !== "/mcp/oauth/callback") return false;
+  const port = Number(target.port);
+  return Number.isInteger(port) && port >= 1024 && port <= 65535;
+}
+
+function isLoopbackRedirectHost(hostname: string): boolean {
+  return LOOPBACK_REDIRECT_HOSTS.has(hostname);
+}
+
+export function oauthClientMatchesRedirect(
+  client: OAuthClientInformationMixed | undefined,
+  redirectUri: string,
+): boolean {
+  if (!client || !("redirect_uris" in client)) return true;
+  const uris = client.redirect_uris;
+  if (!Array.isArray(uris) || uris.length === 0) return true;
+  return uris.includes(redirectUri);
+}
+
 export class McpReauthorizationRequiredError extends Error {
   readonly code = "MCP_REAUTHORIZATION_REQUIRED";
   constructor(readonly serverId: string) {
@@ -62,7 +97,14 @@ export class StoredMcpOAuthProvider implements OAuthClientProvider {
     private readonly options: ProviderOptions = {},
   ) {
     if (options.redirectUri) {
-      this.material.oauth = { ...(this.material.oauth ?? {}), redirectUri: options.redirectUri };
+      const previous = this.material.oauth;
+      this.material.oauth = { ...(previous ?? {}), redirectUri: options.redirectUri };
+      if (
+        (previous?.redirectUri && previous.redirectUri !== options.redirectUri) ||
+        !oauthClientMatchesRedirect(previous?.clientInformation, options.redirectUri)
+      ) {
+        delete this.material.oauth.clientInformation;
+      }
     }
   }
 
@@ -74,7 +116,7 @@ export class StoredMcpOAuthProvider implements OAuthClientProvider {
     const redirectUri = this.redirectUrl;
     if (!redirectUri) throw new McpReauthorizationRequiredError(this.serverId);
     const hostname = new URL(redirectUri).hostname;
-    const applicationType = hostname === "localhost" || hostname === "127.0.0.1" ? "native" : "web";
+    const applicationType = isLoopbackRedirectHost(hostname) ? "native" : "web";
     return {
       redirect_uris: [redirectUri],
       client_name: "Rakazo",
@@ -381,6 +423,23 @@ export class McpOAuthBroker {
       sessionId,
       authorizationUrl: authorizationUrl.toString(),
     };
+  }
+
+  /** Redeem a grant from the callback page. Session id is the capability;
+   * the browser that finishes login may not share the app cookie. */
+  async completeGrant(input: { sessionId: string; code: string; state: string }): Promise<void> {
+    const session = await this.prisma.mcpOAuthSession.findFirst({
+      where: {
+        id: input.sessionId,
+        createdAt: { gte: new Date(Date.now() - PENDING_TTL_MS) },
+      },
+    });
+    if (!session) throw new Error("MCP OAuth session is invalid or expired");
+    await this.complete({
+      ...input,
+      spaceId: session.spaceId,
+      userId: session.userId,
+    });
   }
 
   async complete(input: {

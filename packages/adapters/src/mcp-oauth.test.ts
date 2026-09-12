@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  isAllowedMcpOAuthRedirect,
   McpOAuthBroker,
   McpReauthorizationRequiredError,
+  oauthClientMatchesRedirect,
   StoredMcpOAuthProvider,
 } from "./mcp-oauth.js";
 
@@ -21,6 +23,77 @@ function oauthSessionStore() {
     deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
   };
 }
+
+describe("MCP OAuth redirect allowlist", () => {
+  const webOrigin = "https://app.example.test";
+
+  it("accepts the web callback and desktop loopback listeners", () => {
+    expect(isAllowedMcpOAuthRedirect(`${webOrigin}/mcp/oauth/callback`, webOrigin)).toBe(true);
+    expect(isAllowedMcpOAuthRedirect("http://127.0.0.1:49152/mcp/oauth/callback", webOrigin)).toBe(
+      true,
+    );
+    expect(isAllowedMcpOAuthRedirect("http://localhost:49152/mcp/oauth/callback", webOrigin)).toBe(
+      true,
+    );
+    expect(isAllowedMcpOAuthRedirect("http://[::1]:49152/mcp/oauth/callback", webOrigin)).toBe(true);
+  });
+
+  it("rejects other hosts, privileged ports, and extra URL parts", () => {
+    expect(isAllowedMcpOAuthRedirect("https://evil.test/mcp/oauth/callback", webOrigin)).toBe(false);
+    expect(isAllowedMcpOAuthRedirect("http://127.0.0.1:80/mcp/oauth/callback", webOrigin)).toBe(
+      false,
+    );
+    expect(isAllowedMcpOAuthRedirect("http://127.0.0.1:49152/elsewhere", webOrigin)).toBe(false);
+    expect(
+      isAllowedMcpOAuthRedirect("http://127.0.0.1:49152/mcp/oauth/callback?x=1", webOrigin),
+    ).toBe(false);
+    expect(isAllowedMcpOAuthRedirect("not a url", webOrigin)).toBe(false);
+  });
+
+  it("redeems a grant from the pending session without a cookie actor", async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const broker = new McpOAuthBroker(
+      {
+        mcpOAuthSession: { ...oauthSessionStore(), findFirst },
+        mcpServer: { findFirst: vi.fn(), update: vi.fn() },
+        secret: { findFirst: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
+        $transaction: vi.fn(),
+      } as never,
+      { put: vi.fn() } as never,
+      TEST_NETWORK,
+    );
+    await expect(
+      broker.completeGrant({ sessionId: "session-1", code: "code", state: "session-1" }),
+    ).rejects.toThrow(/invalid or expired/);
+    expect(findFirst).toHaveBeenCalled();
+  });
+
+  it("drops a stored client when the redirect URI changes", () => {
+    const persist = vi.fn();
+    const provider = new StoredMcpOAuthProvider(
+      "server-1",
+      {
+        oauth: {
+          redirectUri: "http://127.0.0.1:49152/mcp/oauth/callback",
+          clientInformation: {
+            client_id: "stale-client",
+            redirect_uris: ["http://127.0.0.1:49152/mcp/oauth/callback"],
+          },
+        },
+      },
+      persist,
+      { redirectUri: "https://app.example.test/mcp/oauth/callback" },
+    );
+    expect(provider.clientInformation()).toBeUndefined();
+    expect(oauthClientMatchesRedirect({ client_id: "x" }, "https://app.example.test/x")).toBe(true);
+    expect(
+      oauthClientMatchesRedirect(
+        { client_id: "x", redirect_uris: ["http://127.0.0.1:1/mcp/oauth/callback"] },
+        "https://app.example.test/mcp/oauth/callback",
+      ),
+    ).toBe(false);
+  });
+});
 
 describe("MCP OAuth", () => {
   it("rejects unsafe browser authorization URLs", async () => {
