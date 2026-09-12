@@ -81,10 +81,6 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings).toBeVisible();
-  const advanced = settings.getByTestId("bot-settings-advanced");
-  await advanced.evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
   // NativeSelect sits inside a wrapping <label>, so label text includes option
   // copy and getByLabel(..., { exact: true }) misses the control. Use the
   // combobox accessible name, matching other model E2E tests.
@@ -95,20 +91,17 @@ test("custom connections persist reasoning support and bot thinking", async ({
   await model.selectOption("openai-compatible::arbitrary-model");
   const thinking = settings.getByRole("combobox", { name: "Thinking", exact: true });
   await expect(thinking).toBeVisible();
-  await thinking.selectOption("low");
-  await thinking.scrollIntoViewIfNeeded();
-  await captureScreenshot(page, testInfo, "openai-compatible-thinking");
   const saved = page.waitForResponse(
     (response) => response.url().includes("/rpc/bots/update") && response.ok(),
   );
-  await settings.getByRole("button", { name: "Save", exact: true }).click();
+  await thinking.selectOption("low");
   await saved;
+  await thinking.scrollIntoViewIfNeeded();
+  await captureScreenshot(page, testInfo, "openai-compatible-thinking");
+  await expect(page.getByTestId("settings-saved")).toBeVisible();
   await page.reload();
   await page.locator("main").getByRole("button", { name: "Chief", exact: true }).click();
   await expect(settings).toBeVisible();
-  await advanced.evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
   await expect(thinking).toHaveValue("low");
 });
 

@@ -1,7 +1,7 @@
-import type { Bot, ComputerMode } from "@rakazo/contracts";
+import type { AvatarShape, Bot, ComputerMode } from "@rakazo/contracts";
 import type { Dispatch, SetStateAction } from "react";
 import { CreateGroupForm } from "../GroupPanel";
-import { CreateBotForm } from "./bot-panel";
+import { CreateBotForm } from "./create-bot-form";
 import type { Panel } from "./types";
 
 export function CreateBotPane({
@@ -14,6 +14,8 @@ export function CreateBotPane({
     title: string;
     description: string;
     computerMode: ComputerMode;
+    color?: string;
+    avatarShape?: AvatarShape;
   }) => Promise<void>;
 }) {
   return <CreateBotForm onCancel={onCancel} onCreate={onCreate} />;

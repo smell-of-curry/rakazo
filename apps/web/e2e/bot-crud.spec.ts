@@ -73,8 +73,12 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await nameInput.fill("Researcher");
   await titleInput.fill(longTitle);
   await descriptionInput.fill("Finds reliable sources and turns them into concise briefs.");
-  await page.getByRole("radio", { name: "Color 7" }).click();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByTestId("avatar-studio-trigger").click();
+  const studio = page.getByTestId("avatar-studio");
+  await studio.getByLabel("Color Emerald").click();
+  await studio.getByRole("button", { name: "Done" }).click();
+  await descriptionInput.blur();
+  await expect(page.getByTestId("settings-saved")).toBeVisible();
   await expect(botList.getByRole("button", { name: /^Researcher/ })).toBeVisible();
   await expect(page.getByPlaceholder("Message Researcher")).toBeVisible();
 
@@ -85,22 +89,25 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
     "Finds reliable sources and turns them into concise briefs.",
   );
   const settings = page.getByTestId("bot-settings");
-  await expect(settings.getByRole("radio", { name: "Color 7" })).toBeChecked();
+  await page.getByTestId("avatar-studio-trigger").click();
+  await expect(page.getByTestId("avatar-studio").getByLabel("Color Emerald")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByTestId("avatar-studio").getByRole("button", { name: "Done" }).click();
   const modelSelect = settings.locator("label:has-text('Model') select");
   const teamComputer = settings.getByRole("button", { name: "Team" });
   const openWork = settings.getByTestId("bot-scratchpad");
-  await expect(teamComputer).toBeHidden();
-  await expect(modelSelect).toBeHidden();
+  await expect(teamComputer).toBeVisible();
+  await expect(modelSelect).toBeVisible();
   await expect(openWork).toBeHidden();
-  await expect(settings.getByRole("button", { name: "Save", exact: true })).toBeVisible();
-  await expect(settings.getByRole("button", { name: "Recover computer" })).toHaveCount(0);
-  await expect(settings.getByRole("button", { name: "Reset computer" })).toHaveCount(0);
+  await expect(settings.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
+  await expect(settings.getByRole("button", { name: "Recover" })).toBeVisible();
+  await expect(settings.getByRole("button", { name: "Reset" })).toBeVisible();
   await expect(settings.getByRole("button", { name: "Update computer" })).toHaveCount(0);
   await captureScreenshot(page, testInfo, "27a-settings-panel");
   await settings.getByText("Advanced", { exact: true }).click();
-  await expect(teamComputer).toBeVisible();
   await expect(openWork).toBeVisible();
-  await expect(modelSelect).toBeVisible();
   await expect(modelSelect).toContainText("Space default");
   await captureScreenshot(page, testInfo, "27a-bot-settings-model");
   await page.getByRole("button", { name: "Show computer" }).click();
@@ -125,7 +132,8 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   await nameInput.fill("Atlas");
   await titleInput.fill("Research lead");
   await descriptionInput.fill("Builds durable, source-backed research briefs.");
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await descriptionInput.blur();
+  await expect(page.getByTestId("settings-saved")).toBeVisible();
   await expect(botList.getByRole("button", { name: /^Atlas/ })).toBeVisible();
   await expect(page.getByPlaceholder("Message Atlas")).toBeVisible();
   await captureScreenshot(page, testInfo, "28-edited-bot-profile");
@@ -143,7 +151,8 @@ test("bot creation, editing, and deletion persist", async ({ page }, testInfo) =
   const longUnbrokenName = "A".repeat(48);
   expect(longUnbrokenName.length).toBe(48);
   await nameInput.fill(longUnbrokenName);
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await nameInput.blur();
+  await expect(page.getByTestId("settings-saved")).toBeVisible();
   const longNameBot = botList.getByRole("button", {
     name: new RegExp(`^${longUnbrokenName}`),
   });

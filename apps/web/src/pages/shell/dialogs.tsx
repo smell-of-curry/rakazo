@@ -68,7 +68,7 @@ export function NewSpaceDialog({
             <Trans>New space</Trans>
           </DialogTitle>
         </DialogHeader>
-        <label htmlFor={nameId} className="block text-[13.5px] text-foreground/75">
+        <label htmlFor={nameId} className="block text-small text-muted-foreground">
           <Trans>Name</Trans>
           <Input
             id={nameId}
@@ -79,10 +79,10 @@ export function NewSpaceDialog({
               if (event.key === "Enter") create();
             }}
             placeholder={t`Customer support`}
-            className="mt-2"
+            className="mt-2 text-body"
           />
         </label>
-        {error ? <p className="text-[13.5px] text-destructive">{error}</p> : null}
+        {error ? <p className="text-small text-destructive">{error}</p> : null}
         <DialogFooter>
           <Button variant="outline" disabled={saving} onClick={onCancel}>
             <Trans>Cancel</Trans>
@@ -180,20 +180,20 @@ export function NewBotSectionDialog({
               <Trans>New section</Trans>
             </DialogTitle>
             <DialogDescription>
-              <Trans>Create a section and move {bot.name} into it.</Trans>
+              <Trans>Move {bot.name} into it.</Trans>
             </DialogDescription>
           </DialogHeader>
-          <label htmlFor={nameId} className="block text-[13.5px] text-foreground/75">
+          <label htmlFor={nameId} className="block text-small text-muted-foreground">
             <Trans>Name</Trans>
             <Input
               id={nameId}
               maxLength={60}
               value={name}
               onChange={(event) => setName(event.target.value)}
-              className="mt-2"
+              className="mt-2 text-body"
             />
           </label>
-          {error ? <p className="text-[13.5px] text-destructive">{error}</p> : null}
+          {error ? <p className="text-small text-destructive">{error}</p> : null}
           <DialogFooter>
             <Button type="button" variant="outline" disabled={saving} onClick={onCancel}>
               <Trans>Cancel</Trans>
@@ -229,13 +229,10 @@ export function ClearConversationDialog({
             <Trans>Clear {bot.name}’s conversation?</Trans>
           </AlertDialogTitle>
           <AlertDialogDescription>
-            <Trans>
-              This permanently removes every message and stops current work. The chat remains
-              available.
-            </Trans>
+            <Trans>Removes every message and stops current work.</Trans>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {error ? <p className="text-[13.5px] text-destructive">{error}</p> : null}
+        {error ? <p className="text-small text-destructive">{error}</p> : null}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={clearing}>
             <Trans>Cancel</Trans>
@@ -282,15 +279,12 @@ export function DeleteBotDialog({
             <Trans>Delete {bot.name}?</Trans>
           </AlertDialogTitle>
           <AlertDialogDescription>
-            <Trans>
-              Its conversation, files, and routines will be permanently deleted. Bots it created
-              stay in your list.
-            </Trans>
+            <Trans>Conversation, files, and routines are deleted.</Trans>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <fieldset className="space-y-2">
-          <legend className="mb-2 text-[13.5px] text-foreground/75">
-            <Trans>What about its memories?</Trans>
+          <legend className="mb-2 text-small text-muted-foreground">
+            <Trans>Memories</Trans>
           </legend>
           <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-3">
             <input
@@ -299,13 +293,8 @@ export function DeleteBotDialog({
               checked={!deleteMemories}
               onChange={() => setDeleteMemories(false)}
             />
-            <span>
-              <span className="block text-[14px] text-foreground">
-                <Trans>Keep memories</Trans>
-              </span>
-              <span className="mt-0.5 block text-[12.5px] text-muted-foreground">
-                <Trans>Move them to your shared memory.</Trans>
-              </span>
+            <span className="text-body text-foreground">
+              <Trans>Keep memories</Trans>
             </span>
           </label>
           <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-3">
@@ -315,17 +304,12 @@ export function DeleteBotDialog({
               checked={deleteMemories}
               onChange={() => setDeleteMemories(true)}
             />
-            <span>
-              <span className="block text-[14px] text-foreground">
-                <Trans>Delete memories too</Trans>
-              </span>
-              <span className="mt-0.5 block text-[12.5px] text-muted-foreground">
-                <Trans>This cannot be undone.</Trans>
-              </span>
+            <span className="text-body text-foreground">
+              <Trans>Delete memories too</Trans>
             </span>
           </label>
         </fieldset>
-        {error ? <p className="text-[13.5px] text-destructive">{error}</p> : null}
+        {error ? <p className="text-small text-destructive">{error}</p> : null}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={deleting}>
             <Trans>Cancel</Trans>
@@ -378,7 +362,7 @@ export function DeleteItemDialog({
             {description ?? <Trans>This cannot be undone.</Trans>}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {error ? <p className="text-[13.5px] text-destructive">{error}</p> : null}
+        {error ? <p className="text-small text-destructive">{error}</p> : null}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={deleting}>
             <Trans>Cancel</Trans>

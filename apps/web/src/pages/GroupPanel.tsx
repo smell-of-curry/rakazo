@@ -2,7 +2,15 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { type Bot, GROUP_MEMBER_MAX, GROUP_MEMBER_MIN, type Group } from "@rakazo/contracts";
 import { BotAvatar, Button, Input } from "@rakazo/ui-web";
 import { Check, X } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
+import {
+  DangerRow,
+  fieldInputClass,
+  fieldLabelClass,
+  SettingsHeader,
+  SettingsSection,
+} from "./shell/settings-fields";
+import { useDebouncedSave } from "./shell/use-debounced-save";
 
 function validSelection(name: string, selected: readonly string[]) {
   return (
@@ -54,7 +62,7 @@ function MemberPicker({
             }`}
           >
             <BotAvatar color={bot.color} shape={bot.avatarShape} identity={bot.id} size={32} />
-            <span className="flex-1 text-[15px] text-foreground" dir="auto">
+            <span className="flex-1 text-body text-foreground" dir="auto">
               {bot.name}
             </span>
             {checked ? <Check size={14} className="text-muted-foreground" aria-hidden /> : null}
@@ -97,9 +105,9 @@ export function CreateGroupForm({
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-[13.5px] text-muted-foreground">
+        <h2 className="text-title font-semibold text-foreground">
           <Trans>New group</Trans>
-        </span>
+        </h2>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -111,24 +119,22 @@ export function CreateGroupForm({
         </Button>
       </div>
       {error ? (
-        <p role="alert" className="mb-3 text-[13px] text-destructive">
+        <p role="alert" className="mb-3 text-small text-destructive">
           {error}
         </p>
       ) : null}
-      <label htmlFor={nameId} className="block text-sm text-muted-foreground">
+      <label htmlFor={nameId} className={fieldLabelClass}>
         <Trans>Name</Trans>
         <Input
           id={nameId}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder={t`Name this group`}
-          className="mt-2"
+          placeholder={t`Crew`}
+          className={fieldInputClass}
         />
       </label>
-      <div className="mt-5 text-sm text-muted-foreground">
-        <Trans>
-          Members (pick {GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX})
-        </Trans>
+      <div className={`${fieldLabelClass} mt-5`}>
+        <Trans>Members</Trans>
       </div>
       <MemberPicker
         bots={bots}
@@ -156,93 +162,78 @@ export function GroupSettings({
   group: Group;
   bots: Bot[];
   onSave: (input: { name?: string; botIds?: string[] }) => Promise<void>;
-  onRemove: () => Promise<void>;
+  onRemove: () => void;
 }) {
   const { t } = useLingui();
   const nameId = useId();
   const [name, setName] = useState(group.name);
   const [selected, setSelected] = useState(group.members.map((member) => member.botId));
-  const [pending, setPending] = useState<"save" | "remove" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const nameRef = useRef(name);
+  const selectedRef = useRef(selected);
+  nameRef.current = name;
+  selectedRef.current = selected;
 
-  async function mutate(kind: "save" | "remove", action: () => Promise<void>) {
-    if (pending) return;
-    setPending(kind);
-    setError(null);
-    try {
-      await action();
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : kind === "save"
-            ? t`Could not save group`
-            : t`Could not remove group`,
-      );
-    } finally {
-      setPending(null);
+  const { queue, flush, saved, error, setError } = useDebouncedSave<{
+    name?: string;
+    botIds?: string[];
+  }>(async () => {
+    const nextName = nameRef.current.trim();
+    const nextSelected = selectedRef.current;
+    if (!validSelection(nextName, nextSelected)) {
+      throw new Error(t`Could not save group`);
     }
-  }
-
-  function save() {
-    return onSave({
-      name: name.trim() !== group.name ? name.trim() : undefined,
+    await onSave({
+      name: nextName !== group.name ? nextName : undefined,
       botIds: sameMembers(
-        selected,
+        nextSelected,
         group.members.map((member) => member.botId),
       )
         ? undefined
-        : selected,
+        : nextSelected,
     });
-  }
+  });
 
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
-        <span className="text-[13.5px] text-muted-foreground">
-          <Trans>Group settings</Trans>
-        </span>
-      </div>
+    <div data-testid="group-settings">
+      <SettingsHeader saved={saved} />
       {error ? (
-        <p role="alert" className="mb-3 text-[13px] text-destructive">
+        <p role="alert" className="mb-3 text-small text-destructive">
           {error}
         </p>
       ) : null}
-      <label htmlFor={nameId} className="block text-sm text-muted-foreground">
-        <Trans>Name</Trans>
-        <Input
-          id={nameId}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="mt-2"
+      <SettingsSection title={<Trans>Profile</Trans>} testId="group-settings-section-profile">
+        <label htmlFor={nameId} className={fieldLabelClass}>
+          <Trans>Name</Trans>
+          <Input
+            id={nameId}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setError(null);
+              queue({ name: e.target.value.trim() });
+            }}
+            onBlur={() => void flush()}
+            className={fieldInputClass}
+          />
+        </label>
+        <div className={fieldLabelClass}>
+          <Trans>Members</Trans>
+        </div>
+        <MemberPicker
+          bots={bots}
+          selected={selected}
+          onChange={(next) => {
+            setSelected(next);
+            queue({ botIds: next });
+          }}
+          maxHeight="max-h-[240px]"
         />
-      </label>
-      <div className="mt-5 text-sm text-muted-foreground">
-        <Trans>
-          Members ({GROUP_MEMBER_MIN}–{GROUP_MEMBER_MAX})
-        </Trans>
-      </div>
-      <MemberPicker
-        bots={bots}
-        selected={selected}
-        onChange={setSelected}
-        maxHeight="max-h-[240px]"
-      />
-      <Button
-        className="mt-5 w-full"
-        disabled={pending !== null || !validSelection(name, selected)}
-        onClick={() => void mutate("save", save)}
-      >
-        {pending === "save" ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
-      </Button>
-      <Button
-        variant="destructive"
-        className="mt-4 w-full"
-        disabled={pending !== null}
-        onClick={() => void mutate("remove", onRemove)}
-      >
-        {pending === "remove" ? <Trans>Deleting…</Trans> : <Trans>Delete group</Trans>}
-      </Button>
+      </SettingsSection>
+      <SettingsSection title={<Trans>Danger</Trans>} testId="group-settings-section-danger">
+        <DangerRow testId="group-settings-delete" onClick={onRemove}>
+          <Trans>Delete group</Trans>
+        </DangerRow>
+      </SettingsSection>
     </div>
   );
 }

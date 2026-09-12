@@ -31,10 +31,8 @@ test("create opens form, then empty chat; picker lists bots; sidebar collapses",
   await expect(form).toBeVisible();
   await expect(form.locator("label:has-text('Name') input")).toBeVisible();
   await expect(form.locator("label:has-text('Title') input")).toBeVisible();
-  await expect(form.locator("label:has-text('Description') textarea")).toBeVisible();
-  await expect(form.getByTestId("create-bot-computer")).toBeVisible();
-  await expect(form.getByTestId("create-bot-team")).toBeVisible();
-  await expect(form.getByTestId("create-bot-private")).toBeVisible();
+  await expect(form.locator("label:has-text('Description') textarea")).toHaveCount(0);
+  await expect(form.getByTestId("create-bot-computer")).toHaveCount(0);
   await captureScreenshot(page, testInfo, "create-bot-form");
 
   await form.locator("label:has-text('Name') input").fill("New Bot");
@@ -163,7 +161,6 @@ test("second bot from plus opens create form before persist", async ({ page }, t
   await expect(form).toBeVisible();
   await form.locator("label:has-text('Name') input").fill("Researcher");
   await form.locator("label:has-text('Title') input").fill("Finds sources");
-  await form.locator("label:has-text('Description') textarea").fill("Briefs from the web.");
   await captureScreenshot(page, testInfo, "second-bot-create-form");
 
   const create = page.waitForResponse(

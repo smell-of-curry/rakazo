@@ -111,17 +111,21 @@ export async function createBotFromPicker(
   if (options.title != null) {
     await form.locator("label:has-text('Title') input").fill(options.title);
   }
-  if (options.description != null) {
-    await form.locator("label:has-text('Description') textarea").fill(options.description);
-  }
-  if (options.computerMode === "dedicated") {
-    await form.getByTestId("create-bot-private").click();
-  } else if (options.computerMode === "team") {
-    await form.getByTestId("create-bot-team").click();
-  }
   await form.getByRole("button", { name: "Create", exact: true }).click();
   await page.waitForURL(/\/app\/[^/]+$/);
   await expect(page.getByTestId("side-panel")).toHaveAttribute("data-panel", "closed");
+  if (options.computerMode) {
+    await page.getByTestId("bot-settings-trigger").click();
+    const settings = page.getByTestId("bot-settings");
+    await settings
+      .getByRole("button", {
+        name: options.computerMode === "dedicated" ? "Private" : "Team",
+        exact: true,
+      })
+      .click();
+    await expect(page.getByTestId("settings-saved")).toBeVisible();
+    await page.getByRole("button", { name: "Close panel" }).click();
+  }
 }
 
 /** Open the user Settings overlay, optionally switching to a sidebar section. */
