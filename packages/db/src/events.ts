@@ -143,6 +143,46 @@ function choiceAskCheckpoint(actions: Array<{ id: string; label: string }>): str
   return JSON.stringify({ kind: CHOICE_ASK_CHECKPOINT_KIND, actions });
 }
 
+function isOpenGateBlock(block: unknown): boolean {
+  if (!block || typeof block !== "object") return false;
+  const row = block as { kind?: unknown; status?: unknown; state?: unknown };
+  if (row.kind === "ask") return row.status !== "answered" && row.status !== "dismissed";
+  if (row.kind === "computer") {
+    return row.state === "Needs you" && row.status !== "dismissed";
+  }
+  return false;
+}
+
+async function existingPendingGate(
+  tx: Prisma.TransactionClient,
+  runId: string,
+  threadId: string,
+): Promise<{ threadId: string; seq: number } | null> {
+  const messages = await tx.message.findMany({
+    where: { runId },
+    select: { blocks: true },
+    orderBy: { seq: "desc" },
+    take: 40,
+  });
+  const hasOpen = messages.some((message) => {
+    const blocks = Array.isArray(message.blocks) ? message.blocks : [];
+    return blocks.some(isOpenGateBlock);
+  });
+  if (!hasOpen) {
+    const waiting = await tx.run.findFirst({
+      where: { id: runId, status: { in: ["waiting_input", "waiting_takeover"] } },
+      select: { id: true },
+    });
+    if (!waiting) return null;
+  }
+  const last = await tx.event.findFirst({
+    where: { runId },
+    orderBy: { seq: "desc" },
+    select: { threadId: true, seq: true },
+  });
+  return last ?? { threadId, seq: 0 };
+}
+
 function resumeChoiceLabel(
   selected: { id: string; label: string },
   checkpoint: string | null | undefined,
@@ -685,6 +725,8 @@ export async function pauseRunForInput(
     // Thread row first, then run rows — the same order as clearThread and finalizeRun, so a
     // concurrent clear cannot deadlock against this transaction.
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${input.threadId} FOR UPDATE`;
+    const existing = await existingPendingGate(tx, input.runId, input.threadId);
+    if (existing) return existing;
     const paused = await tx.run.updateMany({
       where: {
         id: input.runId,
@@ -745,7 +787,7 @@ export async function pauseRunForInput(
   });
 
   if (!committed) return false;
-  await notifyRealtime(realtime, committed.threadId, committed.seq);
+  if (committed.seq > 0) await notifyRealtime(realtime, committed.threadId, committed.seq);
   return true;
 }
 
@@ -756,6 +798,8 @@ export async function pauseRunForTakeover(
 ): Promise<boolean> {
   const committed = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     await tx.$queryRaw`SELECT id FROM threads WHERE id = ${input.threadId} FOR UPDATE`;
+    const existing = await existingPendingGate(tx, input.runId, input.threadId);
+    if (existing) return existing;
     const paused = await tx.run.updateMany({
       where: {
         id: input.runId,
@@ -848,7 +892,7 @@ export async function pauseRunForTakeover(
   });
 
   if (!committed) return false;
-  await notifyRealtime(realtime, committed.threadId, committed.seq);
+  if (committed.seq > 0) await notifyRealtime(realtime, committed.threadId, committed.seq);
   return true;
 }
 

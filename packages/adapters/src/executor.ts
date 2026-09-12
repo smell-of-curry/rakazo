@@ -988,10 +988,22 @@ export function createRunExecutor(deps: ExecutorDeps) {
       }
     },
 
-    async continueRun(runId: string, workerId: string) {
+    async continueRun(runId: string, workerId: string, resume?: "answer" | "takeover") {
       const run = await deps.prisma.run.findUnique({ where: { id: runId } });
       if (!run) return;
       if (isTerminal(run.status as RunStatus)) return;
+      if (run.status === "waiting_input" || run.status === "waiting_takeover") {
+        const allowed =
+          (run.status === "waiting_input" && resume === "answer") ||
+          (run.status === "waiting_takeover" && resume === "takeover");
+        if (!allowed) {
+          getLogger().info("skip continue of waiting run without resume", {
+            runId,
+            status: run.status,
+          });
+          return;
+        }
+      }
       const resumeCheckpoint =
         run.checkpoint === "takeover" || run.checkpoint === "takeover-skipped"
           ? run.checkpoint
@@ -3665,7 +3677,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   // Keep unredacted labels on the run for resume; message blocks stay redacted.
                   offeredActions: event.actions,
                 });
-                if (!paused) return;
+                if (!paused) {
+                  throw new Error("Could not pause this run for user input; try sending again.");
+                }
                 await notifyRun(deps, run, {
                   kind: "help",
                   title: `${bot.name} needs an answer`,

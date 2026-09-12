@@ -89,7 +89,7 @@ describe("computer control leases", () => {
     });
     expect(harness.enqueue).toHaveBeenCalledWith({
       name: "run.continue",
-      payload: { runId: "run-1" },
+      payload: { runId: "run-1", resume: "takeover" },
       replaceKey: "run:run-1",
     });
   });

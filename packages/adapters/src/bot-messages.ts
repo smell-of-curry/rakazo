@@ -1,6 +1,7 @@
 import { runContinueJob } from "@rakazo/adapter-kit";
 import type { BotMessageIntent, MessageBlock } from "@rakazo/contracts";
 import {
+  ACTIVE_RUN_STATUSES,
   BOT_MESSAGE_MAX_LENGTH,
   botMessageContext,
   botMessageHopExhausted,
@@ -147,6 +148,7 @@ export async function messageBot(
     | {
         ok: true;
         runId: string;
+        steered?: boolean;
         targetEventSeq: number;
         senderEventSeq: number;
       }
@@ -232,6 +234,44 @@ export async function messageBot(
           clientNonce: deliveryKey,
           markUnread: true,
         });
+        const active = await tx.run.findFirst({
+          where: { botId: target.id, status: { in: [...ACTIVE_RUN_STATUSES] } },
+          select: { id: true },
+        });
+        if (active) {
+          await tx.steeringMessage.create({
+            data: {
+              messageId: inbound.id,
+              botId: target.id,
+              userId: run.userId,
+              runId: active.id,
+            },
+          });
+          await tx.message.update({ where: { id: inbound.id }, data: { runId: active.id } });
+          const inboundEvent = await appendEventInTransaction(tx, {
+            spaceId: run.spaceId,
+            threadId: targetThreadId,
+            botId: target.id,
+            type: "thread.message.created",
+            runId: active.id,
+            payload: { messageId: inbound.id, role: "user", blocks: [inboundBlock] },
+          });
+          const outboundEvent = await appendEventInTransaction(tx, {
+            spaceId: run.spaceId,
+            threadId: run.threadId,
+            botId: run.botId,
+            type: "thread.message.created",
+            runId: run.id,
+            payload: { messageId: outbound.id, role: "bot", blocks: [outboundBlock] },
+          });
+          return {
+            ok: true as const,
+            runId: active.id,
+            steered: true as const,
+            targetEventSeq: inboundEvent.seq,
+            senderEventSeq: outboundEvent.seq,
+          };
+        }
         const task = await tx.task.create({
           data: {
             spaceId: run.spaceId,
@@ -301,10 +341,12 @@ export async function messageBot(
   await deps.events.notify(run.threadId, committed.senderEventSeq).catch((error) => {
     getLogger().error("bot message sender echo notification", error);
   });
-  await deps.jobs.enqueue(runContinueJob(committed.runId)).catch((error) => {
-    // The queued run is durable; the job reconciler repairs a missed wake.
-    getLogger().error("bot message enqueue", error);
-  });
+  if (!committed.steered) {
+    await deps.jobs.enqueue(runContinueJob(committed.runId)).catch((error) => {
+      // The queued run is durable; the job reconciler repairs a missed wake.
+      getLogger().error("bot message enqueue", error);
+    });
+  }
   return {
     ok: true as const,
     botId: target.id,

@@ -7,7 +7,10 @@ import type {
 } from "./types.js";
 
 const payloadSchemas = {
-  "run.continue": z.object({ runId: z.string().min(1) }),
+  "run.continue": z.object({
+    runId: z.string().min(1),
+    resume: z.enum(["answer", "takeover"]).optional(),
+  }),
   "routine.wakeup": z.object({
     routineId: z.string().min(1),
     scheduledFor: z.string().datetime({ offset: true }),
@@ -63,10 +66,10 @@ export function skillTeachingExpireJobKey(skillId: string): string {
   return `skill.teaching-expire:${skillId}`;
 }
 
-export function runContinueJob(runId: string): BackgroundJob {
+export function runContinueJob(runId: string, resume?: "answer" | "takeover"): BackgroundJob {
   return {
     name: "run.continue",
-    payload: { runId },
+    payload: resume ? { runId, resume } : { runId },
     replaceKey: runJobKey(runId),
   };
 }

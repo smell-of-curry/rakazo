@@ -281,6 +281,7 @@ describe("pauseRunForInput", () => {
       $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),
       run: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirst: vi.fn().mockResolvedValue(null),
         findUnique: vi.fn().mockResolvedValue({
           status: "running",
           createdAt: new Date("2026-08-16T12:00:00.000Z"),
@@ -295,7 +296,10 @@ describe("pauseRunForInput", () => {
           .mockResolvedValueOnce({ nextEventSeq: 8 })
           .mockResolvedValueOnce({ nextEventSeq: 9 }),
       },
-      message: { create: vi.fn().mockResolvedValue({ id: "message-1" }) },
+      message: {
+        create: vi.fn().mockResolvedValue({ id: "message-1" }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       event: {
         create: vi.fn(async ({ data }: { data: { seq: number; type: string } }) => ({
           ...event(data.seq),
@@ -354,6 +358,7 @@ describe("pauseRunForInput", () => {
       $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),
       run: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirst: vi.fn().mockResolvedValue(null),
         findUnique: vi.fn().mockResolvedValue({
           status: "running",
           createdAt: new Date("2026-08-16T12:00:00.000Z"),
@@ -368,7 +373,10 @@ describe("pauseRunForInput", () => {
           .mockResolvedValueOnce({ nextEventSeq: 8 })
           .mockResolvedValueOnce({ nextEventSeq: 9 }),
       },
-      message: { create: vi.fn().mockResolvedValue({ id: "message-1" }) },
+      message: {
+        create: vi.fn().mockResolvedValue({ id: "message-1" }),
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       event: {
         create: vi.fn(async ({ data }: { data: { seq: number; type: string } }) => ({
           ...event(data.seq),
@@ -430,6 +438,49 @@ describe("pauseRunForInput", () => {
       }),
     );
   });
+
+  it("returns the existing gate instead of creating a second pending ask", async () => {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),
+      run: {
+        updateMany: vi.fn(),
+        findFirst: vi.fn().mockResolvedValue({ id: "run-1" }),
+      },
+      attempt: { updateMany: vi.fn() },
+      message: {
+        create: vi.fn(),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { blocks: [{ kind: "ask", text: "Which city?", status: "pending" }] },
+          ]),
+      },
+      event: {
+        create: vi.fn(),
+        findFirst: vi.fn().mockResolvedValue({ threadId: "thread-1", seq: 8 }),
+      },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    } as unknown as PrismaClient;
+
+    await expect(
+      pauseRunForInput(prisma, {
+        spaceId: "workspace-1",
+        threadId: "thread-1",
+        botId: "bot-1",
+        runId: "run-1",
+        attemptId: "attempt-1",
+        leaseOwner: "worker-1",
+        leaseFence: 3,
+        blocks: [{ kind: "ask", text: "Second question?" }],
+      }),
+    ).resolves.toBe(true);
+
+    expect(tx.message.create).not.toHaveBeenCalled();
+    expect(tx.run.updateMany).not.toHaveBeenCalled();
+    expect(tx.event.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("pauseRunForTakeover", () => {
@@ -440,6 +491,7 @@ describe("pauseRunForTakeover", () => {
       $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),
       run: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirst: vi.fn().mockResolvedValue(null),
         findUnique: vi.fn().mockResolvedValue({ status: "waiting_takeover" }),
       },
       attempt: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
@@ -453,12 +505,14 @@ describe("pauseRunForTakeover", () => {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       thread: { update: vi.fn().mockResolvedValue({ nextEventSeq: 8 }) },
+      message: { findMany: vi.fn().mockResolvedValue([]) },
       event: {
         create: vi.fn(async ({ data }: { data: { seq: number; type: string } }) => ({
           ...event(data.seq),
           type: data.type,
         })),
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirst: vi.fn().mockResolvedValue(null),
       },
     };
     const prisma = {
@@ -529,6 +583,7 @@ describe("pauseRunForTakeover", () => {
       $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),
       run: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirst: vi.fn().mockResolvedValue(null),
         findUnique: vi.fn().mockResolvedValue({ status: "waiting_takeover" }),
       },
       attempt: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
@@ -542,12 +597,14 @@ describe("pauseRunForTakeover", () => {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       thread: { update: vi.fn().mockResolvedValue({ nextEventSeq: 8 }) },
+      message: { findMany: vi.fn().mockResolvedValue([]) },
       event: {
         create: vi.fn(async ({ data }: { data: { seq: number; type: string } }) => ({
           ...event(data.seq),
           type: data.type,
         })),
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirst: vi.fn().mockResolvedValue(null),
       },
     };
     const prisma = {
@@ -587,6 +644,7 @@ describe("pauseRunForTakeover", () => {
       $queryRaw: vi.fn().mockResolvedValue([{ id: "computer-1" }]),
       run: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirst: vi.fn().mockResolvedValue(null),
         findUnique: vi.fn().mockResolvedValue({ status: "waiting_takeover" }),
       },
       attempt: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
@@ -600,12 +658,14 @@ describe("pauseRunForTakeover", () => {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       thread: { update: vi.fn().mockResolvedValue({ nextEventSeq: 8 }) },
+      message: { findMany: vi.fn().mockResolvedValue([]) },
       event: {
         create: vi.fn(async ({ data }: { data: { seq: number; type: string } }) => ({
           ...event(data.seq),
           type: data.type,
         })),
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+        findFirst: vi.fn().mockResolvedValue(null),
       },
     };
     const prisma = {
@@ -637,6 +697,50 @@ describe("pauseRunForTakeover", () => {
         }),
       }),
     );
+  });
+
+  it("returns the existing takeover gate instead of creating a second one", async () => {
+    const tx = {
+      $queryRaw: vi.fn().mockResolvedValue([{ id: "thread-1" }]),
+      run: {
+        updateMany: vi.fn(),
+        findFirst: vi.fn().mockResolvedValue({ id: "run-1" }),
+      },
+      attempt: { updateMany: vi.fn() },
+      computer: { findFirst: vi.fn(), updateMany: vi.fn() },
+      message: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { blocks: [{ kind: "computer", state: "Needs you", text: "Sign in" }] },
+          ]),
+      },
+      event: {
+        create: vi.fn(),
+        findFirst: vi.fn().mockResolvedValue({ threadId: "thread-1", seq: 8 }),
+      },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    } as unknown as PrismaClient;
+
+    await expect(
+      pauseRunForTakeover(prisma, {
+        spaceId: "workspace-1",
+        threadId: "thread-1",
+        botId: "bot-1",
+        runId: "run-1",
+        attemptId: "attempt-1",
+        leaseOwner: "worker-1",
+        leaseFence: 3,
+        reason: "Sign in again",
+        computerId: "computer-1",
+      }),
+    ).resolves.toBe(true);
+
+    expect(tx.run.updateMany).not.toHaveBeenCalled();
+    expect(tx.computer.updateMany).not.toHaveBeenCalled();
+    expect(tx.event.create).not.toHaveBeenCalled();
   });
 });
 
@@ -1608,6 +1712,44 @@ describe("claimSteering", () => {
       data: { runId: "run-1", claimedAt: expect.any(Date) },
     });
   });
+
+  it("injects a user message attached during waiting_input when the answered run resumes", async () => {
+    const tx = {
+      $queryRaw: vi.fn(),
+      run: { findFirst: vi.fn().mockResolvedValue({ id: "run-1", status: "running" }) },
+      steeringMessage: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: "steer-wait",
+            messageId: "message-steer",
+            message: { seq: 9, blocks: [{ kind: "text", text: "Use the backup org" }] },
+          },
+        ]),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    const prisma = {
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    } as unknown as PrismaClient;
+
+    await expect(
+      claimSteering(prisma, {
+        threadId: "thread-1",
+        botId: "bot-1",
+        runId: "run-1",
+        leaseOwner: "worker-1",
+        leaseFence: 3,
+        seenIds: [],
+      }),
+    ).resolves.toEqual([
+      {
+        id: "steer-wait",
+        messageId: "message-steer",
+        text: "Use the backup org",
+        blocks: [{ kind: "text", text: "Use the backup org" }],
+      },
+    ]);
+  });
 });
 
 describe("clearThread", () => {
@@ -1629,7 +1771,7 @@ describe("clearThread", () => {
       task: { updateMany: vi.fn() },
       computerExecutionLease: { updateMany: vi.fn() },
       computer: { updateMany: vi.fn() },
-      message: { deleteMany: vi.fn() },
+      message: { findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn() },
       event: {
         deleteMany: vi.fn(),
         create: vi.fn().mockResolvedValue({
@@ -1693,7 +1835,7 @@ describe("clearThread", () => {
       task: { updateMany: vi.fn() },
       computerExecutionLease: { updateMany: vi.fn() },
       computer: { updateMany: vi.fn() },
-      message: { deleteMany: vi.fn() },
+      message: { findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn() },
       event: {
         deleteMany: vi.fn(),
         create: vi.fn().mockResolvedValue({

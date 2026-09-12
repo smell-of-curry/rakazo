@@ -28,6 +28,7 @@ function deps(
     /** Simulate a unique (threadId, clientNonce) race after both retries miss. */
     uniqueConflictOnCommit?: boolean;
     transactionConflictOnce?: boolean;
+    targetActiveRun?: { id: string } | null;
   } = {},
 ) {
   const enqueue = vi.fn().mockResolvedValue(undefined);
@@ -44,10 +45,17 @@ function deps(
     run: {
       findFirst: vi
         .fn()
-        .mockResolvedValue(options.senderRunning === false ? null : { id: "run-1" }),
+        .mockImplementation(async (args: { where?: { id?: string; botId?: string } }) => {
+          if (args?.where?.id === "run-1") {
+            return options.senderRunning === false ? null : { id: "run-1" };
+          }
+          if (args?.where?.botId) return options.targetActiveRun ?? null;
+          return options.senderRunning === false ? null : { id: "run-1" };
+        }),
       findUnique: vi.fn().mockResolvedValue({ status: "running" }),
       create: vi.fn().mockResolvedValue({ id: "run-2" }),
     },
+    steeringMessage: { create: vi.fn().mockResolvedValue({ id: "steer-1" }) },
     bot: {
       findFirst: vi.fn().mockResolvedValue(options.targetArchived ? null : { id: "bot-target" }),
     },
@@ -132,6 +140,27 @@ describe("messaging another bot", () => {
       ),
     ).toHaveLength(2);
     expect(harness.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("attaches as steering when the target already has an active run", async () => {
+    const harness = deps({ targetActiveRun: { id: "run-waiting" } });
+    const sent = await messageBot(harness.deps, run, sender, {
+      bot_id: "bot-target",
+      message: "chart the q3 numbers",
+    });
+
+    expect(sent).toMatchObject({ ok: true, botId: "bot-target", name: "Analyst" });
+    expect(harness.tx.task.create).not.toHaveBeenCalled();
+    expect(harness.tx.run.create).not.toHaveBeenCalled();
+    expect(harness.tx.steeringMessage.create).toHaveBeenCalledWith({
+      data: {
+        messageId: "message-1",
+        botId: "bot-target",
+        userId: "user-1",
+        runId: "run-waiting",
+      },
+    });
+    expect(harness.enqueue).not.toHaveBeenCalled();
   });
 
   it("tells the sender to continue independent work", async () => {

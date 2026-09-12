@@ -60,6 +60,10 @@ describe("background job contracts", () => {
       }),
     ).toThrow();
     expect(() => parseBackgroundJob("run.continue", { runId: "" })).toThrow();
+    expect(parseBackgroundJob("run.continue", { runId: "run-1", resume: "answer" })).toEqual({
+      name: "run.continue",
+      payload: { runId: "run-1", resume: "answer" },
+    });
     expect(() =>
       parseBackgroundJob("computer.control-expire", {
         computerId: "computer-1",

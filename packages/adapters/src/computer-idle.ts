@@ -201,9 +201,7 @@ export async function sleepComputerIfIdle(
     if (!computer?.providerRef || computer.state !== "running") return;
   }
 
-  const activeStatuses = hasActiveComputerControl(computer)
-    ? [...ACTIVE_RUN_STATUSES]
-    : ACTIVE_RUN_STATUSES.filter((status) => status !== "waiting_takeover");
+  const activeStatuses = [...ACTIVE_RUN_STATUSES];
   if (await findActiveRun(deps.prisma, computerId, activeStatuses)) {
     scheduleComputerSleep(deps.jobs, computerId);
     return;

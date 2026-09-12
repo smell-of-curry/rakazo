@@ -103,7 +103,7 @@ export const MessageBlock = z.discriminatedUnion("kind", [
     /** Why the secret is needed; drives field label on the masked card. */
     purpose: SecretAskPurpose.optional(),
     credential: BotSecretDestination.optional(),
-    status: z.enum(["pending", "answered"]).optional(),
+    status: z.enum(["pending", "answered", "dismissed"]).optional(),
     answer: z.string().optional(),
     actions: z
       .array(
@@ -145,6 +145,7 @@ export const MessageBlock = z.discriminatedUnion("kind", [
     kind: z.literal("computer"),
     state: z.string(),
     text: z.string(),
+    status: z.enum(["pending", "answered", "dismissed"]).optional(),
   }),
   z.object({ kind: z.literal("meta"), text: z.string() }),
   z.object({

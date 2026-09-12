@@ -487,7 +487,7 @@ export interface VoiceTranscribeRequest {
 }
 
 export interface BackgroundJobPayloads {
-  "run.continue": { runId: string };
+  "run.continue": { runId: string; resume?: "answer" | "takeover" };
   "routine.wakeup": { routineId: string; scheduledFor: string };
   "computer.sleep": { computerId: string };
   "computer.update": { updateId: string };

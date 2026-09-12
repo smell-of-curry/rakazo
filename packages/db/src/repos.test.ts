@@ -326,6 +326,7 @@ describe("createRepos.listSpaceBotsForSpaces", () => {
         name: "Support",
         title: "Customer support",
         color: "#123456",
+        avatarShape: null,
         notifyOnFinish: false,
         pinned: true,
         sectionId: null,

@@ -12,7 +12,11 @@ import { type ComputerMode, ensureComputerRecord, parseComputerMode } from "./co
 import { createThreadMessageInTransaction } from "./messages.js";
 import { IsolationError } from "./scope.js";
 import { lockSpaceForContentCreation } from "./spaces.js";
-import { activeRunSelection, previewFromBlocks } from "./thread-listing.js";
+import {
+  activeRunSelection,
+  preferredActiveRunStatus,
+  previewFromBlocks,
+} from "./thread-listing.js";
 
 /** Newest messages loaded for sidebar preview; enough to skip a short peer-run tail. */
 const SIDEBAR_PREVIEW_MESSAGE_WINDOW = 16;
@@ -38,6 +42,7 @@ function mapBot(
     description: string;
     instructions: string;
     color: string;
+    avatarShape?: string | null;
     notifyOnFinish: boolean;
     pinned: boolean;
     sectionId: string | null;
@@ -73,6 +78,7 @@ function mapBot(
     description: bot.description,
     instructions: bot.instructions,
     color: bot.color,
+    avatarShape: (bot.avatarShape as Bot["avatarShape"]) ?? null,
     notifyOnFinish: bot.notifyOnFinish,
     pinned: bot.pinned,
     sectionId: bot.sectionId,
@@ -133,6 +139,7 @@ export function createRepos(prisma: PrismaClient) {
         name: true,
         title: true,
         color: true,
+        avatarShape: true,
         notifyOnFinish: true,
         pinned: true,
         sectionId: true,
@@ -160,12 +167,13 @@ export function createRepos(prisma: PrismaClient) {
         name: bot.name,
         title: bot.title,
         color: bot.color,
+        avatarShape: (bot.avatarShape as Bot["avatarShape"]) ?? null,
         notifyOnFinish: bot.notifyOnFinish,
         pinned: bot.pinned,
         sectionId: bot.sectionId,
         unread: bot.thread.unread,
         preview: previewFromBlocks(bot.thread.messages[0]?.blocks),
-        status: bot.runs[0]?.status ?? "idle",
+        status: preferredActiveRunStatus(bot.runs) ?? "idle",
         updatedAt: bot.updatedAt.toISOString(),
         hasAvatar: Boolean(bot.avatarArtifactId),
       };
@@ -317,7 +325,7 @@ export function createRepos(prisma: PrismaClient) {
             });
             if (messages.length === 0) break;
           }
-          return mapBot(bot, preview, bot.runs[0]?.status ?? "idle");
+          return mapBot(bot, preview, preferredActiveRunStatus(bot.runs) ?? "idle");
         }),
       );
     },
@@ -347,6 +355,7 @@ export function createRepos(prisma: PrismaClient) {
         instructions: string;
         notifyOnFinish: boolean;
         color?: string;
+        avatarShape?: Bot["avatarShape"];
         parentBotId?: string | null;
         computerMode?: ComputerMode;
         spawnKey?: string;
@@ -415,6 +424,7 @@ export function createRepos(prisma: PrismaClient) {
               instructions: input.instructions,
               notifyOnFinish: input.notifyOnFinish,
               color,
+              avatarShape: input.avatarShape ?? null,
               position: (positions._max.position ?? -1) + 1,
               parentBotId: input.parentBotId ?? null,
               computerId: teamComputer.id,

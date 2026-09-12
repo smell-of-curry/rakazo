@@ -1070,6 +1070,56 @@ description: Prepare standup notes
     expect(enqueue).toHaveBeenCalledOnce();
   });
 
+  it("does not lease a waiting_input run without a resume marker", async () => {
+    const updateMany = vi.fn(async () => ({ count: 1 }));
+    const prisma = {
+      run: {
+        findUnique: vi.fn(async () => ({
+          id: "run-1",
+          status: "waiting_input",
+          checkpoint: null,
+          leaseFence: 0,
+        })),
+        updateMany,
+      },
+    } as unknown as PrismaClient;
+    const executor = createRunExecutor({ prisma } as Parameters<typeof createRunExecutor>[0]);
+
+    await executor.continueRun("run-1", "worker-1");
+
+    expect(updateMany).not.toHaveBeenCalled();
+  });
+
+  it("leases a waiting_input run when resume is answer", async () => {
+    const updateMany = vi.fn(async () => ({ count: 0 }));
+    const prisma = {
+      run: {
+        findUnique: vi.fn(async () => ({
+          id: "run-1",
+          status: "waiting_input",
+          checkpoint: null,
+          leaseFence: 0,
+        })),
+        updateMany,
+      },
+    } as unknown as PrismaClient;
+    const executor = createRunExecutor({ prisma } as Parameters<typeof createRunExecutor>[0]);
+
+    await executor.continueRun("run-1", "worker-1", "answer");
+
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              status: { in: ["queued", "waiting_input", "waiting_takeover"] },
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
   it("fails a run clearly without calling the real runtime when no model is configured", async () => {
     let status = "queued";
     const runtimeRun = vi.fn();

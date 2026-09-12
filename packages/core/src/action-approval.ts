@@ -233,7 +233,7 @@ export function isSecretAskBlock(block: {
 export function isApprovalAskBlock(block: {
   kind: string;
   approvalEffectId?: string;
-  actions?: Array<{ id: string; label: string }>;
+  actions?: ReadonlyArray<{ id: string; label: string }>;
 }): boolean {
   if (block.kind !== "ask" || !block.approvalEffectId || !block.actions?.length) return false;
   const actionIds = new Set(block.actions.map((action) => action.id));

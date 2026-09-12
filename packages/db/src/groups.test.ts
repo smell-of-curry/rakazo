@@ -46,11 +46,19 @@ describe("listSpaceGroupsForSpaces", () => {
         pinned: true,
         sectionId: null,
         members: [
-          { botId: "bot-1", name: "Triage", color: "#111", status: "idle", hasAvatar: false },
+          {
+            botId: "bot-1",
+            name: "Triage",
+            color: "#111",
+            avatarShape: null,
+            status: "idle",
+            hasAvatar: false,
+          },
           {
             botId: "bot-2",
             name: "Responder",
             color: "#222",
+            avatarShape: null,
             status: "running",
             hasAvatar: false,
           },
@@ -118,6 +126,7 @@ describe("archiveGroup", () => {
       run: { findMany: findManyRuns, updateMany: runUpdateMany },
       attempt: { updateMany: attemptUpdateMany },
       task: { updateMany: taskUpdateMany },
+      message: { findMany: vi.fn().mockResolvedValue([]), update: vi.fn() },
       computerExecutionLease: { findMany: leaseFindMany, updateMany: leaseUpdateMany },
       computer: { findMany: findManyComputers, updateMany: computerUpdateMany },
       event: { deleteMany: eventDeleteMany },

@@ -1330,7 +1330,7 @@ describe("computer execution leases", () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue({ scope: "team", state: "running" }),
         updateMany: vi.fn(),
       },
-      message: { deleteMany: vi.fn() },
+      message: { findMany: vi.fn().mockResolvedValue([]), deleteMany: vi.fn() },
       event: {
         deleteMany: vi.fn(),
         create: vi.fn().mockResolvedValue({

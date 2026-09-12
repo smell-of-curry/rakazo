@@ -50,7 +50,7 @@ export async function enqueueTakeoverContinuation(
 ): Promise<void> {
   if (!runId) return;
   try {
-    await jobs.enqueue(runContinueJob(runId));
+    await jobs.enqueue(runContinueJob(runId, "takeover"));
   } catch (error) {
     // The release is durable; reconciliation will retry this queued run.
     getLogger().error("takeover continuation enqueue", error);

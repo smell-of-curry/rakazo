@@ -11,7 +11,12 @@ import type { Prisma, PrismaClient } from "./client.js";
 import { expireComputerExecutionLeases } from "./computers.js";
 import { IsolationError } from "./scope.js";
 import { lockSpaceForContentCreation } from "./spaces.js";
-import { activeRunSelection, activeRunStatuses, previewFromBlocks } from "./thread-listing.js";
+import {
+  activeRunSelection,
+  activeRunStatuses,
+  preferredActiveRunStatus,
+  previewFromBlocks,
+} from "./thread-listing.js";
 
 type GroupRecord = {
   id: string;
@@ -33,6 +38,7 @@ type GroupRecord = {
       id: string;
       name: string;
       color: string;
+      avatarShape?: string | null;
       avatarArtifactId?: string | null;
       runs: Array<{ status: string }>;
     };
@@ -54,7 +60,8 @@ function mapGroupMembers(members: GroupRecord["members"]): GroupMember[] {
     botId: member.bot.id,
     name: member.bot.name,
     color: member.bot.color,
-    status: member.bot.runs[0]?.status ?? "idle",
+    avatarShape: (member.bot.avatarShape as GroupMember["avatarShape"]) ?? null,
+    status: preferredActiveRunStatus(member.bot.runs) ?? "idle",
     hasAvatar: Boolean(member.bot.avatarArtifactId),
   }));
 }
@@ -115,7 +122,7 @@ async function assertOwnedBots(
       userId: actor.userId,
       archivedAt: null,
     },
-    select: { id: true, name: true, color: true, avatarArtifactId: true },
+    select: { id: true, name: true, color: true, avatarShape: true, avatarArtifactId: true },
   });
   if (bots.length !== unique.length) throw new IsolationError();
   const botsById = new Map(bots.map((bot) => [bot.id, bot]));
@@ -126,6 +133,7 @@ async function assertOwnedBots(
       botId: bot.id,
       name: bot.name,
       color: bot.color,
+      avatarShape: (bot.avatarShape as GroupMember["avatarShape"]) ?? null,
       hasAvatar: Boolean(bot.avatarArtifactId),
     };
   });
@@ -145,6 +153,7 @@ const groupInclude = {
           id: true,
           name: true,
           color: true,
+          avatarShape: true,
           avatarArtifactId: true,
           runs: activeRunSelection,
         },
@@ -164,6 +173,7 @@ const groupTargetInclude = {
           id: true,
           name: true,
           color: true,
+          avatarShape: true,
           avatarArtifactId: true,
           runs: activeRunSelection,
         },

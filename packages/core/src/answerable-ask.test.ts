@@ -38,6 +38,12 @@ describe("latestAnswerableAskMessageId", () => {
         messages: [{ id: "ask-1", runId: "run-1", blocks: [{ kind: "ask", status: "answered" }] }],
       }),
     ).toBeNull();
+    expect(
+      latestAnswerableAskMessageId({
+        run: { id: "run-1", status: "waiting_input" },
+        messages: [{ id: "ask-1", runId: "run-1", blocks: [{ kind: "ask", status: "dismissed" }] }],
+      }),
+    ).toBeNull();
   });
 });
 

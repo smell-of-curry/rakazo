@@ -84,7 +84,7 @@ describe("sandbox idle", () => {
     expect(harness.jobs.enqueue).toHaveBeenCalledOnce();
   });
 
-  it("does not let an abandoned waiting takeover prevent idle suspension", async () => {
+  it("does not suspend a computer while a run is waiting for takeover", async () => {
     const harness = idleHarness();
     harness.prisma.run.findFirst.mockImplementation(async ({ where }) =>
       where.status.in.includes("waiting_takeover") ? { id: "waiting" } : null,
@@ -92,7 +92,8 @@ describe("sandbox idle", () => {
 
     await sleepComputerIfIdle(harness.deps, harness.computer.id);
 
-    expect(harness.sandbox.stop).toHaveBeenCalledOnce();
+    expect(harness.sandbox.stop).not.toHaveBeenCalled();
+    expect(harness.jobs.enqueue).toHaveBeenCalledOnce();
   });
 
   it("claims the lease boundary before any checkpoint export", async () => {

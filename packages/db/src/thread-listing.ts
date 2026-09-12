@@ -1,13 +1,20 @@
-import { ACTIVE_RUN_STATUSES } from "@rakazo/core";
+import { ACTIVE_RUN_STATUSES, isNeedsYou } from "@rakazo/core";
 
 export const activeRunStatuses = [...ACTIVE_RUN_STATUSES];
 
 export const activeRunSelection = {
   where: { status: { in: activeRunStatuses } },
   orderBy: { createdAt: "desc" as const },
-  take: 1,
+  // Enough rows to see a waiting gate hidden under a later peer/busy run.
+  take: 8,
   select: { status: true },
 } as const;
+
+export function preferredActiveRunStatus(
+  runs: ReadonlyArray<{ status: string }>,
+): string | undefined {
+  return runs.find((run) => isNeedsYou(run.status))?.status ?? runs[0]?.status;
+}
 
 export function previewFromBlocks(blocks: unknown): string {
   const rows = Array.isArray(blocks) ? blocks : [];
