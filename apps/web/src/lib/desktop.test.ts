@@ -55,16 +55,20 @@ describe("window chrome", () => {
   it("does not paint fake traffic lights into the browser shell or welcome page", () => {
     const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "../pages");
     const shell = readFileSync(path.join(root, "Shell.tsx"), "utf8");
+    const header = readFileSync(path.join(root, "shell/thread-header.tsx"), "utf8");
+    const sidebar = readFileSync(path.join(root, "shell/sidebar.tsx"), "utf8");
     const welcome = readFileSync(path.join(root, "Welcome.tsx"), "utf8");
     expect(shell).not.toContain("FF5F57");
+    expect(header).not.toContain("FF5F57");
+    expect(sidebar).not.toContain("FF5F57");
     expect(welcome).not.toContain("FF5F57");
   });
 
   it("keeps conversation header controls clickable", () => {
     const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "../pages");
-    const shell = readFileSync(path.join(root, "Shell.tsx"), "utf8");
-    const header = shell.match(
-      /className="app-drag flex items-center justify-between border-b border-sidebar-border[\s\S]*?\{!active && !activeGroup/,
+    const headerSource = readFileSync(path.join(root, "shell/thread-header.tsx"), "utf8");
+    const header = headerSource.match(
+      /className="app-drag flex items-center justify-between border-b border-sidebar-border[\s\S]*/,
     )?.[0];
     if (!header) throw new Error("conversation header missing app-drag region");
     for (const marker of [
@@ -83,8 +87,8 @@ describe("window chrome", () => {
 
   it("moves window chrome into the conversation header when the bots sidebar is collapsed", () => {
     const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "../pages");
-    const shell = readFileSync(path.join(root, "Shell.tsx"), "utf8");
-    expect(shell).toContain("{botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}");
+    const header = readFileSync(path.join(root, "shell/thread-header.tsx"), "utf8");
+    expect(header).toContain("{botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}");
   });
 });
 
