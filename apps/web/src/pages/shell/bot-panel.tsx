@@ -329,6 +329,7 @@ export function BotSettings({
     effectiveEntry?.thinkingLevels ??
     []
   ).filter((level) => level !== "off");
+  const defaultThinkingLevel = effectiveCredential?.thinkingLevel ?? "medium";
 
   const avatarSrc =
     localAvatarUrl ?? (hasAvatar ? `/api/bots/${bot.id}/avatar?v=${avatarUpdatedAt}` : undefined);
@@ -525,7 +526,9 @@ export function BotSettings({
               value={thinkingLevel}
               onChange={(event) => setThinkingLevel(event.target.value)}
             >
-              <NativeSelectOption value="">{t`Default (medium)`}</NativeSelectOption>
+              <NativeSelectOption value="">
+                {t`Default (${thinkingLevelLabel(defaultThinkingLevel)})`}
+              </NativeSelectOption>
               {thinkingOptions.map((level) => (
                 <NativeSelectOption key={level} value={level}>
                   {thinkingLevelLabel(level)}

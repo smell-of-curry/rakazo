@@ -806,7 +806,8 @@ export function createRouter(deps: RouterDeps) {
         let plaintext: string;
         try {
           let previousPlaintext: string | undefined;
-          if (input.provider === OPENAI_COMPATIBLE_PROVIDER_ID && input.apiKey === undefined) {
+          let omitVisionModelIds = false;
+          if (input.provider === OPENAI_COMPATIBLE_PROVIDER_ID) {
             const credential = await findModelCredential(
               deps.prisma,
               context.actor,
@@ -817,11 +818,23 @@ export function createRouter(deps: RouterDeps) {
                 where: { id: credential.secretId, userId: context.actor.userId, spaceId: null },
                 select: { ciphertext: true },
               });
-              if (secret)
-                previousPlaintext = deps.secrets.load(secret.ciphertext, credential.secretId);
+              if (secret) {
+                try {
+                  previousPlaintext = deps.secrets.load(secret.ciphertext, credential.secretId);
+                } catch (error) {
+                  // Explicit key replacement must still succeed when the prior
+                  // ciphertext is unreadable. Omit visionModelIds so a partial
+                  // one-model list does not wipe other enabled models; DB
+                  // supportsImages + defaultModel remain the legacy fallback.
+                  if (input.apiKey === undefined) throw error;
+                  omitVisionModelIds = true;
+                }
+              }
             }
           }
-          plaintext = buildModelConnectPlaintext(input, previousPlaintext);
+          plaintext = buildModelConnectPlaintext(input, previousPlaintext, {
+            omitVisionModelIds,
+          });
         } catch (error) {
           throw new ORPCError("BAD_REQUEST", {
             message: error instanceof Error ? error.message : "Invalid model connection",
@@ -832,6 +845,7 @@ export function createRouter(deps: RouterDeps) {
           plaintext,
           label: input.label,
           modelId: input.modelId,
+          supportsImages: input.supportsImages,
           signal: context.signal,
         });
       }),
@@ -5134,6 +5148,7 @@ async function persistModelCredential(
     plaintext: string;
     label?: string;
     modelId?: string;
+    supportsImages?: boolean;
     signal?: AbortSignal;
   },
 ) {
@@ -5172,6 +5187,7 @@ async function persistModelCredential(
                 provider: input.provider,
                 label: input.label ?? input.provider,
                 secretId: secret.id,
+                supportsImages: input.supportsImages ?? false,
               },
             })
           : await tx.userModelCredential.update({
@@ -5179,6 +5195,9 @@ async function persistModelCredential(
               data: {
                 label: input.label ?? input.provider,
                 secretId: secret.id,
+                ...(input.supportsImages !== undefined
+                  ? { supportsImages: input.supportsImages }
+                  : {}),
               },
             });
         throwIfAborted(input.signal);
