@@ -87,13 +87,14 @@
 }
 
 .rk-chat-markdown code {
-  border: 1px solid var(--border);
-  border-radius: 0.35em;
-  background: var(--muted);
-  color: var(--foreground);
-  padding: 0.08em 0.32em;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.88em;
+  border: 0;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+  padding: 0 0.25rem;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 16px;
   direction: ltr;
   unicode-bidi: isolate;
 }

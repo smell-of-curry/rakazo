@@ -1,11 +1,9 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@rakazo/ui-web";
 import { Plus, Settings, X } from "lucide-react";
-import { lazy, Suspense } from "react";
-import { ComputerMaintenanceActions } from "../../components/ComputerMaintenanceActions";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { ComputerUpdateProgress } from "../../components/ComputerUpdateProgress";
 import { rpc } from "../../lib/rpc";
-import { computerPanelNeedsMaintenance } from "../../lib/thread-events";
 import { HostComputerPrompt } from "../HostComputerPrompt";
 import { Composer } from "./composer";
 import { ComputerOverlay } from "./computer-overlay";
@@ -228,6 +226,17 @@ export function ShellLayout(props: ShellLayoutProps) {
     replyTargetName,
     composerMentionTargets,
   } = props;
+  const [findOpen, setFindOpen] = useState(false);
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setFindOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div
@@ -289,7 +298,7 @@ export function ShellLayout(props: ShellLayoutProps) {
           type="button"
           aria-label={t`Close navigation`}
           onClick={() => setMobileSidebarOpen(false)}
-          className="absolute inset-y-0 end-0 start-[min(calc(100%-48px),316px)] z-30 bg-overlay md:hidden"
+          className="absolute inset-y-0 end-0 start-[min(calc(100%-48px),280px)] z-30 bg-overlay md:hidden"
         />
       ) : null}
       {!mobileSidebarOpen ? (
@@ -350,6 +359,7 @@ export function ShellLayout(props: ShellLayoutProps) {
         setMenuOpen={setMenuOpen}
         initials={initials}
         userName={userName}
+        setCommandPaletteOpen={setCommandPaletteOpen}
         openSettings={openSettings}
         setUsage={setUsage}
         botsSidebarEdgeDragRef={botsSidebarEdgeDragRef}
@@ -371,7 +381,9 @@ export function ShellLayout(props: ShellLayoutProps) {
           setPanel={setPanel}
           panel={panel}
           needsComputer={needsComputer}
+          computerLive={computer?.state === "running"}
           refreshThread={refreshThread}
+          onFindInChat={() => setFindOpen(true)}
         />
         {!active && !activeGroup && initialBotsLoaded ? (
           <div className="grid flex-1 place-items-center">
@@ -391,6 +403,17 @@ export function ShellLayout(props: ShellLayoutProps) {
             answerableAskMessageId={answerableAskMessageId}
             running={transcriptRunning}
             workingBots={workingBots}
+            isGroup={inGroup}
+            computerBooting={booting || computer?.state === "booting"}
+            botName={active?.name}
+            findOpen={findOpen}
+            onFindOpenChange={setFindOpen}
+            onOpenComputer={() => {
+              setPanel("computer");
+              if (active) {
+                void refreshThread(active.id).catch(() => undefined);
+              }
+            }}
             onLoadOlder={loadOlder}
             onOpenBot={openBot}
             onAnswer={answerMessage}
@@ -411,13 +434,14 @@ export function ShellLayout(props: ShellLayoutProps) {
           />
         )}
         {recordingSkill ? (
-          <div className="px-6 pb-2 text-center text-[13px] text-destructive">
+          <div className="px-6 pb-2 text-center text-body text-destructive">
             <Trans>Teaching in progress. Stop teaching before sending a new message.</Trans>
           </div>
         ) : null}
         {active || activeGroup ? (
           <Composer
             key={inGroup ? `group:${groupId}` : `bot:${active?.id}`}
+            threadId={activeSnapshot?.threadId ?? (inGroup ? `group:${groupId}` : active?.id)}
             activeName={inGroup ? (activeGroup?.name ?? activeSnapshot?.groupName) : active?.name}
             running={composerRunning}
             needsComputer={needsComputer}
@@ -495,40 +519,19 @@ export function ShellLayout(props: ShellLayoutProps) {
       >
         {panel && (active || activeGroup || panel === "create") ? (
           <div className="rk-scroll h-full w-full overflow-y-auto px-5 py-[17px] md:w-[384px]">
-            {panel !== "routine" &&
-            panel !== "create" &&
-            panel !== "create-group" &&
-            panel !== "group-settings" ? (
+            {panel === "settings" ? (
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-[13.5px] text-muted-foreground">
-                  {panel === "settings" ? (
-                    <Trans>Settings</Trans>
-                  ) : active ? (
-                    (computer?.state ?? active.status)
-                  ) : (
-                    <Trans>Group</Trans>
-                  )}
+                  <Trans>Settings</Trans>
                 </span>
                 <div className="flex gap-1">
-                  {active &&
-                  panel === "computer" &&
-                  !computerOpen &&
-                  computerPanelNeedsMaintenance(computer?.state, booting) ? (
-                    <ComputerMaintenanceActions
-                      botId={active.id}
-                      computer={computer}
-                      onChanged={async () => {
-                        await refreshThread(active.id);
-                      }}
-                    />
-                  ) : null}
                   {active ? (
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={panel === "settings" ? t`Show computer` : t`Show settings`}
-                      onClick={() => setPanel(panel === "settings" ? "computer" : "settings")}
-                      className={panel === "settings" ? "text-foreground" : "text-muted-foreground"}
+                      aria-label={t`Show computer`}
+                      onClick={() => setPanel("computer")}
+                      className="text-foreground"
                     >
                       <Settings size={16} strokeWidth={1.7} />
                     </Button>

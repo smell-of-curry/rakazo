@@ -1,6 +1,5 @@
-import { BotAvatar, GroupAvatar, type GroupAvatarMember } from "@rakazo/ui-web";
+import { BotAvatar, type GroupAvatarMember } from "@rakazo/ui-web";
 
-/** Lightweight peer event shown without exposing the exchanged message body. */
 export function CollaborationMarker({
   ariaLabel,
   color,
@@ -19,15 +18,16 @@ export function CollaborationMarker({
   onClick: () => void;
 }) {
   return (
-    <div className="flex justify-start">
+    <div className="flex justify-center">
       <button
         type="button"
         data-testid="peer-receipt-chip"
         aria-label={ariaLabel}
         onClick={onClick}
-        className="inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground/75"
+        className="inline-flex max-w-full items-center gap-1.5 py-1 text-caption text-muted-foreground hover:text-foreground"
       >
-        <BotAvatar color={color} shape={shape} identity={identity} imageSrc={imageSrc} size={16} />
+        <span aria-hidden className="size-1.5 shrink-0 animate-pulse rounded-full bg-foreground" />
+        <BotAvatar color={color} shape={shape} identity={identity} imageSrc={imageSrc} size={14} />
         <span dir="auto" className="truncate">
           {label}
         </span>
@@ -36,11 +36,32 @@ export function CollaborationMarker({
   );
 }
 
-export function ActiveBotGlyph({ bots, label }: { bots: GroupAvatarMember[]; label: string }) {
+export function TypingDots() {
   return (
-    <div className="flex min-h-10 items-center gap-2 px-1" role="status">
-      <GroupAvatar members={bots} size={28} />
-      <span className="text-[13.5px] text-muted-foreground">{label}</span>
+    <span data-testid="typing-dots" className="inline-flex items-center gap-1" aria-hidden>
+      <span className="size-1 animate-pulse rounded-full bg-muted-foreground [animation-delay:-0.3s]" />
+      <span className="size-1 animate-pulse rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
+      <span className="size-1 animate-pulse rounded-full bg-muted-foreground" />
+    </span>
+  );
+}
+
+export function ActiveBotGlyph({
+  bots: _bots,
+  label,
+}: {
+  bots: GroupAvatarMember[];
+  label: string;
+}) {
+  return (
+    <div className="flex justify-start" role="status">
+      <div
+        data-testid="message-bot-bubble"
+        className="rounded-[18px] bg-muted px-3 py-2 text-body text-foreground"
+      >
+        <TypingDots />
+        <span className="sr-only">{label}</span>
+      </div>
     </div>
   );
 }

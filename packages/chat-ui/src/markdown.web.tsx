@@ -85,6 +85,22 @@ const components: Components = {
   pre({ node: _node, ...props }) {
     return <CodeBlock {...props} />;
   },
+  code({ className, children, ...props }) {
+    if (className)
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    return (
+      <code
+        className="rounded-sm bg-destructive/10 px-1 font-mono text-small text-destructive"
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
 };
 
 export const ChatMarkdown = memo(function ChatMarkdown({

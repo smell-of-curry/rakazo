@@ -1,7 +1,7 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageBlock } from "@rakazo/contracts";
-import { abortableDelay } from "@rakazo/core";
-import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
+import { abortableDelay, isOpenGateStatus } from "@rakazo/core";
+import { Button, cn, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BuiCard } from "../../components/ai/primitives";
@@ -68,9 +68,9 @@ export function ChoiceCard({
             <X size={16} strokeWidth={1.8} />
           </Button>
         ) : null}
-        <div className="pe-8 text-[15.5px] text-foreground/90">{block.question}</div>
+        <div className="pe-8 text-body text-foreground/90">{block.question}</div>
         {block.subtitle ? (
-          <div className="mt-0.5 text-[13px] text-foreground/75">{block.subtitle}</div>
+          <div className="mt-0.5 text-small text-foreground/75">{block.subtitle}</div>
         ) : null}
         <div className="mt-3 space-y-2.5">
           {block.options
@@ -83,11 +83,11 @@ export function ChoiceCard({
                 onClick={() => void choose(option.id)}
                 className={`flex w-full items-start gap-3 rounded-xl px-3.5 py-3.5 text-start text-foreground disabled:opacity-60 ${block.answerId ? "bg-accent" : "bg-muted hover:bg-accent"}`}
               >
-                <span className="mt-0.5 grid h-[24px] w-[24px] shrink-0 place-items-center rounded-[7px] bg-background text-[12.5px] font-medium text-foreground/75">
+                <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-background text-small font-medium text-foreground/75">
                   {option.letter}
                 </span>
                 <span
-                  className={`flex-1 text-[15px] leading-[1.35] ${block.answerId ? "text-foreground/75" : "text-foreground"}`}
+                  className={`flex-1 text-body ${block.answerId ? "text-foreground/75" : "text-foreground"}`}
                 >
                   {option.label}
                 </span>
@@ -97,7 +97,7 @@ export function ChoiceCard({
               </button>
             ))}
         </div>
-        {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+        {error ? <p className="mt-2 text-small text-destructive">{error}</p> : null}
       </div>
     </div>
   );
@@ -247,21 +247,21 @@ function ChartCanvas({
   }, [spec, data, width, height, t]);
   if (error)
     return (
-      <div className="text-[13px] text-destructive">
+      <div className="text-small text-destructive">
         <Trans>Chart failed to render: {error}</Trans>
       </div>
     );
   return (
     <div className="text-foreground/75">
       {meta.title ? (
-        <div className="mb-1 text-[14.5px] font-semibold text-foreground">{meta.title}</div>
+        <div className="mb-1 text-body font-semibold text-foreground">{meta.title}</div>
       ) : null}
       {meta.swatches.length > 0 ? (
         <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1">
           {meta.swatches.map((swatch) => (
             <span
               key={swatch.label}
-              className="flex items-center gap-1.5 text-[12px] text-muted-foreground"
+              className="flex items-center gap-1.5 text-caption text-muted-foreground"
             >
               {/* Series colours are data-driven and intentionally distinct. */}
               <span
@@ -399,7 +399,7 @@ export function ChartBlockView({
           className="max-h-[92vh] w-[min(1320px,94vw)] max-w-none overflow-auto p-8 sm:max-w-none"
         >
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-[13px] font-normal text-muted-foreground">
+            <DialogTitle className="text-body font-normal text-muted-foreground">
               {name}
             </DialogTitle>
             <DialogClose
@@ -494,7 +494,7 @@ export function ArtifactImage({
           <img src={src} alt={name} className="max-h-48 w-full object-cover" />
         </button>
       ) : (
-        <div className="rounded-[20px] border border-border bg-muted px-4 py-3 text-[14px] text-muted-foreground">
+        <div className="rounded-lg border border-border bg-muted px-4 py-3 text-body text-muted-foreground">
           {name}
         </div>
       )}
@@ -518,6 +518,40 @@ export function ArtifactImage({
             />
           </DialogContent>
         </Dialog>
+      ) : null}
+    </div>
+  );
+}
+
+export function ComputerHandoffCard({
+  text,
+  status,
+  onOpenComputer,
+}: {
+  text: string;
+  status?: "pending" | "answered" | "dismissed";
+  onOpenComputer?: () => void;
+}) {
+  const settled = status === "answered" || status === "dismissed";
+  return (
+    <div
+      data-testid="computer-handoff-card"
+      data-ask-state={settled ? status : "pending"}
+      className={cn(
+        "max-w-[72%] rounded-lg border border-border bg-card p-3 text-body",
+        settled && "opacity-60",
+      )}
+    >
+      <p className="text-body text-foreground">{text}</p>
+      {status === "dismissed" ? (
+        <p className="mt-2 text-caption text-muted-foreground">
+          <Trans>Dismissed</Trans>
+        </p>
+      ) : null}
+      {isOpenGateStatus(status) && onOpenComputer ? (
+        <Button className="mt-3" onClick={onOpenComputer}>
+          <Trans>Open computer</Trans>
+        </Button>
       ) : null}
     </div>
   );

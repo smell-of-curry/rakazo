@@ -1,56 +1,76 @@
 import { i18n } from "@lingui/core";
 import type { ThreadMessage } from "@rakazo/contracts";
-import { renderToString } from "react-dom/server";
+import { render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
-import { PeerReceiptCluster } from "./PeerReceiptCluster";
+import { formatPeerNames, PeerReceiptCluster, peerReceiptLabel } from "./PeerReceiptCluster";
 
 beforeAll(() => {
   i18n.load("en", {});
   i18n.activate("en");
 });
 
-function message(id: string, blocks: ThreadMessage["blocks"]): ThreadMessage {
+function message(id: string, name: string, peerId: string): ThreadMessage {
   return {
     id,
     threadId: "t_1",
     seq: 1,
     role: "bot",
-    blocks,
+    blocks: [{ kind: "bot_message_sent", toBotId: peerId, toBotName: name, text: "go" }],
     createdAt: "2026-08-25T10:00:00.000Z",
   };
 }
 
+describe("peer row copy", () => {
+  it("names one, two, and many peers", () => {
+    expect(formatPeerNames(["Ken"])).toBe("Ken");
+    expect(formatPeerNames(["Ken", "Ally"])).toBe("Ken and Ally");
+    expect(formatPeerNames(["Ken", "Ally", "Jo", "Pat"])).toBe("Ken, Ally and 2 more");
+    expect(peerReceiptLabel(2, ["Ken"])).toContain("2 messages with");
+    expect(peerReceiptLabel(2, ["Ken"])).toContain("Ken");
+  });
+});
+
 describe("PeerReceiptCluster", () => {
-  it("keeps a text trigger and does not expand receipt chips", () => {
-    const html = renderToString(
+  it("renders a centered row for one peer", () => {
+    render(
       <PeerReceiptCluster
-        messages={[
-          message("m_1", [
-            {
-              kind: "bot_message_received",
-              fromBotId: "b_1",
-              fromBotName: "Scout",
-              text: "429 rate-limited",
-            },
-          ]),
-          message("m_2", [
-            { kind: "bot_message_sent", toBotId: "b_2", toBotName: "Analyst", text: "go" },
-          ]),
-        ]}
-        sentOnly={false}
-        peerBot={(id) =>
-          id === "b_1"
-            ? { color: "#14B8A6", hasAvatar: true, updatedAt: "2026-09-10T00:00:00.000Z" }
-            : { color: "#8B5CF6" }
-        }
+        messages={[message("m_1", "Ken", "b_1")]}
+        sentOnly
+        peerBot={() => ({ color: "#14B8A6" })}
         onOpenPeer={() => undefined}
       />,
     );
+    const trigger = screen.getByTestId("peer-receipt-cluster");
+    expect(trigger).toHaveTextContent("1 messages with");
+    expect(trigger).toHaveTextContent("Ken");
+    expect(trigger.className).toContain("text-caption");
+  });
 
-    expect(html).toContain('data-testid="peer-receipt-cluster"');
-    expect(html).toContain("/api/bots/b_1/avatar?v=2026-09-10T00:00:00.000Z");
-    expect(html).not.toContain("peer-receipt-chip");
-    expect(html).not.toContain("Message from");
-    expect(html).not.toContain("rate-limited");
+  it("renders two peer names with and", () => {
+    render(
+      <PeerReceiptCluster
+        messages={[message("m_1", "Ken", "b_1"), message("m_2", "Ally", "b_2")]}
+        sentOnly={false}
+        peerBot={() => ({ color: "#14B8A6" })}
+        onOpenPeer={() => undefined}
+      />,
+    );
+    expect(screen.getByTestId("peer-receipt-cluster")).toHaveTextContent("Ken and Ally");
+  });
+
+  it("collapses three or more peers", () => {
+    render(
+      <PeerReceiptCluster
+        messages={[
+          message("m_1", "Ken", "b_1"),
+          message("m_2", "Ally", "b_2"),
+          message("m_3", "Jo", "b_3"),
+        ]}
+        sentOnly={false}
+        peerBot={() => ({ color: "#14B8A6" })}
+        onOpenPeer={() => undefined}
+      />,
+    );
+    expect(screen.getByTestId("peer-receipt-cluster")).toHaveTextContent("Ken, Ally and 1 more");
   });
 });

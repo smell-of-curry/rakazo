@@ -1,7 +1,14 @@
 import { t } from "@lingui/core/macro";
 import type { Bot, Group, ThreadSnapshot } from "@rakazo/contracts";
-import { BotAvatar, GroupAvatar } from "@rakazo/ui-web";
-import { Menu, Monitor, PanelLeftOpen } from "lucide-react";
+import {
+  BotAvatar,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  GroupAvatar,
+} from "@rakazo/ui-web";
+import { Menu, Monitor, MoreHorizontal, PanelLeftOpen, Search } from "lucide-react";
 import { botImageSrc, withMemberImages } from "../../lib/bot-image-src";
 import { desktopBridge } from "../../lib/desktop";
 import { WindowChrome } from "../WindowChrome";
@@ -18,7 +25,9 @@ export type ThreadHeaderProps = {
   setPanel: (panel: Panel) => void;
   panel: Panel;
   needsComputer: boolean;
+  computerLive?: boolean;
   refreshThread: (id: string) => Promise<ThreadSnapshot | null | undefined>;
+  onFindInChat?: () => void;
 };
 
 export function ThreadHeader({
@@ -32,10 +41,12 @@ export function ThreadHeader({
   setPanel,
   panel,
   needsComputer,
+  computerLive = false,
   refreshThread,
+  onFindInChat,
 }: ThreadHeaderProps) {
   return (
-    <div className="app-drag flex items-center justify-between border-b border-sidebar-border px-3 py-[17px] md:px-[22px]">
+    <div className="app-drag flex items-center justify-between border-b border-sidebar-border h-11 px-3 md:px-[22px]">
       <div className="flex min-w-0 items-center gap-2">
         {botsSidebarCollapsed && desktopBridge() ? <WindowChrome /> : null}
         <button
@@ -62,28 +73,26 @@ export function ThreadHeader({
           type="button"
           data-testid="bot-settings-trigger"
           onClick={() => setPanel(inGroup ? "group-settings" : "settings")}
-          className="app-no-drag flex min-w-0 items-center gap-3"
+          className="app-no-drag flex min-w-0 items-center gap-2"
         >
           {inGroup ? (
             <GroupAvatar
               members={withMemberImages(activeSnapshot?.members ?? activeGroup?.members ?? [])}
-              size={26}
+              size={20}
             />
           ) : active ? (
             <BotAvatar
               color={active.color}
               shape={active.avatarShape}
               identity={active.id}
-              size={26}
+              size={20}
               imageSrc={botImageSrc(active)}
             />
           ) : null}
-          <span className="min-w-0">
-            <span className="block truncate text-[14px] font-medium text-foreground" dir="auto">
-              {inGroup
-                ? (activeGroup?.name ?? activeSnapshot?.groupName ?? t`Group`)
-                : (active?.name ?? t`Select a bot`)}
-            </span>
+          <span className="min-w-0 truncate text-body font-medium text-foreground" dir="auto">
+            {inGroup
+              ? (activeGroup?.name ?? activeSnapshot?.groupName ?? t`Group`)
+              : (active?.name ?? t`Select a bot`)}
           </span>
         </button>
       </div>
@@ -100,19 +109,39 @@ export function ThreadHeader({
               }
             }}
             data-active={panel ? "" : undefined}
-            className={`app-no-drag grid h-[30px] w-[34px] place-items-center rounded-[9px] ${
+            className={`app-no-drag grid h-8 w-8 place-items-center rounded-lg ${
               needsComputer
                 ? "bg-warning/15 text-warning hover:bg-warning/20"
                 : "hover:bg-accent data-active:bg-accent"
             }`}
           >
             <Monitor
-              size={18}
+              size={16}
               strokeWidth={1.6}
-              className={needsComputer ? "text-warning" : "text-foreground/75"}
+              className={
+                needsComputer
+                  ? "text-warning"
+                  : computerLive
+                    ? "text-primary"
+                    : "text-foreground/75"
+              }
             />
           </button>
         ) : null}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={t`More`}
+            className="app-no-drag grid h-8 w-8 place-items-center rounded-lg text-foreground/75 hover:bg-accent"
+          >
+            <MoreHorizontal size={16} strokeWidth={1.7} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onFindInChat}>
+              <Search size={14} />
+              {t`Find in chat`}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

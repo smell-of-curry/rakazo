@@ -9,51 +9,23 @@ import { useState } from "react";
 
 export type AskBlock = Extract<ThreadMessage["blocks"][number], { kind: "ask" }>;
 
-function formatAnsweredState(
-  answer: string | undefined,
-  approval: boolean,
-  secret: boolean,
-  outcome?: "created" | "cancelled",
-  actions?: AskBlock["actions"],
-): string {
-  if (secret) return t`Saved`;
-  if (!answer) return t`Answered`;
-  if (!approval) return t`Answered: ${selectedAskActionLabel(answer, actions)}`;
-  if (outcome === "created") return t`Created`;
-  if (outcome === "cancelled") return t`Cancelled`;
-  if (answer === "allow") return t`Allowed once`;
-  if (answer === "always") return t`Always allowed`;
-  if (answer === "deny") return t`Denied`;
-  return t`Answered: ${answer}`;
-}
-
-function approvalActionLabel(
-  id: string,
-  fallback: string,
-  outcome?: "created" | "cancelled",
-): string {
-  if (outcome === "created") return t`Create space`;
-  if (outcome === "cancelled") return t`Cancel`;
+function approvalActionLabel(id: string, fallback: string): string {
   if (id === "allow") return t`Allow once`;
-  if (id === "always") return t`Always allow this tool`;
+  if (id === "always") return t`Always allow`;
   if (id === "deny") return t`Deny`;
   return fallback;
-}
-
-function secretFieldLabel(purpose: AskBlock["purpose"]): string {
-  if (purpose === "password") return t`Password`;
-  if (purpose === "api_key") return t`API key`;
-  return t`Code`;
 }
 
 export function AskCard({
   block,
   canAnswer,
   onAnswer,
+  actorName,
 }: {
   block: AskBlock;
   canAnswer: boolean;
   onAnswer: (text: string) => Promise<void>;
+  actorName?: string;
 }) {
   const { t } = useLingui();
   const [answer, setAnswer] = useState("");
@@ -61,11 +33,13 @@ export function AskCard({
   const [error, setError] = useState<string | null>(null);
   const submitting = pendingAction !== null;
   const answered = block.status === "answered";
-  const approvalActions = isApprovalAskBlock(block) ? block.actions : undefined;
-  const askActions = block.actions;
+  const dismissed = block.status === "dismissed";
+  const settled = answered || dismissed;
+  const approval = isApprovalAskBlock(block);
   const secretInput = isSecretAskBlock(block);
-  const secretLabel = secretFieldLabel(block.purpose);
-  const choiceOther = Boolean(askActions?.length) && !approvalActions && !secretInput;
+  const askActions = block.actions;
+  const hasAlways = Boolean(askActions?.some((action) => action.id === "always"));
+  const choiceOther = Boolean(askActions?.length) && !approval && !secretInput;
   const customChoiceAnswer =
     answered &&
     choiceOther &&
@@ -90,109 +64,91 @@ export function AskCard({
     }
   }
 
+  const actor = actorName?.trim() ? actorName : t`Bot`;
+  const heading = approval ? t`${actor} wants to ${block.text}` : block.text;
+  const secretLabel =
+    block.purpose === "password" ? t`Password` : block.purpose === "api_key" ? t`API key` : t`Code`;
+
   return (
     <div
       data-testid={secretInput ? "secret-ask-card" : "ask-card"}
-      data-ask-state={answered ? "answered" : "pending"}
+      data-ask-state={dismissed ? "dismissed" : answered ? "answered" : "pending"}
       className={cn(
-        "max-w-[74%] rounded-2xl border border-border px-5 py-4",
-        answered ? "bg-muted" : "bg-card",
+        "max-w-[72%] rounded-lg border border-border bg-card p-3 text-body",
+        settled && "opacity-60",
       )}
     >
-      <div
-        className={cn(
-          "text-[15.5px] leading-[1.5]",
-          answered ? "text-muted-foreground" : "text-foreground",
-        )}
-      >
-        <ChatMarkdown>{block.text}</ChatMarkdown>
+      <div className={cn("text-body", settled ? "text-muted-foreground" : "text-foreground")}>
+        {approval ? heading : <ChatMarkdown>{block.text}</ChatMarkdown>}
       </div>
-      {secretInput && block.credential ? (
-        <div className="mt-2 break-all text-[13px] text-muted-foreground">
-          {block.credential.origin}
+      {secretInput ? (
+        <div className="mt-2 text-small text-muted-foreground">
+          {secretLabel}
+          {block.credential ? <div className="break-all">{block.credential.origin}</div> : null}
         </div>
       ) : null}
       {block.detail && !secretInput ? (
-        <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-muted px-3.5 py-3 font-mono text-[12.5px] leading-[1.7] text-muted-foreground">
+        <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted px-3 py-2 font-mono text-small text-muted-foreground">
           {block.detail}
         </pre>
       ) : null}
       {askActions?.length ? (
-        <div className="mt-3.5 space-y-1.5">
+        <div className="mt-3 space-y-1.5">
           {askActions.map((action) => {
             const selected = answered && block.answer === action.id;
+            const label = approval
+              ? approvalActionLabel(
+                  action.id,
+                  action.id === "allow" && !hasAlways ? t`Allow` : action.label,
+                )
+              : action.label;
             return (
               <Button
                 key={action.id}
-                variant={
-                  approvalActions && action.id === "allow" && !answered ? "default" : "outline"
-                }
-                aria-pressed={answered ? selected : undefined}
+                variant="outline"
+                aria-pressed={settled ? selected : undefined}
                 className={cn(
-                  "h-auto w-full justify-start gap-3 whitespace-normal px-3.5 py-3 text-start font-normal",
+                  "h-auto w-full justify-start gap-3 whitespace-normal px-3 py-2 text-start font-normal text-body",
                   selected &&
                     "justify-between bg-background font-medium text-foreground disabled:opacity-100",
-                  answered && !selected && "disabled:opacity-30",
+                  settled && !selected && "opacity-40 disabled:opacity-40",
                 )}
-                disabled={answered || !canAnswer || submitting}
+                disabled={settled || !canAnswer || submitting}
                 onClick={() => void submitAnswer(action.id)}
               >
-                <span>
-                  {pendingAction === action.id ? (
-                    <Trans>Sending…</Trans>
-                  ) : approvalActions ? (
-                    approvalActionLabel(action.id, action.label, action.outcome)
-                  ) : (
-                    action.label
-                  )}
-                </span>
+                <span>{pendingAction === action.id ? <Trans>Sending…</Trans> : label}</span>
                 {selected ? <Check size={16} strokeWidth={2} aria-hidden /> : null}
               </Button>
             );
           })}
         </div>
       ) : null}
-      {choiceOther && !answered && canAnswer ? (
-        <form
-          className="mt-3.5 flex flex-col gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submitAnswer(answer);
-          }}
-        >
-          <Input
-            data-testid="ask-other"
-            aria-label={t`Answer`}
-            value={answer}
-            onChange={(event) => setAnswer(event.target.value)}
-            placeholder={t`Type your answer`}
-            disabled={submitting}
-          />
-          <Button type="submit" className="self-start" disabled={!answer.trim() || submitting}>
-            {submitting ? <Trans>Sending…</Trans> : <Trans>Send answer</Trans>}
-          </Button>
-        </form>
+      {secretInput && settled ? (
+        <div className="mt-3 space-y-1">
+          <div className="text-body font-medium text-muted-foreground">
+            {dismissed ? <Trans>Dismissed</Trans> : <Trans>Saved</Trans>}
+          </div>
+          {answered ? (
+            <p className="text-caption text-muted-foreground">
+              <Trans>Stored securely, never shown to your bot</Trans>
+            </p>
+          ) : null}
+        </div>
+      ) : dismissed ? (
+        <div className="mt-3 text-caption text-muted-foreground">
+          <Trans>Dismissed</Trans>
+        </div>
       ) : customChoiceAnswer ? (
-        <div className="mt-3.5 text-[13.5px] font-medium text-muted-foreground">
-          {formatAnsweredState(block.answer, false, false, undefined, askActions)}
-        </div>
-      ) : askActions?.length ? null : answered ? (
-        <div className="mt-3.5 text-[13.5px] font-medium text-muted-foreground">
-          {formatAnsweredState(
-            block.answer,
-            Boolean(approvalActions),
-            secretInput,
-            approvalActions?.find((action) => action.id === block.answer)?.outcome,
-            askActions,
-          )}
-        </div>
-      ) : !canAnswer ? (
-        <div className="mt-3.5 text-[13.5px] font-medium text-muted-foreground">
+        <div className="mt-3 text-body text-muted-foreground">{block.answer}</div>
+      ) : answered && !askActions?.length ? (
+        <div className="mt-3 text-body text-muted-foreground">{block.answer}</div>
+      ) : !canAnswer && !settled ? (
+        <div className="mt-3 text-small text-muted-foreground">
           <Trans>No longer active</Trans>
         </div>
-      ) : secretInput ? (
+      ) : secretInput && canAnswer ? (
         <form
-          className="mt-3.5 flex flex-col gap-2"
+          className="mt-3 flex flex-col gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             void submitAnswer(answer);
@@ -206,33 +162,44 @@ export function AskCard({
             disabled={submitting}
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
-            placeholder={secretLabel}
+            placeholder={t`Paste value`}
           />
           <Button type="submit" className="self-start" disabled={answer.length === 0 || submitting}>
-            {submitting ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
+            {submitting ? <Trans>Saving…</Trans> : <Trans>Save securely</Trans>}
           </Button>
         </form>
-      ) : (
+      ) : !approval && !settled && canAnswer ? (
         <form
-          className="mt-3.5 flex flex-col gap-2"
+          className="mt-3 flex flex-col gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             void submitAnswer(answer);
           }}
         >
           <Input
+            data-testid="ask-other"
             aria-label={t`Answer`}
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
-            placeholder={t`Type your answer`}
+            placeholder={t`Type an answer`}
             disabled={submitting}
           />
           <Button type="submit" className="self-start" disabled={!answer.trim() || submitting}>
-            {submitting ? <Trans>Sending…</Trans> : <Trans>Send answer</Trans>}
+            {submitting ? <Trans>Sending…</Trans> : <Trans>Send</Trans>}
           </Button>
         </form>
-      )}
-      {error ? <p className="mt-3 text-[13px] text-destructive">{error}</p> : null}
+      ) : answered && approval ? (
+        <div className="mt-3 text-small text-muted-foreground">
+          {block.answer === "allow"
+            ? t`Allowed once`
+            : block.answer === "always"
+              ? t`Always allowed`
+              : block.answer === "deny"
+                ? t`Denied`
+                : selectedAskActionLabel(block.answer ?? "", askActions)}
+        </div>
+      ) : null}
+      {error ? <p className="mt-3 text-small text-destructive">{error}</p> : null}
     </div>
   );
 }

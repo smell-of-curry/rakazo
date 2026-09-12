@@ -12,7 +12,13 @@ import {
   serializeComposerPrompt,
   truncateSlashDescription,
 } from "@rakazo/core";
-import { BotAvatar, Button } from "@rakazo/ui-web";
+import {
+  BotAvatar,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@rakazo/ui-web";
 import {
   ArrowUp,
   Box,
@@ -36,8 +42,21 @@ import type { PendingAttachment } from "./types";
 import { FALLBACK_BOT_COLOR } from "./types";
 
 const ATTACHMENT_ACCEPT = ATTACHMENT_ALLOWED_MIME_TYPES.join(",");
+const draftByThread = new Map<string, string>();
+
+export function composerRightSlot(input: {
+  running: boolean;
+  canSend: boolean;
+  voiceAvailable: boolean;
+}): "stop" | "send" | "mic" | null {
+  if (input.running) return "stop";
+  if (input.canSend) return "send";
+  if (input.voiceAvailable) return "mic";
+  return null;
+}
 
 export const Composer = memo(function Composer({
+  threadId,
   activeName,
   running,
   needsComputer,
@@ -68,6 +87,7 @@ export const Composer = memo(function Composer({
   onSlashOpen,
   onSlashAction,
 }: {
+  threadId?: string;
   activeName?: string;
   running: boolean;
   needsComputer?: boolean;
@@ -99,7 +119,7 @@ export const Composer = memo(function Composer({
   onSlashAction?: (action: SlashActionId) => void;
 }) {
   const { t } = useLingui();
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(() => (threadId ? (draftByThread.get(threadId) ?? "") : ""));
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionHighlightIndex, setMentionHighlightIndex] = useState(0);
   const [slashQuery, setSlashQuery] = useState<string | null>(null);
@@ -176,8 +196,16 @@ export const Composer = memo(function Composer({
     return () => observer.disconnect();
   }, [draft]);
 
+  function persistDraft(value: string) {
+    if (threadId) {
+      if (value) draftByThread.set(threadId, value);
+      else draftByThread.delete(threadId);
+    }
+  }
+
   function updateDraft(value: string) {
     setDraft(value);
+    persistDraft(value);
     setSelectedMentions((current) =>
       current.filter((mention) => mentionStillInPrompt(value, mention)),
     );
@@ -279,6 +307,7 @@ export const Composer = memo(function Composer({
       return;
     }
     setDraft("");
+    persistDraft("");
     setMentionQuery(null);
     setMentionHighlightIndex(0);
     setSlashQuery(null);
@@ -353,6 +382,11 @@ export const Composer = memo(function Composer({
   const showComposerPlaceholder =
     draft.length === 0 && selectedSkill === null && selectedMentions.length === 0;
   const replyName = replyTarget ? (replyTargetName ?? previewMessageText(replyTarget)) : "";
+  const rightSlot = composerRightSlot({
+    running,
+    canSend,
+    voiceAvailable: Boolean(onVoice),
+  });
 
   return (
     <fieldset
@@ -366,11 +400,12 @@ export const Composer = memo(function Composer({
         draggingFiles ? "rounded-[14px] ring-2 ring-inset ring-ring" : ""
       }`}
     >
-      {dockedAsk || needsComputer ? (
+      {dockedAsk ? (
         <ComposerHumanGate
           ask={dockedAsk}
           canAnswer
           onAnswer={onAnswerAsk}
+          actorName={activeName}
           needsComputer={needsComputer}
           takeoverReason={takeoverReason}
           onOpenComputer={onOpenComputer}
@@ -381,7 +416,7 @@ export const Composer = memo(function Composer({
           ref={runErrorRef}
           role="alert"
           data-testid="composer-error"
-          className="mb-3 flex items-center gap-2 rounded-[14px] border border-destructive/40 bg-destructive/10 px-4 py-2 text-[13px] text-destructive"
+          className="mb-2 flex items-center gap-2 text-small text-destructive"
         >
           <span className="min-w-0 flex-1">{sendError ?? runError}</span>
           <button
@@ -401,7 +436,7 @@ export const Composer = memo(function Composer({
       {replyTarget ? (
         <div
           data-testid="reply-chip"
-          className="mb-2 flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5 text-[13px] text-foreground/75"
+          className="mb-2 flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5 text-body text-foreground/75"
         >
           <span className="min-w-0 flex-1 truncate text-muted-foreground">{t`Replying to ${replyName}`}</span>
           <button
@@ -415,7 +450,7 @@ export const Composer = memo(function Composer({
         </div>
       ) : null}
       {attachmentNotice ? (
-        <div className="mb-3 rounded-[14px] border border-warning/40 bg-warning/10 px-4 py-2 text-[13px] text-warning">
+        <div className="mb-3 rounded-lg border border-warning/40 bg-warning/10 px-4 py-2 text-small text-warning">
           {attachmentNotice}
         </div>
       ) : null}
@@ -424,7 +459,7 @@ export const Composer = memo(function Composer({
           {pendingAttachments.map((attachment) => (
             <div
               key={attachment.id}
-              className="flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5 text-[13px] text-foreground/75"
+              className="flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5 text-body text-foreground/75"
             >
               {attachment.previewUrl ? (
                 <img
@@ -478,11 +513,11 @@ export const Composer = memo(function Composer({
               >
                 <MentionOptionIcon mention={mention} />
                 <span className="min-w-0">
-                  <span dir="auto" className="block text-[14px] text-foreground">
+                  <span dir="auto" className="block text-body text-foreground">
                     @{mention.name}
                   </span>
                   {mention.subtitle ? (
-                    <span dir="auto" className="block truncate text-[12.5px] text-muted-foreground">
+                    <span dir="auto" className="block truncate text-small text-muted-foreground">
                       {mention.subtitle}
                     </span>
                   ) : null}
@@ -507,10 +542,10 @@ export const Composer = memo(function Composer({
             >
               <Box size={16} strokeWidth={1.7} className="mt-0.5 shrink-0 text-muted-foreground" />
               <span className="min-w-0">
-                <span dir="auto" className="block text-[14px] text-foreground">
+                <span dir="auto" className="block text-body text-foreground">
                   {skill.name}
                 </span>
-                <span dir="auto" className="block truncate text-[12.5px] text-muted-foreground">
+                <span dir="auto" className="block truncate text-small text-muted-foreground">
                   {truncateSlashDescription(skill.description)}
                 </span>
               </span>
@@ -527,7 +562,7 @@ export const Composer = memo(function Composer({
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-start hover:bg-accent"
               >
                 <Settings size={16} strokeWidth={1.7} className="shrink-0 text-muted-foreground" />
-                <span className="text-[14px] text-foreground">{label}</span>
+                <span className="text-body text-foreground">{label}</span>
               </button>
             );
           })}
@@ -535,7 +570,7 @@ export const Composer = memo(function Composer({
       ) : null}
       <div
         data-testid="composer-bar"
-        className="flex items-center gap-3.5 rounded-full border border-border bg-background py-[9px] pe-2.5 ps-3"
+        className="flex min-h-10 items-center gap-1.5 rounded-full border border-border bg-card p-1.5"
       >
         <input
           ref={fileInputRef}
@@ -545,21 +580,32 @@ export const Composer = memo(function Composer({
           className="hidden"
           onChange={(event) => void onAttachmentPick(event.target.files)}
         />
-        <Button
-          variant="outline"
-          size="icon"
-          aria-label={t`Attach file`}
-          disabled={disabled}
-          onClick={() => fileInputRef.current?.click()}
-          className="rounded-full text-foreground/75"
-        >
-          <Plus size={17} strokeWidth={1.8} />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            disabled={disabled}
+            aria-label={t`Attach file`}
+            className="grid size-7 shrink-0 place-items-center rounded-full border border-border text-foreground disabled:opacity-40"
+          >
+            <Plus size={16} strokeWidth={1.8} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-44">
+            <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+              <Paperclip size={14} />
+              {t`Attach file`}
+            </DropdownMenuItem>
+            {SLASH_ACTIONS.map((action) => (
+              <DropdownMenuItem key={action.id} onClick={() => runSlashAction(action.id)}>
+                <Settings size={14} />
+                {slashActionLabel(action.id)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <div className="flex min-w-0 flex-1 flex-wrap items-end gap-1.5">
           {selectedSkill ? (
             <span
               data-testid="skill-chip"
-              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-[13px] text-foreground"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-accent px-2.5 py-1 text-body text-foreground"
             >
               <Box size={13} strokeWidth={1.7} className="shrink-0 text-muted-foreground/70" />
               <span dir="auto" className="truncate">
@@ -635,55 +681,43 @@ export const Composer = memo(function Composer({
             autoComplete="off"
             dir="auto"
             rows={1}
-            className="max-h-32 min-h-[24px] min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-[14px] leading-5 text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
+            className="max-h-32 min-h-7 min-w-[8rem] flex-1 resize-none overflow-y-auto bg-transparent py-0.5 text-body text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
           />
         </div>
-        {onVoice ? (
-          <Button
-            variant="outline"
-            size="icon"
+        {rightSlot === "mic" ? (
+          <button
+            type="button"
             aria-label={t`Voice`}
             title={t`Voice`}
             disabled={disabled}
             onClick={onVoice}
-            className="rounded-full text-foreground/75"
+            className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
           >
-            <Mic size={16} strokeWidth={1.8} />
-          </Button>
+            <Mic size={14} strokeWidth={1.8} />
+          </button>
         ) : null}
-        {running ? (
-          <>
-            <Button
-              size="icon"
-              aria-label={t`Send`}
-              disabled={sending || !canSend || disabled}
-              onClick={send}
-              className="size-10 rounded-full"
-            >
-              <ArrowUp size={18} strokeWidth={2} />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={t`Stop`}
-              disabled={sending}
-              onClick={() => void onStop()}
-              className="size-10 rounded-full text-foreground/75"
-            >
-              <Square size={12} strokeWidth={0} fill="currentColor" />
-            </Button>
-          </>
-        ) : (
-          <Button
-            size="icon"
+        {rightSlot === "send" ? (
+          <button
+            type="button"
             aria-label={t`Send`}
             disabled={sending || !canSend || disabled}
             onClick={send}
-            className="size-9 rounded-full"
+            className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
           >
-            <ArrowUp size={18} strokeWidth={2} />
-          </Button>
-        )}
+            <ArrowUp size={16} strokeWidth={2} />
+          </button>
+        ) : null}
+        {rightSlot === "stop" ? (
+          <button
+            type="button"
+            aria-label={t`Stop`}
+            disabled={sending}
+            onClick={() => void onStop()}
+            className="grid size-7 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
+          >
+            <Square size={10} strokeWidth={0} fill="currentColor" />
+          </button>
+        ) : null}
       </div>
     </fieldset>
   );
@@ -709,14 +743,14 @@ function MentionOptionIcon({ mention }: { mention: ComposerMention }) {
   }
   if (mention.kind === "group") {
     return (
-      <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent text-[9px] text-foreground/75">
+      <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent text-micro text-foreground/75">
         G
       </span>
     );
   }
   if (mention.kind === "everyone") {
     return (
-      <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent text-[9px] text-foreground/75">
+      <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-accent text-micro text-foreground/75">
         @
       </span>
     );

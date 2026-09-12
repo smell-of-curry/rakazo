@@ -45,32 +45,30 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
     )
     .toBe(true);
 
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "Stop" })).toHaveCount(0, { timeout: 60_000 });
 
   const transcript = page.getByTestId("transcript");
   const chip = transcript
-    .getByTestId("peer-receipt-chip")
+    .locator("[data-testid='peer-receipt-chip'], [data-testid='peer-receipt-cluster']")
     .filter({ hasText: "Researcher" })
     .first();
   await expect(chip).toBeVisible({ timeout: 30_000 });
-  await expect(chip.getByText(/Messaged|Message from/)).toBeVisible();
-  await expect(chip).toHaveAccessibleName(/Messaged Researcher|Message from Researcher/);
+  await expect(chip).toContainText(/messages with|Messaged|Message from/);
   await expect(chip.locator("svg")).toBeVisible();
   await expect(chip).not.toContainText("{peer}");
-  // User bubble still contains the phrase; peer body must not appear outside the chip.
   await expect(chip).not.toContainText("peer-exchange-alpha");
   await expect(transcript.getByText("peer-exchange-alpha")).toHaveCount(1);
-  const assertChipLeftAligned = async () => {
+  const assertChipCentered = async () => {
     const transcriptBox = await transcript.boundingBox();
     const chipBox = await chip.boundingBox();
     expect(transcriptBox).not.toBeNull();
     expect(chipBox).not.toBeNull();
-    // Transcript padding is 16px mobile / 28px desktop; centering must fail this assertion.
-    expect(chipBox!.x - transcriptBox!.x).toBeLessThanOrEqual(32);
-    expect(chipBox!.width).toBeLessThan(transcriptBox!.width / 2);
+    const chipCenter = chipBox!.x + chipBox!.width / 2;
+    const transcriptCenter = transcriptBox!.x + transcriptBox!.width / 2;
+    expect(Math.abs(chipCenter - transcriptCenter)).toBeLessThan(48);
   };
 
-  await assertChipLeftAligned();
+  await assertChipCentered();
   await expect(composer).toBeVisible();
   await captureScreenshot(page, testInfo, "peer-chip-desktop");
 
@@ -78,7 +76,7 @@ test("shows peer chips in transcript and opens view-only peer chat", async ({ pa
   await chip.scrollIntoViewIfNeeded();
   await expect(chip).toBeVisible();
   await expect(composer).toBeVisible();
-  await assertChipLeftAligned();
+  await assertChipCentered();
   await captureScreenshot(page, testInfo, "peer-chip-mobile");
 
   await chip.focus();

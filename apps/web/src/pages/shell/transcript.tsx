@@ -1,9 +1,9 @@
-import { i18n } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
 import type { MessageReaction, ThreadMessage } from "@rakazo/contracts";
 import {
   isComposerDockedAskMessage,
   isPeerReceiptBlocks,
+  isRateLimitError,
   isToolActivityBlock,
   projectMessageReactions,
 } from "@rakazo/core";
@@ -17,8 +17,16 @@ import type { PeerReceiptPeerLook } from "../../components/ai/PeerReceiptCluster
 import { PeerReceiptCluster } from "../../components/ai/PeerReceiptCluster";
 import type { ArtifactTarget } from "../../lib/artifact-open";
 import { condensePeerReceipts } from "../../lib/condense-peer-receipts";
+import {
+  bubbleCluster,
+  formatThreadTimestamp,
+  parseRateLimitRetrySeconds,
+  shouldInsertThreadTimestamp,
+  threadSenderKey,
+} from "../../lib/thread-time";
 import { transcriptIsNearEnd, transcriptMovedDown } from "../../lib/transcript-scroll";
-import { MessageHoverActions, MessageView } from "./message-view";
+import { collectFindMatches, type FindableMessage, FindInChat } from "./find-in-chat";
+import { MessageHoverActions, MessageView, previewMessageText } from "./message-view";
 
 export const Transcript = memo(function Transcript({
   scrollRef,
@@ -29,6 +37,12 @@ export const Transcript = memo(function Transcript({
   answerableAskMessageId,
   running,
   workingBots,
+  isGroup = false,
+  computerBooting = false,
+  botName,
+  findOpen,
+  onFindOpenChange,
+  onOpenComputer,
   onLoadOlder,
   onOpenBot,
   onAnswer,
@@ -53,6 +67,12 @@ export const Transcript = memo(function Transcript({
   answerableAskMessageId: string | null;
   running: boolean;
   workingBots: GroupAvatarMember[];
+  isGroup?: boolean;
+  computerBooting?: boolean;
+  botName?: string;
+  findOpen?: boolean;
+  onFindOpenChange?: (open: boolean) => void;
+  onOpenComputer?: () => void;
   onLoadOlder: () => void | Promise<void>;
   onOpenBot: (botId: string) => void;
   onAnswer: (message: ThreadMessage, text: string) => Promise<void>;
@@ -76,6 +96,8 @@ export const Transcript = memo(function Transcript({
   const lastScrollTop = useRef<number | null>(null);
   const autoScrollTimer = useRef<number | undefined>(undefined);
   const jumpButtonRef = useRef<HTMLButtonElement>(null);
+  const [findQuery, setFindQuery] = useState("");
+  const [findIndex, setFindIndex] = useState(0);
   const messageById = useMemo(
     () => new Map(messages.map((message) => [message.id, message])),
     [messages],
@@ -86,6 +108,61 @@ export const Transcript = memo(function Transcript({
     workingBotName != null && workingBotName !== ""
       ? t`${workingBotName} is working`
       : t`Bots are working`;
+  const visibleMessages = useMemo(
+    () =>
+      reactionView.visibleMessages.filter(
+        (message) => !isComposerDockedAskMessage(message, answerableAskMessageId),
+      ),
+    [answerableAskMessageId, reactionView.visibleMessages],
+  );
+  const rows = useMemo(() => condensePeerReceipts(visibleMessages), [visibleMessages]);
+  const findables = useMemo<FindableMessage[]>(
+    () =>
+      visibleMessages.map((message) => ({
+        id: message.id,
+        text: previewMessageText(message),
+      })),
+    [visibleMessages],
+  );
+  const findMatches = useMemo(
+    () => collectFindMatches(findables, findQuery),
+    [findables, findQuery],
+  );
+  const activeFindId = findMatches[findIndex];
+
+  useEffect(() => {
+    if (!activeFindId) return;
+    const node = scrollRef.current?.querySelector(`[data-message-id="${activeFindId}"]`);
+    node?.scrollIntoView({ block: "center" });
+  }, [activeFindId, scrollRef]);
+
+  const rateLimitText = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const message = messages[index];
+      if (!message?.id.startsWith("progress:")) continue;
+      for (const block of message.blocks) {
+        if (block.kind === "progress" && isRateLimitError(block.text)) return block.text;
+      }
+    }
+    return null;
+  }, [messages]);
+  const [retryLeft, setRetryLeft] = useState<number | undefined>();
+  useEffect(() => {
+    if (!rateLimitText) {
+      setRetryLeft(undefined);
+      return;
+    }
+    setRetryLeft(parseRateLimitRetrySeconds(rateLimitText));
+  }, [rateLimitText]);
+  const retryTicking = retryLeft != null && retryLeft > 0;
+  useEffect(() => {
+    if (!retryTicking) return;
+    const timer = window.setInterval(() => {
+      setRetryLeft((current) => (current == null || current <= 1 ? 0 : current - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [retryTicking]);
+
   const snapToEnd = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
@@ -107,7 +184,6 @@ export const Transcript = memo(function Transcript({
       behavior: reducedMotion ? "auto" : "smooth",
     });
     window.clearTimeout(autoScrollTimer.current);
-    // Fallback only: onScroll clears autoScrolling once near-end is reached.
     autoScrollTimer.current = window.setTimeout(
       () => {
         autoScrolling.current = false;
@@ -129,7 +205,6 @@ export const Transcript = memo(function Transcript({
 
   const loadOlder = useCallback(() => {
     const wasFollowing = following.current;
-    // Prepend must not race the messages-driven snap-to-end follow path.
     following.current = false;
     autoScrolling.current = false;
     const pending = onLoadOlder();
@@ -151,8 +226,28 @@ export const Transcript = memo(function Transcript({
     [],
   );
 
+  const hasProgressText = messages.some(
+    (message) =>
+      message.id.startsWith("progress:") &&
+      message.blocks.some(
+        (block) => block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
+      ),
+  );
+
   return (
     <div className="relative flex min-h-0 flex-1">
+      <FindInChat
+        open={Boolean(findOpen)}
+        query={findQuery}
+        onQuery={(value) => {
+          setFindQuery(value);
+          setFindIndex(0);
+        }}
+        matches={findMatches}
+        activeIndex={findIndex}
+        onActiveIndex={setFindIndex}
+        onClose={() => onFindOpenChange?.(false)}
+      />
       <div
         ref={scrollRef}
         data-testid="transcript"
@@ -191,30 +286,27 @@ export const Transcript = memo(function Transcript({
             following.current = false;
           }
         }}
-        className="rk-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-5 md:px-7 md:py-6"
+        className="rk-scroll flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 md:px-7 md:py-6"
       >
         {olderCursor != null ? (
           <button
             type="button"
             disabled={loadingOlder}
             onClick={() => void loadOlder()}
-            className="self-center rounded-lg px-3 py-1.5 text-[13px] text-muted-foreground hover:bg-muted hover:text-foreground/75 disabled:opacity-50"
+            className="self-center rounded-lg px-3 py-1.5 text-body text-muted-foreground hover:bg-muted hover:text-foreground/75 disabled:opacity-50"
           >
             {loadingOlder ? t`Loading…` : t`Load earlier messages`}
           </button>
         ) : null}
-        {condensePeerReceipts(
-          reactionView.visibleMessages.filter(
-            (message) => !isComposerDockedAskMessage(message, answerableAskMessageId),
-          ),
-        ).map((row) => {
+        {rows.map((row, index) => {
           if (row.type === "peerCluster") {
+            const first = row.messages[0]!;
+            const stamp = rowTimestamp(rows, index, first, (message) =>
+              isPeerReceiptBlocks(message.blocks),
+            );
             return (
-              <div
-                key={row.messages[0]!.id}
-                data-message-id={row.messages[0]!.id}
-                className="relative py-0.5"
-              >
+              <div key={first.id} data-message-id={first.id} className="py-0.5">
+                {stamp}
                 <PeerReceiptCluster
                   messages={row.messages}
                   sentOnly={row.sentOnly}
@@ -228,27 +320,30 @@ export const Transcript = memo(function Transcript({
           if (!message.blocks.some((block) => !isToolActivityBlock(block))) return null;
           const peerReceipt = isPeerReceiptBlocks(message.blocks);
           const messageReactions = reactionView.reactions.get(message.id);
+          const prevMessage = previousBubble(rows, index);
+          const nextMessage = nextBubble(rows, index);
+          const senderKey = threadSenderKey(message);
+          const cluster = bubbleCluster(
+            Boolean(prevMessage && threadSenderKey(prevMessage) === senderKey && !peerReceipt),
+            Boolean(nextMessage && threadSenderKey(nextMessage) === senderKey && !peerReceipt),
+          );
+          const findHit = findQuery.trim() && findMatches.includes(message.id);
+          const stamp = rowTimestamp(rows, index, message, (candidate) =>
+            isPeerReceiptBlocks(candidate.blocks),
+          );
           return (
             <div
               key={message.id}
               data-message-id={message.id}
-              className={peerReceipt ? "relative py-0.5" : "group/message relative hover:z-20"}
+              data-find-hit={findHit ? "" : undefined}
+              data-find-active={activeFindId === message.id ? "" : undefined}
+              className={cn(
+                peerReceipt ? "py-0.5" : "group/message relative",
+                cluster === "first" || cluster === "single" ? "mt-2" : "mt-0.5",
+                findHit && "[&_mark]:bg-warning/30",
+              )}
             >
-              {!peerReceipt && !message.id.startsWith("progress:") ? (
-                <time
-                  dateTime={message.createdAt}
-                  data-testid="message-hover-time"
-                  className={cn(
-                    "pointer-events-none absolute top-1 z-10 text-xs tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover/message:opacity-100 group-focus-within/message:opacity-100 group-has-[[aria-expanded=true]]/message:opacity-100",
-                    message.role === "user" ? "start-0" : "end-0",
-                  )}
-                >
-                  {new Date(message.createdAt).toLocaleTimeString(i18n.locale || "en", {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </time>
-              ) : null}
+              {stamp}
               <div
                 className={
                   peerReceipt
@@ -258,15 +353,7 @@ export const Transcript = memo(function Transcript({
               >
                 <div
                   data-testid={peerReceipt ? undefined : "message-bubble-frame"}
-                  className={
-                    peerReceipt
-                      ? undefined
-                      : `relative w-fit min-w-0 ${
-                          message.role === "user"
-                            ? "max-w-[min(70%,calc(100%_-_6rem))]"
-                            : "max-w-[min(74%,calc(100%_-_6rem))]"
-                        }`
-                  }
+                  className={peerReceipt ? undefined : "relative w-fit min-w-0 max-w-[72%]"}
                 >
                   {peerReceipt ? null : (
                     <MessageHoverActions
@@ -279,16 +366,18 @@ export const Transcript = memo(function Transcript({
                   <MessageView
                     artifactTarget={artifactTarget}
                     message={message}
+                    cluster={cluster}
+                    isGroup={isGroup}
+                    highlightQuery={findQuery}
                     canAnswer={message.id === answerableAskMessageId}
                     onOpenBot={onOpenBot}
                     onOpenPeerMessages={onOpenPeerMessages}
+                    onOpenComputer={onOpenComputer}
                     onAnswer={onAnswer}
                     speakerName={
-                      peerReceipt
+                      peerReceipt || message.role !== "bot" || !isGroup
                         ? undefined
-                        : message.role === "bot"
-                          ? memberName?.(message.botId)
-                          : undefined
+                        : memberName?.(message.botId)
                     }
                     memberName={memberName}
                     peerBot={peerBot}
@@ -319,7 +408,7 @@ export const Transcript = memo(function Transcript({
                   {[...messageReactions].map(([emoji, count]) => (
                     <span
                       key={emoji}
-                      className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs"
+                      className="rounded-full border border-border bg-muted px-2 py-0.5 text-caption"
                     >
                       {emoji}
                       {count > 1 ? ` ${count}` : ""}
@@ -330,16 +419,24 @@ export const Transcript = memo(function Transcript({
             </div>
           );
         })}
-        {running &&
-        !messages.some(
-          (message) =>
-            message.id.startsWith("progress:") &&
-            message.blocks.some(
-              (block) =>
-                block.kind === "progress" && !isToolActivityBlock(block) && Boolean(block.text),
-            ),
-        ) ? (
-          <ActiveBotGlyph bots={workingBots} label={workingLabel} />
+        {running && rateLimitText ? (
+          <div data-testid="rate-limit-status" className="mt-2 flex justify-start" role="status">
+            <div className="max-w-[72%] rounded-[18px] bg-muted px-3 py-2 text-body text-foreground">
+              {retryLeft != null
+                ? t`Rate limited · retrying in ${retryLeft}s`
+                : t`Rate limited · retrying…`}
+            </div>
+          </div>
+        ) : running && computerBooting ? (
+          <div className="mt-2 flex justify-start" role="status">
+            <div className="max-w-[72%] rounded-[18px] bg-muted px-3 py-2 text-body text-foreground">
+              {t`Setting up ${botName ?? "Bot"}'s computer…`}
+            </div>
+          </div>
+        ) : running && !hasProgressText ? (
+          <div className="mt-2">
+            <ActiveBotGlyph bots={workingBots} label={workingLabel} />
+          </div>
         ) : null}
       </div>
       <button
@@ -358,3 +455,56 @@ export const Transcript = memo(function Transcript({
     </div>
   );
 });
+
+function previousBubble(
+  rows: ReturnType<typeof condensePeerReceipts<ThreadMessage>>,
+  index: number,
+): ThreadMessage | undefined {
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const row = rows[cursor];
+    if (row?.type === "message" && !isPeerReceiptBlocks(row.message.blocks)) return row.message;
+  }
+  return undefined;
+}
+
+function nextBubble(
+  rows: ReturnType<typeof condensePeerReceipts<ThreadMessage>>,
+  index: number,
+): ThreadMessage | undefined {
+  for (let cursor = index + 1; cursor < rows.length; cursor += 1) {
+    const row = rows[cursor];
+    if (row?.type === "message" && !isPeerReceiptBlocks(row.message.blocks)) return row.message;
+  }
+  return undefined;
+}
+
+function rowTimestamp(
+  rows: ReturnType<typeof condensePeerReceipts<ThreadMessage>>,
+  index: number,
+  current: ThreadMessage,
+  skip: (message: ThreadMessage) => boolean,
+) {
+  let previous: ThreadMessage | undefined;
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const row = rows[cursor];
+    if (!row) continue;
+    const message = row.type === "peerCluster" ? row.messages[0] : row.message;
+    if (!message || skip(message)) continue;
+    previous = message;
+    break;
+  }
+  const show = shouldInsertThreadTimestamp(
+    previous ? { createdAt: previous.createdAt, senderKey: threadSenderKey(previous) } : undefined,
+    { createdAt: current.createdAt, senderKey: threadSenderKey(current) },
+  );
+  if (!show) return null;
+  return (
+    <time
+      dateTime={current.createdAt}
+      data-testid="thread-timestamp"
+      className="mb-2 block text-center text-caption text-muted-foreground"
+    >
+      {formatThreadTimestamp(new Date(current.createdAt))}
+    </time>
+  );
+}

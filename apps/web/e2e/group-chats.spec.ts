@@ -103,18 +103,22 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
   await page.getByTestId("bot-settings-trigger").click();
   const desktopSettings = page.getByTestId("side-panel");
   const groupName = desktopSettings.locator("label:has-text('Name') input");
-  await groupName.fill("Unsaved Draft team name");
+  await groupName.fill("Renamed Draft team");
+  await groupName.blur();
+  await expect(page.getByTestId("settings-saved")).toBeVisible();
   const sidebar = page.locator("aside").first();
   await sidebar.getByRole("button", { name: /^Review team/ }).click();
   await expect(groupName).toHaveValue("Review team");
-  await sidebar.getByRole("button", { name: /^Draft team/ }).click();
-  await expect(groupName).toHaveValue("Draft team");
+  await sidebar.getByRole("button", { name: /^Renamed Draft team/ }).click();
+  await expect(groupName).toHaveValue("Renamed Draft team");
   await page.route("**/rpc/groups/update", async (route) => route.abort("failed"));
-  await desktopSettings.getByRole("button", { name: "Save", exact: true }).click();
+  await groupName.fill("Broken name");
+  await groupName.blur();
   await expect(desktopSettings.getByRole("alert")).toHaveText("Failed to fetch");
-  await expect(desktopSettings.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
   await page.unroute("**/rpc/groups/update");
-  await desktopSettings.getByRole("button", { name: "Save", exact: true }).click();
+  await groupName.fill("Draft team");
+  await groupName.blur();
+  await expect(page.getByTestId("settings-saved")).toBeVisible();
 
   await page
     .getByRole("combobox", { name: "Message Draft team" })
@@ -169,8 +173,8 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
   }
   await expect(cityAsk).toBeVisible({ timeout: 15_000 });
   await page.getByRole("textbox", { name: "Answer" }).fill("Paris");
-  await page.getByRole("button", { name: "Send answer" }).click();
-  await expect(page.getByText("Answered: Paris", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByText("Paris", { exact: true })).toBeVisible({ timeout: 30_000 });
 
   const firstMessage = transcript.locator("[data-message-id]").first();
   await firstMessage.hover();
@@ -200,12 +204,12 @@ test("create group from + and see two bots in one transcript", async ({ page }, 
   await sidebar.getByRole("button", { name: /^Review team/ }).click();
   await reviewSnapshotIntercepted;
   await expect(page).toHaveURL(new RegExp(`/app/g/${reviewGroup.id}$`));
-  await expect(page.getByTestId("transcript")).not.toContainText("Answered: Paris");
+  await expect(page.getByTestId("transcript")).not.toContainText("Paris");
   releaseReviewSnapshot();
   await expect(page.getByRole("combobox", { name: "Message Review team" })).toBeVisible();
   await page.unroute("**/rpc/threads/get");
   await sidebar.getByRole("button", { name: /^Draft team/ }).click();
-  await expect(page.getByText("Answered: Paris", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("transcript").getByText("Paris", { exact: true })).toBeVisible();
 
   await composer.fill(
     "@Researcher write path notes/group-preview.md and attach it to the thread says # Group artifact",

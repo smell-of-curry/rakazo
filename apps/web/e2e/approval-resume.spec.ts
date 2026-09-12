@@ -17,24 +17,22 @@ test("approval input resumes durable work", async ({ page }, testInfo) => {
   await expect(page.getByText("Reply with one city name.", { exact: true })).toBeVisible();
   const answer = page.getByRole("textbox", { name: "Answer" });
   await expect(answer).toBeVisible();
-  await expect(page.getByRole("button", { name: "Send answer" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Send" })).toBeDisabled();
   await captureScreenshot(page, testInfo, "20-approval-input-request");
 
   await answer.fill("ask me which city to use again");
-  await expect(page.getByRole("button", { name: "Send answer" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Send" })).toBeEnabled();
   await captureScreenshot(page, testInfo, "21-approval-custom-answer");
-  await page.getByRole("button", { name: "Send answer" }).click();
+  await page.getByRole("button", { name: "Send" }).click();
 
   await expect(prompt).toHaveCount(2, { timeout: 30_000 });
-  await expect(
-    page.getByText("Answered: ask me which city to use again", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("ask me which city to use again", { exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Answer" })).toBeVisible();
   await captureScreenshot(page, testInfo, "22-second-approval-prompt");
 
   await answer.fill("Paris");
   await captureScreenshot(page, testInfo, "23-second-approval-answer");
-  await page.getByRole("button", { name: "Send answer" }).click();
+  await page.getByRole("button", { name: "Send" }).click();
 
   const resumed = page.getByText(
     "on it. i will work this in the background and come back with a result.",
@@ -43,12 +41,12 @@ test("approval input resumes durable work", async ({ page }, testInfo) => {
   await expect(resumed).toBeVisible({ timeout: 30_000 });
   const handledAnswer = page.getByText("done. i handled: Paris", { exact: true });
   await expect(handledAnswer).toBeVisible();
-  await expect(page.getByText("Answered: Paris", { exact: true })).toBeVisible();
+  await expect(page.getByText("Paris", { exact: true })).toBeVisible();
 
   await page.reload();
   await expect(resumed).toBeVisible({ timeout: 20_000 });
   await expect(handledAnswer).toBeVisible();
-  await expect(page.getByText("Answered: Paris", { exact: true })).toBeVisible();
+  await expect(page.getByText("Paris", { exact: true })).toBeVisible();
   await captureScreenshot(page, testInfo, "24-approval-resumed-after-reload");
 
   await composer.fill("ask me which city to use");
@@ -56,6 +54,6 @@ test("approval input resumes durable work", async ({ page }, testInfo) => {
   await expect(prompt).toHaveCount(3, { timeout: 30_000 });
   await page.getByRole("button", { name: "Stop" }).click();
   await expect(page.getByText("No longer active", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Send answer" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send" })).toHaveCount(0);
   await captureScreenshot(page, testInfo, "25-stopped-approval-prompt");
 });

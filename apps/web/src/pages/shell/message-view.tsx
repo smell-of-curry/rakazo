@@ -14,8 +14,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@rakazo/ui-web";
-import { Copy, MoreHorizontal, Reply, Smile } from "lucide-react";
-import { memo, useState } from "react";
+import { Copy, MemoryStick, Monitor, MoreHorizontal, RefreshCw, Reply, Smile } from "lucide-react";
+import { memo, type ReactNode, useState } from "react";
 import { ArtifactFileCard } from "../../components/ArtifactFileCard";
 import { AskCard } from "../../components/AskCard";
 import { CollaborationMarker } from "../../components/ai/CollaborationMarker";
@@ -27,11 +27,15 @@ import type { ArtifactTarget } from "../../lib/artifact-open";
 import { botImageSrc } from "../../lib/bot-image-src";
 import { copyableMessageText } from "../../lib/message-text";
 import { messageProviderLabel } from "../../lib/messaging";
+import type { BubbleCluster } from "../../lib/thread-time";
+import { bubbleRadiusClass } from "../../lib/thread-time";
+import { highlightQuery } from "./find-in-chat";
 import {
   AppConnectCard,
   ArtifactImage,
   ChartBlockView,
   ChoiceCard,
+  ComputerHandoffCard,
   McpApprovalCard,
 } from "./message-cards";
 import { FALLBACK_BOT_COLOR } from "./types";
@@ -149,13 +153,28 @@ export function MessageHoverActions({
   );
 }
 
+function SystemRow({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-center gap-1.5 py-1 text-caption text-muted-foreground">
+      <span className="inline-flex size-3 shrink-0 items-center justify-center [&>svg]:size-3">
+        {icon}
+      </span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
 export const MessageView = memo(function MessageView({
   artifactTarget,
   canAnswer,
   message,
+  cluster = "single",
+  isGroup = false,
+  highlightQuery: findQuery = "",
   onAnswer,
   onOpenBot,
   onOpenPeerMessages,
+  onOpenComputer,
   speakerName,
   memberName,
   peerBot,
@@ -172,9 +191,13 @@ export const MessageView = memo(function MessageView({
   artifactTarget: ArtifactTarget;
   canAnswer: boolean;
   message: ThreadMessage;
+  cluster?: BubbleCluster;
+  isGroup?: boolean;
+  highlightQuery?: string;
   onAnswer: (message: ThreadMessage, text: string) => Promise<void>;
   onOpenBot: (botId: string) => void;
   onOpenPeerMessages: (peer: { peerBotId: string; peerBotName: string }) => void;
+  onOpenComputer?: () => void;
   speakerName?: string;
   memberName?: (botId: string | undefined) => string | undefined;
   peerBot: (botId: string) => PeerReceiptPeerLook | undefined;
@@ -200,8 +223,8 @@ export const MessageView = memo(function MessageView({
   const parentJumpId = replyPreview?.id ?? replyToMessageId;
   const messageContext = (
     <>
-      {speakerName ? (
-        <div className="mb-1 text-[12.5px] font-medium text-muted-foreground" dir="auto">
+      {speakerName && isGroup ? (
+        <div className="mb-1 text-caption font-medium text-muted-foreground" dir="auto">
           {speakerName}
         </div>
       ) : null}
@@ -211,7 +234,7 @@ export const MessageView = memo(function MessageView({
           data-testid="reply-parent-preview"
           aria-label={t`Jump to replied message`}
           onClick={() => onJumpToMessage?.(parentJumpId)}
-          className="mb-2 block max-w-[74%] truncate rounded-[14px] border border-border bg-background px-3 py-2 text-start text-[12.5px] text-muted-foreground hover:border-border hover:text-foreground/75"
+          className="mb-2 block max-w-[72%] truncate rounded-lg border border-border bg-background px-3 py-2 text-start text-caption text-muted-foreground hover:border-border hover:text-foreground/75"
           dir="auto"
         >
           {replyPreview ? previewMessageText(replyPreview) : t`Earlier message`}
@@ -227,7 +250,10 @@ export const MessageView = memo(function MessageView({
         <div className="flex w-fit max-w-full justify-start">
           <div
             data-testid="message-bot-bubble"
-            className="max-w-full space-y-2 rounded-2xl bg-muted px-4 py-2.5 text-[14px] leading-[1.4] text-foreground/90"
+            className={cn(
+              "max-w-full space-y-2 bg-muted px-3 py-2 text-body text-foreground",
+              bubbleRadiusClass("bot", cluster),
+            )}
             dir="auto"
           >
             {visibleNarrationBlocks.map((block, i) => {
@@ -245,7 +271,7 @@ export const MessageView = memo(function MessageView({
                 type="button"
                 aria-label={speaking ? t`Stop speaking` : t`Speak this reply`}
                 onClick={onSpeak}
-                className="text-[12px] text-muted-foreground hover:text-foreground"
+                className="text-caption text-muted-foreground hover:text-foreground"
               >
                 {speaking ? <Trans>Stop</Trans> : <Trans>Speak</Trans>}
               </button>
@@ -264,15 +290,9 @@ export const MessageView = memo(function MessageView({
           const from = memberName?.(block.fromBotId) ?? t`bot`;
           const to = memberName?.(block.toBotId) ?? t`bot`;
           return (
-            <div
-              key={`${message.id}:${i}`}
-              className="flex items-center justify-center gap-2 py-1 text-[13.5px] text-muted-foreground"
-            >
-              <span>
-                ↪ {to} ← {from}
-              </span>
-              <span>{block.text}</span>
-            </div>
+            <SystemRow key={`${message.id}:${i}`} icon="↪">
+              {to} ← {from} {block.text}
+            </SystemRow>
           );
         }
         if (block.kind === "bot_message_sent" || block.kind === "bot_message_received") {
@@ -305,26 +325,30 @@ export const MessageView = memo(function MessageView({
         }
         if (block.kind === "channel_message") {
           return (
-            <div
-              key={`${message.id}:${i}`}
-              className="flex items-center justify-center gap-2 py-1 text-[13.5px] text-muted-foreground"
-            >
-              <span>
-                {messageProviderLabel(block.provider, block.transport)} · {block.fromLabel}:{" "}
-                {block.text}
-              </span>
-            </div>
+            <SystemRow key={`${message.id}:${i}`} icon="·">
+              {messageProviderLabel(block.provider, block.transport)} · {block.fromLabel}:{" "}
+              {block.text}
+            </SystemRow>
           );
         }
         if (block.kind === "meta") {
+          const routine = /routine/i.test(block.text);
+          const memory = /memory/i.test(block.text);
           return (
-            <div
+            <SystemRow
               key={`${message.id}:${i}`}
-              className="flex items-center justify-center gap-2 py-1 text-[13.5px] text-muted-foreground"
+              icon={
+                routine ? (
+                  <RefreshCw strokeWidth={2} />
+                ) : memory ? (
+                  <MemoryStick strokeWidth={2} />
+                ) : (
+                  <RefreshCw strokeWidth={2} />
+                )
+              }
             >
-              <span className="text-warning">◷</span>
-              <span>{block.text}</span>
-            </div>
+              {block.text}
+            </SystemRow>
           );
         }
         if (block.kind === "progress") {
@@ -332,7 +356,10 @@ export const MessageView = memo(function MessageView({
             <div key={`${message.id}:${i}`} className="flex w-fit max-w-full justify-start">
               <div
                 data-testid="message-bot-bubble"
-                className="max-w-full rounded-2xl bg-muted px-4 py-2.5 text-[14px] leading-[1.4] text-foreground/90"
+                className={cn(
+                  "max-w-full bg-muted px-3 py-2 text-body text-foreground",
+                  bubbleRadiusClass("bot", cluster),
+                )}
                 dir="auto"
               >
                 <ChatMarkdown streaming>{block.text}</ChatMarkdown>
@@ -349,11 +376,11 @@ export const MessageView = memo(function MessageView({
               className="w-[min(420px,90%)] rounded-[18px] border border-border bg-muted px-[18px] py-4"
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[15px] font-medium text-foreground" dir="auto">
+                <span className="text-body font-medium text-foreground" dir="auto">
                   {block.name}
                 </span>
                 <span
-                  className={`rounded-full px-[11px] py-1 text-[13px] ${
+                  className={`rounded-full px-2.5 py-1 text-small ${
                     failed
                       ? "bg-destructive/15 text-destructive"
                       : running
@@ -367,9 +394,9 @@ export const MessageView = memo(function MessageView({
                   {running ? <Trans>subagent</Trans> : block.status}
                 </span>
               </div>
-              <div className="mt-2 text-[13.5px] text-muted-foreground">{block.task}</div>
+              <div className="mt-2 text-small text-muted-foreground">{block.task}</div>
               {block.progress || block.result ? (
-                <div className="mt-2.5 text-[14px] leading-[1.4] text-foreground/75">
+                <div className="mt-2.5 text-body text-foreground/75">
                   <ChatMarkdown streaming={running}>
                     {block.result || block.progress || ""}
                   </ChatMarkdown>
@@ -389,11 +416,11 @@ export const MessageView = memo(function MessageView({
               className="w-[min(340px,90%)] rounded-[18px] border border-border bg-muted px-[18px] py-4 text-start disabled:opacity-60"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[15px] font-medium text-foreground" dir="auto">
+                <span className="text-body font-medium text-foreground" dir="auto">
                   {block.name}
                 </span>
                 <span
-                  className={`rounded-full px-[11px] py-1 text-[13px] ${
+                  className={`rounded-full px-2.5 py-1 text-small ${
                     removed ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"
                   }`}
                 >
@@ -406,7 +433,7 @@ export const MessageView = memo(function MessageView({
                   )}
                 </span>
               </div>
-              <div className="mt-2 text-[14px] leading-[1.4] text-foreground/75" dir="auto">
+              <div className="mt-2 text-body text-foreground/75" dir="auto">
                 {removed
                   ? block.status === "archived"
                     ? t`Archived. Chat, memory, and files kept.`
@@ -493,10 +520,13 @@ export const MessageView = memo(function MessageView({
             <div key={`${message.id}:${i}`} className="flex w-fit max-w-full justify-end">
               <div
                 data-testid="message-user-bubble"
-                className="max-w-full whitespace-pre-wrap wrap-anywhere rounded-2xl bg-chat-user px-4 py-2.5 text-[14px] leading-[1.4] text-chat-user-foreground"
+                className={cn(
+                  "max-w-full whitespace-pre-wrap wrap-anywhere bg-chat-user px-3 py-2 text-body text-chat-user-foreground",
+                  bubbleRadiusClass("user", cluster),
+                )}
                 dir="auto"
               >
-                {block.text}
+                {findQuery ? highlightQuery(block.text, findQuery) : block.text}
               </div>
             </div>
           );
@@ -506,7 +536,10 @@ export const MessageView = memo(function MessageView({
             <div key={`${message.id}:${i}`} className="flex w-fit max-w-full justify-start">
               <div
                 data-testid="message-bot-bubble"
-                className="max-w-full rounded-2xl bg-muted px-4 py-2.5 text-[14px] leading-[1.4] text-foreground/90"
+                className={cn(
+                  "max-w-full bg-muted px-3 py-2 text-body text-foreground",
+                  bubbleRadiusClass("bot", cluster),
+                )}
                 dir="auto"
               >
                 <ChatMarkdown>{block.text}</ChatMarkdown>
@@ -515,7 +548,7 @@ export const MessageView = memo(function MessageView({
                     type="button"
                     aria-label={speaking ? t`Stop speaking` : t`Speak this reply`}
                     onClick={onSpeak}
-                    className="mt-2 text-[12px] text-muted-foreground hover:text-foreground"
+                    className="mt-2 text-caption text-muted-foreground hover:text-foreground"
                   >
                     {speaking ? <Trans>Stop</Trans> : <Trans>Speak</Trans>}
                   </button>
@@ -529,9 +562,9 @@ export const MessageView = memo(function MessageView({
             <div key={`${message.id}:${i}`} className="flex justify-start">
               <div className="flex flex-col gap-2 rounded-[20px] bg-muted px-5 py-4">
                 {block.lines.map((line) => (
-                  <div key={line.k} className="flex items-baseline gap-2.5 text-[15px]">
+                  <div key={line.k} className="flex items-baseline gap-2.5 text-body">
                     <span className="text-success">✓</span>
-                    <span className="font-semibold text-white">{line.k}</span>
+                    <span className="font-semibold text-foreground">{line.k}</span>
                     <span className="text-muted-foreground">→</span>
                     <span>{line.v}</span>
                   </div>
@@ -546,6 +579,7 @@ export const MessageView = memo(function MessageView({
               key={`${message.id}:${i}`}
               block={block}
               canAnswer={canAnswer}
+              actorName={speakerName}
               onAnswer={(text) => onAnswer(message, text)}
             />
           );
@@ -560,29 +594,24 @@ export const MessageView = memo(function MessageView({
           );
         }
         if (block.kind === "computer") {
+          const gate =
+            block.state === "Needs you" ||
+            block.status === "answered" ||
+            block.status === "dismissed";
+          if (gate) {
+            return (
+              <ComputerHandoffCard
+                key={`${message.id}:${i}`}
+                text={block.text}
+                status={block.status}
+                onOpenComputer={onOpenComputer}
+              />
+            );
+          }
           return (
-            <div
-              key={`${message.id}:${i}`}
-              className="w-[340px] rounded-[18px] border border-border bg-muted px-[18px] py-4"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[15px] font-medium text-foreground">
-                  <Trans>Computer</Trans>
-                </span>
-                <span
-                  className={
-                    block.state === "Needs you"
-                      ? "rounded-full bg-warning/15 px-[11px] py-1 text-[13px] text-warning"
-                      : "rounded-full bg-success/15 px-[11px] py-1 text-[13px] text-success"
-                  }
-                >
-                  {block.state}
-                </span>
-              </div>
-              <div className="my-2.5 text-[14px] leading-[1.4] text-foreground/75">
-                <ChatMarkdown>{block.text}</ChatMarkdown>
-              </div>
-            </div>
+            <SystemRow key={`${message.id}:${i}`} icon={<Monitor strokeWidth={2} />}>
+              {block.text || block.state}
+            </SystemRow>
           );
         }
         return null;

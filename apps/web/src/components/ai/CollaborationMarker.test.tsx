@@ -1,40 +1,38 @@
-import { renderToString } from "react-dom/server";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ActiveBotGlyph, CollaborationMarker } from "./CollaborationMarker";
 
 describe("collaboration transcript markers", () => {
-  it("shows a left-aligned peer event with its avatar and full label", () => {
-    const html = renderToString(
+  it("shows a centered in-progress peer row with a pulse", () => {
+    render(
       <CollaborationMarker
-        ariaLabel="Message from Research"
+        ariaLabel="1 messages with Research"
         color="#14B8A6"
         identity="research"
-        label="Message from Research"
+        label="1 messages with Research"
         onClick={() => undefined}
       />,
     );
 
-    expect(html).toContain('data-testid="peer-receipt-chip"');
-    expect(html).toContain('aria-label="Message from Research"');
-    expect(html).toContain('class="flex justify-start"');
-    expect(html).toContain('class="inline-flex max-w-full');
-    expect(html).toContain('class="truncate"');
-    expect(html).toContain("<svg");
-    expect(html).toContain("Message from Research");
-    expect(html).not.toContain("{peer}");
+    const chip = screen.getByTestId("peer-receipt-chip");
+    expect(chip).toHaveAccessibleName("1 messages with Research");
+    expect(chip.className).toContain("text-caption");
+    expect(chip.parentElement?.className).toContain("justify-center");
+    expect(chip.querySelector(".animate-pulse")).toBeTruthy();
+    expect(chip).toHaveTextContent("1 messages with Research");
   });
 
-  it("animates the active bot glyph from its run status", () => {
-    const html = renderToString(
+  it("renders a bot bubble with a three-dot pulse", () => {
+    render(
       <ActiveBotGlyph
         bots={[{ botId: "research", color: "#14B8A6", status: "running" }]}
         label="Research is working"
       />,
     );
 
-    expect(html).toContain('role="status"');
-    expect(html).toContain("<svg");
-    expect(html).toContain("Research is working");
-    expect(html).not.toContain("sr-only");
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByTestId("typing-dots")).toBeInTheDocument();
+    expect(screen.getByTestId("message-bot-bubble")).toBeInTheDocument();
+    expect(screen.getByText("Research is working")).toHaveClass("sr-only");
   });
 });

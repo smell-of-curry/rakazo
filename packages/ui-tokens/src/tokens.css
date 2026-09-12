@@ -50,8 +50,8 @@
   --primary-foreground: #f1f1ef;
   --secondary: #f0f0ed;
   --secondary-foreground: #1a1a1a;
-  --chat-user: #e2e2dc;
-  --chat-user-foreground: #1a1a1a;
+  --chat-user: #1a1a1a;
+  --chat-user-foreground: #ffffff;
   --muted: #f0f0ed;
   --muted-foreground: #5c5c61;
   --accent: #eaeae6;

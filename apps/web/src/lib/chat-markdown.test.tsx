@@ -11,7 +11,8 @@ describe("ChatMarkdown", () => {
     expect(html).toContain("<h2>Capabilities</h2>");
     expect(html).toContain("<ul>");
     expect(html).toContain("<strong>Write files</strong>");
-    expect(html).toContain("<code>commands</code>");
+    expect(html).toContain("commands</code>");
+    expect(html).toContain("text-destructive");
   });
 
   it("does not inject raw HTML or unsafe link protocols", () => {

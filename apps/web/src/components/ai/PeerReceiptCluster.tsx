@@ -1,14 +1,12 @@
 import { i18n } from "@lingui/core";
 import type { ThreadMessage } from "@rakazo/contracts";
 import { darkTokens } from "@rakazo/ui-tokens";
-import type { GroupAvatarMember } from "@rakazo/ui-web";
 import {
   BotAvatar,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  GroupAvatar,
 } from "@rakazo/ui-web";
 import { botImageSrc } from "../../lib/bot-image-src";
 import { uniquePeersFromCluster } from "../../lib/condense-peer-receipts";
@@ -28,43 +26,42 @@ export type PeerReceiptClusterProps = {
   onOpenPeer: (peer: { peerBotId: string; peerBotName: string }) => void;
 };
 
+export function formatPeerNames(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? "";
+  if (names.length === 2) {
+    return i18n._({
+      id: "{first} and {second}",
+      message: "{first} and {second}",
+      values: { first: names[0], second: names[1] },
+    });
+  }
+  return i18n._({
+    id: "{first}, {second} and {n} more",
+    message: "{first}, {second} and {n} more",
+    values: { first: names[0], second: names[1], n: names.length - 2 },
+  });
+}
+
+export function peerReceiptLabel(messageCount: number, names: readonly string[]): string {
+  const who = formatPeerNames(names);
+  return i18n._({
+    id: "{messageCount} messages with {who}",
+    message: "{messageCount} messages with {who}",
+    values: { messageCount, who },
+  });
+}
+
 export function PeerReceiptCluster({
   messages,
-  sentOnly,
+  sentOnly: _sentOnly,
   peerBot,
   onOpenPeer,
 }: PeerReceiptClusterProps) {
   const peers = uniquePeersFromCluster(messages);
-  const members: GroupAvatarMember[] = peers.map((peer) => {
-    const look = peerBot(peer.id);
-    return {
-      botId: peer.id,
-      name: peer.name,
-      color: look?.color ?? darkTokens.mutedForeground,
-      shape: look?.avatarShape,
-      status: look?.status,
-      imageSrc: botImageSrc({
-        id: peer.id,
-        hasAvatar: look?.hasAvatar,
-        updatedAt: look?.updatedAt,
-      }),
-    };
-  });
-  const messageCount = messages.length;
-  const peerCount = peers.length;
-  const prefix = sentOnly
-    ? i18n._({ id: "Messaged", message: "Messaged" })
-    : i18n._({
-        id: "{messageCount} messages with",
-        message: "{messageCount} messages with",
-        values: { messageCount },
-      });
-  const suffix = i18n._({
-    id: "{peerCount} Bots",
-    message: "{peerCount} Bots",
-    values: { peerCount },
-  });
-  const label = `${prefix} ${suffix}`;
+  const names = peers.map((peer) => peer.name);
+  const first = peers[0];
+  const look = first ? peerBot(first.id) : undefined;
+  const label = peerReceiptLabel(messages.length, names);
 
   return (
     <div className="flex justify-center">
@@ -72,33 +69,51 @@ export function PeerReceiptCluster({
         <DropdownMenuTrigger
           data-testid="peer-receipt-cluster"
           aria-label={label}
-          className="inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent py-1 text-[12px] text-muted-foreground shadow-none outline-none transition-colors hover:text-foreground/75"
+          className="inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent py-1 text-caption text-muted-foreground shadow-none outline-none hover:text-foreground"
         >
-          <span>{prefix}</span>
-          <GroupAvatar members={members.slice(0, 3)} size={22} />
-          <span>{suffix}</span>
+          <span>
+            {i18n._({
+              id: "{messageCount} messages with",
+              message: "{messageCount} messages with",
+              values: { messageCount: messages.length },
+            })}
+          </span>
+          {first ? (
+            <BotAvatar
+              color={look?.color ?? darkTokens.mutedForeground}
+              shape={look?.avatarShape}
+              identity={first.id}
+              size={14}
+              imageSrc={botImageSrc({
+                id: first.id,
+                hasAvatar: look?.hasAvatar,
+                updatedAt: look?.updatedAt,
+              })}
+            />
+          ) : null}
+          <span>{formatPeerNames(names)}</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="center"
           className="w-auto min-w-44 rounded-2xl px-1.5 py-1.5 shadow-lg"
         >
           {peers.map((peer) => {
-            const look = peerBot(peer.id);
+            const itemLook = peerBot(peer.id);
             return (
               <DropdownMenuItem
                 key={peer.id}
                 data-testid="peer-receipt-peer"
-                className="gap-2 rounded-lg px-2 py-1.5 text-[13.5px]"
+                className="gap-2 rounded-lg px-2 py-1.5 text-body"
                 onClick={() => onOpenPeer({ peerBotId: peer.id, peerBotName: peer.name })}
               >
                 <BotAvatar
-                  color={look?.color ?? darkTokens.mutedForeground}
+                  color={itemLook?.color ?? darkTokens.mutedForeground}
                   identity={peer.id}
-                  size={22}
+                  size={14}
                   imageSrc={botImageSrc({
                     id: peer.id,
-                    hasAvatar: look?.hasAvatar,
-                    updatedAt: look?.updatedAt,
+                    hasAvatar: itemLook?.hasAvatar,
+                    updatedAt: itemLook?.updatedAt,
                   })}
                 />
                 <span className="truncate">{peer.name}</span>
