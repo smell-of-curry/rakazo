@@ -152,7 +152,10 @@ describe("Android mobile platform contract", () => {
 
   it("reconciles finished agents and opens ordinary chats at the latest message", () => {
     const thread = readFileSync(resolve(mobileRoot, "app/thread.tsx"), "utf8");
-    const scroll = readFileSync(resolve(mobileRoot, "lib/thread-scroll.ts"), "utf8");
+    const scroll = readFileSync(
+      resolve(mobileRoot, "../../packages/core/src/thread-scroll.ts"),
+      "utf8",
+    );
     expect(thread).toContain(
       "const currentBotStatus = snap ? snap.run?.status : currentBot?.status",
     );

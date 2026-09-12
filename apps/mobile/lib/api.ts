@@ -10,13 +10,15 @@ import type {
   Space,
   SpaceNavigation,
 } from "@rakazo/contracts";
+import type { ThreadHistory } from "@rakazo/core";
 import {
+  copyableMessageText,
   mergeThreadHistory,
+  messageProviderLabel,
   prependThreadHistoryPage,
   readBoundedJsonResponse,
   reduceThreadSnapshot,
   signupRequiresEmailVerification,
-  type ThreadHistory,
 } from "@rakazo/core";
 import * as SecureStore from "expo-secure-store";
 import { defaultApiBase, type EndpointResult, normalizeApiBase } from "./endpoint";
@@ -782,34 +784,10 @@ export function prependMobileMessagePage(
   return prependThreadHistoryPage(prev, page);
 }
 
-const MESSAGING_PROVIDER_LABELS: Record<string, string> = {
-  sendblue: "iMessage",
-  slack: "Slack",
-  whatsapp: "WhatsApp",
-  telegram: "Telegram",
-  lark: "Feishu",
-};
-
-export function messagingProviderLabel(provider: string, transport?: string): string {
-  if (provider === "sendblue" && ["iMessage", "SMS", "RCS"].includes(transport ?? "")) {
-    return transport!;
-  }
-  return MESSAGING_PROVIDER_LABELS[provider] ?? provider;
-}
+export const messagingProviderLabel = messageProviderLabel;
 
 export function copyableMobileMessageText(message: MobileMessage): string {
-  return message.blocks
-    .map((block) => {
-      if (block.kind === "channel_message") {
-        return `${messagingProviderLabel(block.provider, block.transport)} · ${block.fromLabel}: ${block.text}`;
-      }
-      if (block.kind === "text" || block.kind === "progress" || block.kind === "ask")
-        return block.text;
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n")
-    .trim();
+  return copyableMessageText(message);
 }
 
 export function blockText(message: MobileMessage) {

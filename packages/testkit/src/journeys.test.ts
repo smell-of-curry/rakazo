@@ -1165,6 +1165,13 @@ describeJourneys("required product journeys", () => {
       }),
     ).toBe(0);
 
+    // A bot runs one thing at a time: a routine that wakes while another run is active is
+    // re-queued, so let the group run finish before the DM routine fires.
+    await waitForDatabase(async () => {
+      const run = await prisma.run.findUnique({ where: { id: groupRun.id } });
+      return Boolean(run && ["completed", "failed", "cancelled"].includes(run.status));
+    });
+
     const dmCreated = await createScheduleFromTool(scheduleDeps, {
       spaceId: me.spaceId,
       botId: bot.id,

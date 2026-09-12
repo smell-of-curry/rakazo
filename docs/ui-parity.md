@@ -99,6 +99,8 @@ and `apps/mobile/components/bot-avatar.tsx`.
   overflow. Computer icon is `primary` when a computer session is live.
 - Day separators and timestamps centered `caption` muted, formatted
   `Tue, Sep 8 11:23 AM` (today: `11:23 AM`, this week: `Tue 11:23 AM`).
+  Insert a timestamp only on a new day or a gap greater than 15 minutes,
+  not when the sender changes.
 - Bubbles: max-width 72%, padding 8/12, radius 18, `body`. Bot = `bg-muted`
   left; user = `bg-chat-user text-chat-user-foreground` right. Consecutive
   bubbles from the same sender collapse to gap 2 and lose the tail-side

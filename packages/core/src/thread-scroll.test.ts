@@ -1,7 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { ThreadScrollBehavior } from "./thread-scroll.js";
+import {
+  isNearThreadEnd,
+  THREAD_NEAR_END_PX,
+  ThreadScrollBehavior,
+  threadMovedDown,
+} from "./thread-scroll.js";
 
-describe("mobile thread initial scroll", () => {
+describe("isNearThreadEnd", () => {
+  it("follows only while the viewport is within 80px of the latest message", () => {
+    expect(isNearThreadEnd(79)).toBe(true);
+    expect(isNearThreadEnd(THREAD_NEAR_END_PX)).toBe(false);
+  });
+});
+
+describe("threadMovedDown", () => {
+  it("does not treat an uninitialized baseline as downward movement", () => {
+    expect(threadMovedDown(null, 920)).toBe(false);
+    expect(threadMovedDown(950, 920)).toBe(false);
+    expect(threadMovedDown(920, 950)).toBe(true);
+  });
+});
+
+describe("ThreadScrollBehavior", () => {
   it("waits for layout when messages arrive first, then opens at the latest message", () => {
     const behavior = new ThreadScrollBehavior();
     behavior.openThread("thread-1");
