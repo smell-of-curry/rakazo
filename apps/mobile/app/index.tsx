@@ -780,7 +780,7 @@ function ActivityRow({
         <BotAvatar
           identity={run.botId}
           color={bot?.color ?? FALLBACK_COLOR}
-          status={run.status}
+          shape={bot?.avatarShape}
           imageSrc={botAvatarSrc(bot)}
         />
       }
@@ -975,9 +975,9 @@ function BotRow({
       avatar={
         <BotAvatar
           color={bot.color || FALLBACK_COLOR}
+          shape={bot.avatarShape}
           identity={bot.id}
           size={ROW_AVATAR}
-          status={bot.status}
           muted={!bot.notifyOnFinish}
           imageSrc={botAvatarSrc(bot)}
         />
@@ -1097,9 +1097,9 @@ function PinnedInboxGrid({
           >
             <BotAvatar
               color={bot.color || FALLBACK_COLOR}
+              shape={bot.avatarShape}
               identity={bot.id}
               size={PIN_AVATAR}
-              status={bot.status}
               muted={!bot.notifyOnFinish}
               imageSrc={botAvatarSrc(bot)}
             />

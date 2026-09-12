@@ -11,14 +11,14 @@ import type {
   VoiceInfo,
 } from "@rakazo/contracts";
 import {
+  AvatarShapeSchema,
   BOT_AVATAR_MAX_BYTES,
-  BOT_COLORS,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
   BOT_TITLE_MAX_LENGTH,
 } from "@rakazo/contracts";
+import { AVATAR_COLORS } from "@rakazo/core";
 import {
-  BotAvatar,
   Button,
   Input,
   NativeSelect,
@@ -30,6 +30,7 @@ import {
 import { X } from "lucide-react";
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { rpc } from "../../lib/rpc";
+import { AvatarStudio } from "./avatar-studio";
 
 const ScratchpadSection = lazy(() =>
   import("../ScratchpadSection").then((module) => ({ default: module.ScratchpadSection })),
@@ -207,6 +208,7 @@ export function BotSettings({
     description?: string;
     instructions?: string;
     color?: string;
+    avatarShape?: Bot["avatarShape"];
     computerMode: ComputerMode;
     memoryScope?: "isolated" | "shared" | null;
     autoSpeak?: boolean;
@@ -225,6 +227,7 @@ export function BotSettings({
   const [title, setTitle] = useState(bot.title);
   const [description, setDescription] = useState(bot.description);
   const [color, setColor] = useState(bot.color);
+  const [avatarShape, setAvatarShape] = useState(bot.avatarShape);
   const [computerMode, setComputerMode] = useState(bot.computerMode);
   const [memoryScope, setMemoryScope] = useState(bot.memoryScope);
   const [autoSpeak, setAutoSpeak] = useState(bot.autoSpeak);
@@ -381,39 +384,34 @@ export function BotSettings({
   return (
     <div data-testid="bot-settings">
       <div className="flex flex-col items-center">
-        <label className="cursor-pointer rounded-full">
-          <span className="sr-only">
-            <Trans>Avatars</Trans>
-          </span>
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="sr-only"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (file) void uploadAvatar(file);
-            }}
-          />
-          <BotAvatar
-            color={color}
-            identity={bot.id}
-            size={64}
-            status={bot.status}
-            imageSrc={avatarSrc}
-          />
-        </label>
-        {hasAvatar ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="mt-2"
-            onClick={() => void removeAvatar()}
-          >
-            <Trans>Remove</Trans>
-          </Button>
-        ) : null}
+        <AvatarStudio
+          identity={bot.id}
+          color={color}
+          shape={avatarShape}
+          imageSrc={avatarSrc}
+          onColorChange={(next) => {
+            setColor(next);
+            void rpc.bots.update({ botId: bot.id, color: next }).then(() => onAvatarChange?.());
+          }}
+          onShapeChange={(next) => {
+            const parsed = AvatarShapeSchema.safeParse(next);
+            if (!parsed.success) return;
+            setAvatarShape(parsed.data);
+            void rpc.bots
+              .update({ botId: bot.id, avatarShape: parsed.data })
+              .then(() => onAvatarChange?.());
+          }}
+          onUpload={(file) => void uploadAvatar(file)}
+          onReset={() => {
+            const nextColor = AVATAR_COLORS[0]?.hex ?? color;
+            setColor(nextColor);
+            setAvatarShape("hexagon");
+            void rpc.bots
+              .update({ botId: bot.id, color: nextColor, avatarShape: "hexagon" })
+              .then(() => onAvatarChange?.());
+            if (hasAvatar) void removeAvatar();
+          }}
+        />
       </div>
       <label htmlFor={`${ids}-name`} className="mt-6 block text-[14px] text-muted-foreground">
         <Trans>Name</Trans>
@@ -446,26 +444,6 @@ export function BotSettings({
           className="mt-2"
         />
       </label>
-      <div className={fieldLabelClass}>
-        <Trans>Color</Trans>
-        <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label={t`Color`}>
-          {BOT_COLORS.map((option, index) => (
-            <input
-              key={option}
-              className={`size-8 cursor-pointer appearance-none rounded-full border-2 ring-offset-card transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-                color === option ? "border-foreground" : "border-transparent"
-              }`}
-              type="radio"
-              name={`${ids}-color`}
-              value={option}
-              checked={color === option}
-              aria-label={t`Color ${index + 1}`}
-              style={{ backgroundColor: option }}
-              onChange={() => setColor(option)}
-            />
-          ))}
-        </div>
-      </div>
       <details
         data-testid="bot-settings-advanced"
         className="group mt-5"
@@ -614,6 +592,7 @@ export function BotSettings({
               description: nextDescription,
               instructions: nextDescription,
               color,
+              avatarShape,
               computerMode,
               memoryScope,
               autoSpeak,

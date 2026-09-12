@@ -15,6 +15,7 @@ import { uniquePeersFromCluster } from "../../lib/condense-peer-receipts";
 
 export type PeerReceiptPeerLook = {
   color: string;
+  avatarShape?: string | null;
   status?: string;
   hasAvatar?: boolean;
   updatedAt?: string;
@@ -40,6 +41,7 @@ export function PeerReceiptCluster({
       botId: peer.id,
       name: peer.name,
       color: look?.color ?? darkTokens.mutedForeground,
+      shape: look?.avatarShape,
       status: look?.status,
       imageSrc: botImageSrc({
         id: peer.id,

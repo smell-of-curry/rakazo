@@ -1,5 +1,4 @@
-export { type AvatarStyle, AvatarStyleProvider, useAvatarStyle } from "./avatar-style.js";
-export { BotAvatar, Wordmark } from "./bot-avatar.js";
+export { AvatarShapePreview, BotAvatar, Wordmark } from "./bot-avatar.js";
 export * from "./components/ui/alert-dialog.js";
 export * from "./components/ui/badge.js";
 export * from "./components/ui/button.js";

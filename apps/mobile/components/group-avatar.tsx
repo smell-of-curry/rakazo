@@ -7,6 +7,8 @@ export interface GroupAvatarMember {
   botId?: string;
   name?: string;
   color: string;
+  shape?: string | null;
+  avatarShape?: string | null;
   status?: string;
   imageSrc?: string;
 }
@@ -18,7 +20,7 @@ export const GroupAvatar = memo(function GroupAvatar({
   members: GroupAvatarMember[];
   size?: number;
 }) {
-  const styles = useThemedStyles(createGroupAvatarStyles);
+  const styles = useThemedStyles(createStackedAvatarChrome);
   const firstMember = members[0];
   if (!firstMember) {
     return (
@@ -41,9 +43,9 @@ export const GroupAvatar = memo(function GroupAvatar({
     return (
       <BotAvatar
         color={firstMember.color}
+        shape={firstMember.shape ?? firstMember.avatarShape}
         identity={firstMember.botId ?? firstMember.name}
         size={size}
-        status={firstMember.status}
         imageSrc={firstMember.imageSrc}
       />
     );
@@ -76,9 +78,9 @@ export const GroupAvatar = memo(function GroupAvatar({
         >
           <BotAvatar
             color={member.color}
+            shape={member.shape ?? member.avatarShape}
             identity={member.botId ?? member.name}
             size={miniSize}
-            status={member.status}
             imageSrc={member.imageSrc}
           />
         </View>
@@ -107,7 +109,7 @@ export const GroupAvatar = memo(function GroupAvatar({
   );
 });
 
-function createGroupAvatarStyles() {
+function createStackedAvatarChrome() {
   return StyleSheet.create({
     fallback: {
       backgroundColor: native.fillPressed,

@@ -23,9 +23,9 @@ export function BotMemberPicker({
       <View key={bot.id} style={styles.row}>
         <BotAvatar
           color={bot.color}
+          shape={bot.avatarShape}
           identity={bot.id}
           size={34}
-          status={bot.status}
           imageSrc={botAvatarSrc(bot)}
         />
         <Text style={[styles.name, { color: tokens.foreground }]}>{bot.name}</Text>

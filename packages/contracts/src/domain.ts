@@ -9,8 +9,17 @@ export type ComputerMode = z.infer<typeof ComputerModeSchema>;
 export const MemoryScopeSchema = z.enum(["isolated", "shared"]);
 export type MemoryScopeValue = z.infer<typeof MemoryScopeSchema>;
 
-export const AvatarStyleSchema = z.enum(["robot", "organic"]);
-export type AvatarStyle = z.infer<typeof AvatarStyleSchema>;
+export const AvatarShapeSchema = z.enum([
+  "hexagon",
+  "triangle",
+  "square",
+  "pill",
+  "circle",
+  "drop",
+  "blob",
+  "cloud",
+]);
+export type AvatarShape = z.infer<typeof AvatarShapeSchema>;
 
 export const ThinkingLevelSchema = z.enum([
   "off",
@@ -47,6 +56,7 @@ export const BotSchema = z.object({
   description: z.string(),
   instructions: z.string(),
   color: z.string(),
+  avatarShape: AvatarShapeSchema.nullable(),
   notifyOnFinish: z.boolean(),
   pinned: z.boolean(),
   sectionId: Id.nullable(),
@@ -86,6 +96,7 @@ export const GroupMemberSchema = z.object({
   botId: Id,
   name: z.string(),
   color: z.string(),
+  avatarShape: AvatarShapeSchema.nullable().optional(),
   status: z.string().optional(),
   hasAvatar: z.boolean().optional(),
 });
@@ -156,6 +167,7 @@ export const SpaceBotSchema = BotSchema.pick({
   name: true,
   title: true,
   color: true,
+  avatarShape: true,
   notifyOnFinish: true,
   pinned: true,
   sectionId: true,
@@ -286,6 +298,7 @@ export const CreateBotInput = z.object({
   instructions: z.string().max(BOT_INSTRUCTIONS_MAX_LENGTH).default(""),
   notifyOnFinish: z.boolean().default(true),
   color: z.string().optional(),
+  avatarShape: AvatarShapeSchema.nullable().optional(),
   computerMode: ComputerModeSchema.default("team"),
   /** Idempotency key within a space (unique with spaceId). */
   spawnKey: z.string().trim().min(1).max(120).optional(),
@@ -313,6 +326,7 @@ export const UpdateBotInput = z
     instructions: z.string().trim().max(BOT_INSTRUCTIONS_MAX_LENGTH).optional(),
     notifyOnFinish: z.boolean().optional(),
     color: z.string().optional(),
+    avatarShape: AvatarShapeSchema.nullable().optional(),
     pinned: z.boolean().optional(),
     memoryScope: MemoryScopeSchema.nullable().optional(),
     sectionId: Id.nullable().optional(),
@@ -1217,7 +1231,6 @@ export const MeSchema = z.object({
   computerHost: z.enum(["docker", "this-mac"]).nullable(),
   canChooseHostComputer: z.boolean(),
   sandboxProvider: z.string(),
-  avatarStyle: AvatarStyleSchema,
 });
 export type Me = z.infer<typeof MeSchema>;
 

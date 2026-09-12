@@ -553,9 +553,9 @@ function Thread() {
           {!inGroup && currentBot ? (
             <BotAvatar
               color={currentBot.color}
+              shape={currentBot.avatarShape}
               identity={currentBot.id}
               size={34}
-              status={currentBotStatus}
               muted={!currentBot.notifyOnFinish}
               imageSrc={botAvatarSrc(currentBot)}
             />
@@ -1410,6 +1410,7 @@ function Thread() {
     const member = snap?.members?.find((item) => item.botId === id);
     return {
       color: bot?.color ?? member?.color,
+      shape: bot?.avatarShape ?? member?.avatarShape,
       status: bot?.status ?? member?.status,
       imageSrc: botAvatarSrc(
         bot ?? (member ? { botId: member.botId, hasAvatar: member.hasAvatar } : undefined),
@@ -1464,10 +1465,6 @@ function Thread() {
       ? (snap?.members?.find((member) => member.botId === activityBotId) ??
         (currentBot?.id === activityBotId ? currentBot : undefined))
       : undefined;
-    const activityStatus = activityBotId
-      ? (snap?.activeRuns?.find((run) => run.botId === activityBotId)?.status ??
-        (snap?.run?.botId === activityBotId ? snap.run.status : currentBotStatus))
-      : undefined;
     return (
       <View
         key={message.id}
@@ -1497,9 +1494,9 @@ function Thread() {
           <View style={{ paddingTop: 22 }}>
             <BotAvatar
               color={activityBot?.color ?? tokens.mutedForeground}
+              shape={activityBot?.avatarShape}
               identity={activityBotId}
               size={inGroup ? 20 : 28}
-              status={activityStatus}
               imageSrc={peerLook(activityBotId).imageSrc}
             />
           </View>
@@ -1583,9 +1580,9 @@ function Thread() {
       >
         <BotAvatar
           color={currentBot.color}
+          shape={currentBot.avatarShape}
           identity={currentBot.id}
           size={28}
-          status={currentBotStatus}
           imageSrc={botAvatarSrc(currentBot)}
         />
         <Text style={{ color: tokens.mutedForeground, fontSize: 13.5, marginLeft: 8 }}>
@@ -1618,9 +1615,9 @@ function Thread() {
             >
               <BotAvatar
                 color={bot.color}
+                shape={bot.avatarShape}
                 identity={bot.botId}
                 size={28}
-                status={bot.status}
                 imageSrc={botAvatarSrc(
                   mentionBots.find((item) => item.id === bot.botId) ?? {
                     botId: bot.botId,

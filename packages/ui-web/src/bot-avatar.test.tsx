@@ -1,122 +1,37 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { avatarIdentitySeed } from "@rakazo/core";
-import { renderToString } from "react-dom/server";
+import { AVATAR_SHAPES, resolveAvatarShape } from "@rakazo/core";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { AvatarStyleProvider } from "./avatar-style.js";
-import { BotAvatar } from "./bot-avatar.js";
+import { AvatarShapePreview, BotAvatar } from "./bot-avatar.js";
 
 describe("BotAvatar", () => {
   it("renders a circular photo when imageSrc is set", () => {
-    const html = renderToString(
-      <BotAvatar color="#8B5CF6" imageSrc="/api/bots/bot-1/avatar?v=1" status="running" />,
+    const { container } = render(
+      <BotAvatar color="#8B5CF6" identity="bot-1" imageSrc="/api/bots/bot-1/avatar?v=1" />,
     );
-    expect(html).toContain("<img");
-    expect(html).toContain('src="/api/bots/bot-1/avatar?v=1"');
-    expect(html).toContain("object-cover");
-    expect(html).toContain("rakazo-bot-avatar-ring");
+    const image = container.querySelector("img");
+    expect(image).toHaveAttribute("src", "/api/bots/bot-1/avatar?v=1");
+    expect(image).toHaveClass("object-cover");
   });
 
-  it("renders distinct SVG gradient IDs for concurrent working avatars", () => {
-    const html = renderToString(
-      <div>
-        <BotAvatar color="#8B5CF6" status="running" />
-        <BotAvatar color="#10B981" status="running" />
-      </div>,
-    );
-
-    const gradMatches = [...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]);
-    expect(gradMatches).toHaveLength(2);
-    expect(gradMatches[0]).toBeTruthy();
-    expect(gradMatches[1]).toBeTruthy();
-    expect(gradMatches[0]).not.toBe(gradMatches[1]);
-
-    expect(html).toContain(`stroke="url(#${gradMatches[0]})"`);
-    expect(html).toContain(`stroke="url(#${gradMatches[1]})"`);
+  it("renders the resolved mascot path when there is no photo", () => {
+    const { container } = render(<BotAvatar color="#8B5CF6" identity="maya" shape="cloud" />);
+    const path = container.querySelector("path");
+    expect(path).toHaveAttribute("d", AVATAR_SHAPES.cloud);
+    expect(container.querySelectorAll("ellipse")).toHaveLength(2);
   });
 
-  it.each(["running", "queued", "leased", "waiting_input", "waiting_takeover"])(
-    "renders active working ring for %s status",
-    (status) => {
-      const html = renderToString(<BotAvatar color="#3B82F6" status={status} />);
-      expect(html).toContain("<svg");
-      expect(html).toContain("rakazo-bot-avatar-ring");
-    },
-  );
-
-  it("keeps the working ring mounted when idle so its timeline does not reset", () => {
-    const html = renderToString(<BotAvatar color="#F59E0B" status="idle" />);
-    expect(html).toContain('data-working="false"');
-    expect(html).toContain("rakazo-bot-avatar-ring");
+  it("hashes a default shape from the bot id", () => {
+    const { container } = render(<BotAvatar color="#10B981" identity="bot-research" />);
+    expect(container.querySelector("path")).toHaveAttribute(
+      "d",
+      AVATAR_SHAPES[resolveAvatarShape("bot-research")],
+    );
   });
+});
 
-  it("generates an organic avatar from the bot color", () => {
-    const html = renderToString(
-      <BotAvatar color="#D9508A" identity="maya" size={28} status="running" variant="organic" />,
-    );
-
-    expect(html).toContain("rakazo-organic-avatar");
-    expect(html).toContain('data-working="true"');
-    expect(html).toMatch(/data-shape-family="\d"/);
-    expect(html).toMatch(/data-eye-pattern="[0-3]"/);
-    expect(html).toContain("<animate");
-    expect(html).not.toContain("rakazo-bot-avatar-visor");
-  });
-
-  it("generates distinct organic silhouettes for distinct bot identities", () => {
-    const maya = renderToString(<BotAvatar color="#D9508A" identity="maya" variant="organic" />);
-    const github = renderToString(
-      <BotAvatar color="#D9508A" identity="github" variant="organic" />,
-    );
-
-    expect(maya).not.toEqual(github);
-  });
-
-  it("assigns animation hooks across every organic shape family", () => {
-    const identities = new Map<number, string>();
-    for (let index = 0; index < 500 && identities.size < 10; index++) {
-      const identity = `avatar-${index}`;
-      identities.set(avatarIdentitySeed(identity) % 10, identity);
-    }
-    expect(identities.size).toBe(10);
-
-    for (const [family, identity] of identities) {
-      const html = renderToString(
-        <BotAvatar color="#D9508A" identity={identity} status="running" variant="organic" />,
-      );
-      expect(html).toContain(`data-shape-family="${family}"`);
-      expect(html).toMatch(/data-eye-pattern="[0-3]"/);
-      expect(html).toContain('data-working="true"');
-    }
-  });
-
-  it("uses the account avatar preference when no local variant is provided", () => {
-    const html = renderToString(
-      <AvatarStyleProvider value="organic">
-        <BotAvatar color="#D9508A" identity="maya" />
-      </AvatarStyleProvider>,
-    );
-
-    expect(html).toContain("rakazo-organic-avatar");
-  });
-
-  it("keeps the organic morph timeline stable across status updates", () => {
-    const idle = renderToString(
-      <BotAvatar color="#D9508A" identity="maya" status="idle" variant="organic" />,
-    );
-    const working = renderToString(
-      <BotAvatar color="#D9508A" identity="maya" status="running" variant="organic" />,
-    );
-
-    expect(working.match(/<animate[^>]+dur="([^"]+)"/)?.[1]).toBe(
-      idle.match(/<animate[^>]+dur="([^"]+)"/)?.[1],
-    );
-    expect(idle).toContain("rakazo-organic-avatar-eyes-idle");
-    expect(idle).toContain("rakazo-organic-avatar-eyes-working");
-    expect(idle).toContain("rakazo-organic-avatar-body-idle");
-    expect(idle).toContain("rakazo-organic-avatar-body-working");
-    expect(readFileSync(join(import.meta.dirname, "styles.css"), "utf8")).not.toMatch(
-      /data-working[^}]+animation:/s,
-    );
+describe("AvatarShapePreview", () => {
+  it("names the shape for the studio grid", () => {
+    render(<AvatarShapePreview shape="hexagon" color="#8B5CF6" selected />);
+    expect(screen.getByRole("button", { name: "hexagon" })).toHaveAttribute("aria-pressed", "true");
   });
 });

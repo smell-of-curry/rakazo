@@ -673,6 +673,7 @@ export type MobileBot = Pick<
   | "preview"
   | "title"
   | "color"
+  | "avatarShape"
   | "notifyOnFinish"
   | "threadId"
   | "pinned"
@@ -699,7 +700,6 @@ export type MobileMe = Pick<
   | "defaultProvider"
   | "defaultModel"
   | "needsModel"
-  | "avatarStyle"
   | "isDeploymentOwner"
 >;
 

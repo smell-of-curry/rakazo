@@ -9,6 +9,7 @@ import { GroupAvatar } from "./group-avatar";
 
 export type PeerReceiptLook = {
   color?: string;
+  shape?: string | null;
   status?: string;
   imageSrc?: string;
 };
@@ -64,6 +65,7 @@ export function PeerReceiptCluster({
               botId: peer.id,
               name: peer.name,
               color: peerLook(peer.id)?.color ?? tokens.mutedForeground,
+              shape: peerLook(peer.id)?.shape,
               status: peerLook(peer.id)?.status,
               imageSrc: peerLook(peer.id)?.imageSrc,
             }))}
@@ -102,6 +104,7 @@ export function PeerReceiptCluster({
                 >
                   <BotAvatar
                     color={look?.color ?? tokens.mutedForeground}
+                    shape={look?.shape}
                     identity={peer.id}
                     size={20}
                     imageSrc={look?.imageSrc}

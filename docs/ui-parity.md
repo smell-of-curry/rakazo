@@ -84,7 +84,7 @@ and `apps/mobile/components/bot-avatar.tsx`.
   bot's `color` with two ink eyes. Shape defaults from a stable hash of the
   bot id when unset. Paths and the 12-color list are ported from upstream PR
   #856 (`packages/ui-web/src/bot-avatar.tsx` there).
-- No robot visor, no organic morphing, no eye animation, no spinning ring.
+- No visor, no morphing blob, no eye animation, no spinning ring.
   Working state is shown elsewhere (thread typing row, sidebar time slot
   text `Working…`), never on the avatar.
 - Groups: two member avatars stacked, `+N` overflow badge.

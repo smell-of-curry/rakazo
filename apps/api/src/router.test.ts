@@ -13,7 +13,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createRouter, type RouterDeps } from "./router.js";
 
 describe("account preferences", () => {
-  function preferencesDeps(avatarStyle: string) {
+  function preferencesDeps() {
     const update = vi.fn().mockResolvedValue({});
     const prisma = {
       user: {
@@ -21,7 +21,6 @@ describe("account preferences", () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
           email: "user@rakazo.test",
           name: "Test User",
-          avatarStyle,
         }),
       },
       spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },
@@ -48,7 +47,7 @@ describe("account preferences", () => {
   }
 
   it("keeps an unconfigured catalog offline unless explicitly requested", async () => {
-    const { actor, deps } = preferencesDeps("robot");
+    const { actor, deps } = preferencesDeps();
     const fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ results: [] }), {
         headers: { "content-type": "application/json" },
@@ -71,62 +70,6 @@ describe("account preferences", () => {
     await request(true);
     expect(fetch).toHaveBeenCalled();
   });
-
-  it("persists and returns the selected avatar style", async () => {
-    const { update, actor, handler } = preferencesDeps("organic");
-
-    const { response } = await handler.handle(
-      new Request("http://127.0.0.1/rpc/preferences/update", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ json: { avatarStyle: "organic" } }),
-      }),
-      { prefix: "/rpc", context: { actor } },
-    );
-
-    expect(response.status).toBe(200);
-    expect(update).toHaveBeenCalledWith({
-      where: { id: "user-1" },
-      data: { avatarStyle: "organic" },
-    });
-    await expect(response.json()).resolves.toEqual({
-      json: expect.objectContaining({ avatarStyle: "organic" }),
-    });
-  });
-
-  it("rejects avatar styles outside robot|organic", async () => {
-    const { update, actor, handler } = preferencesDeps("robot");
-
-    const { response } = await handler.handle(
-      new Request("http://127.0.0.1/rpc/preferences/update", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ json: { avatarStyle: "dicebear" } }),
-      }),
-      { prefix: "/rpc", context: { actor } },
-    );
-
-    expect(response.status).toBeGreaterThanOrEqual(400);
-    expect(update).not.toHaveBeenCalled();
-  });
-
-  it("coerces unknown stored avatar styles to robot on me", async () => {
-    const { actor, handler } = preferencesDeps("custom-cdn");
-
-    const { response } = await handler.handle(
-      new Request("http://127.0.0.1/rpc/me", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ json: null }),
-      }),
-      { prefix: "/rpc", context: { actor } },
-    );
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      json: expect.objectContaining({ avatarStyle: "robot" }),
-    });
-  });
 });
 
 describe("model setup gate", () => {
@@ -140,7 +83,6 @@ describe("model setup gate", () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
           email: "user@rakazo.test",
           name: "Test User",
-          avatarStyle: "robot",
         }),
       },
       spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },
@@ -472,7 +414,6 @@ describe("updater owner gate", () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
           email: "user@rakazo.test",
           name: "Test User",
-          avatarStyle: "robot",
         }),
       },
       spaceModelPreference: { findFirst: vi.fn().mockResolvedValue(null) },

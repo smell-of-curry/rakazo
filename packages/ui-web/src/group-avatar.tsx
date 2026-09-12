@@ -6,6 +6,8 @@ export interface GroupAvatarMember {
   botId?: string;
   name?: string;
   color: string;
+  shape?: string | null;
+  avatarShape?: string | null;
   status?: string;
   imageSrc?: string;
 }
@@ -55,11 +57,11 @@ export const GroupAvatar = memo(function GroupAvatar({
     return (
       <BotAvatar
         color={firstMember.color}
-        identity={firstMember.botId ?? firstMember.name}
+        shape={firstMember.shape ?? firstMember.avatarShape}
+        identity={firstMember.botId ?? firstMember.name ?? ""}
         size={size}
-        status={firstMember.status}
         imageSrc={firstMember.imageSrc}
-        className={cn("rakazo-group-avatar", className)}
+        className={className}
       />
     );
   }
@@ -95,9 +97,9 @@ export const GroupAvatar = memo(function GroupAvatar({
         >
           <BotAvatar
             color={member.color}
-            identity={member.botId ?? member.name}
+            shape={member.shape ?? member.avatarShape}
+            identity={member.botId ?? member.name ?? ""}
             size={miniSize}
-            status={member.status}
             imageSrc={member.imageSrc}
           />
         </div>

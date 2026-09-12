@@ -81,6 +81,7 @@ import {
 import type { Auth } from "@rakazo/auth";
 import {
   type Actor,
+  AvatarShapeSchema,
   appContract,
   type ComputerStatus,
   IntegrationProviderIdSchema,
@@ -496,15 +497,6 @@ export function createRouter(deps: RouterDeps) {
   return os.router({
     health: os.health.handler(async () => ({ ok: true as const, version: "0.1.0" })),
     me: authed.me.handler(async ({ context }): Promise<Me> => meDto(deps, context.actor)),
-    preferences: {
-      update: authed.preferences.update.handler(async ({ context, input }): Promise<Me> => {
-        await deps.prisma.user.update({
-          where: { id: context.actor.userId },
-          data: { avatarStyle: input.avatarStyle },
-        });
-        return meDto(deps, context.actor);
-      }),
-    },
     spaces: {
       list: authed.spaces.list.handler(async ({ context }) =>
         spaceNavigationDto(deps, context.actor, repos, groupRepos),
@@ -972,6 +964,7 @@ export function createRouter(deps: RouterDeps) {
             instructions: source.instructions,
             notifyOnFinish: source.notifyOnFinish,
             color: source.color,
+            avatarShape: AvatarShapeSchema.nullable().catch(null).parse(source.avatarShape),
             computerMode: source.computer?.scope === "dedicated" ? "dedicated" : "team",
             modelProvider: source.modelProvider,
             modelId: source.modelId,
@@ -1093,6 +1086,7 @@ export function createRouter(deps: RouterDeps) {
             instructions: input.instructions,
             notifyOnFinish: input.notifyOnFinish,
             color: input.color,
+            avatarShape: input.avatarShape,
             pinned: input.pinned,
             memoryScope: input.memoryScope,
             sectionId: input.sectionId,
@@ -1644,7 +1638,7 @@ export function createRouter(deps: RouterDeps) {
             message: "This prompt is no longer awaiting an answer",
           });
         }
-        await deps.jobs.enqueue(runContinueJob(input.runId)).catch((error) => {
+        await deps.jobs.enqueue(runContinueJob(input.runId, "answer")).catch((error) => {
           // The answer and queued run are durable; the reconciler repairs a missed immediate wake.
           getLogger().error("thread answer enqueue", error);
         });
@@ -4847,6 +4841,7 @@ async function spaceNavigationDto(
           name: bot.name,
           title: bot.title,
           color: bot.color,
+          avatarShape: bot.avatarShape,
           notifyOnFinish: bot.notifyOnFinish,
           pinned: bot.pinned,
           sectionId: bot.sectionId,
@@ -4933,7 +4928,6 @@ async function meDto(deps: RouterDeps, actor: Actor): Promise<Me> {
     computerHost: computerHostFor(setup.settings?.computerHost, deps.env.sandboxProvider),
     canChooseHostComputer: actor.isDeploymentOwner && deps.env.sandboxProvider === "docker",
     sandboxProvider: deps.env.sandboxProvider,
-    avatarStyle: user.avatarStyle === "organic" ? "organic" : "robot",
   };
 }
 

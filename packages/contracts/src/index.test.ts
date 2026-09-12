@@ -160,6 +160,13 @@ describe("contracts", () => {
     expect(UpdateBotInput.safeParse({ botId: "bot-1", clearAvatar: "yes" }).success).toBe(false);
   });
 
+  it("accepts a shipped avatar shape on create and update", () => {
+    expect(CreateBotInput.parse({ name: "Chief", avatarShape: "cloud" }).avatarShape).toBe("cloud");
+    expect(UpdateBotInput.parse({ botId: "bot-1", avatarShape: "pill" }).avatarShape).toBe("pill");
+    expect(UpdateBotInput.parse({ botId: "bot-1", avatarShape: null }).avatarShape).toBeNull();
+    expect(UpdateBotInput.safeParse({ botId: "bot-1", avatarShape: "hex" }).success).toBe(false);
+  });
+
   it("rejects partial model override clears on bot update", () => {
     expect(UpdateBotInput.safeParse({ botId: "bot-1", modelId: null }).success).toBe(false);
     expect(UpdateBotInput.safeParse({ botId: "bot-1", modelProvider: null }).success).toBe(false);

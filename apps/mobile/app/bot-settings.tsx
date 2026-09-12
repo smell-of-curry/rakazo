@@ -1,5 +1,6 @@
 import {
-  BOT_COLORS,
+  AvatarShapeSchema,
+  BOT_AVATAR_MAX_BASE64_LENGTH,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_NAME_MAX_LENGTH,
   BOT_TITLE_MAX_LENGTH,
@@ -7,9 +8,10 @@ import {
   normalizeCreateBotProfile,
   type ThinkingLevel,
 } from "@rakazo/contracts";
+import { AVATAR_COLORS, AVATAR_SHAPE_KEYS } from "@rakazo/core";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { BotAvatar } from "../components/bot-avatar";
 import { ComputerModePicker } from "../components/computer-mode-picker";
 import {
@@ -23,6 +25,7 @@ import { botAvatarSrc } from "../lib/bot-avatar-src";
 import { useI18n } from "../lib/i18n";
 import { presentMessageActionSheet } from "../lib/message-action-sheet";
 import { useMobileTokens, useResolvedAppearance } from "../lib/native";
+import { pickFromLibrary } from "../lib/pick-attachments";
 
 type BotSettingsRecord = MobileBot & {
   description?: string;
@@ -50,7 +53,10 @@ export default function BotSettingsScreen() {
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [color, setColor] = useState<string>(BOT_COLORS[0]);
+  const [color, setColor] = useState<string>(AVATAR_COLORS[0]?.hex ?? "#8B5CF6");
+  const [avatarShape, setAvatarShape] = useState<string | null>(null);
+  const [hasAvatar, setHasAvatar] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [modelKey, setModelKey] = useState("");
@@ -72,6 +78,8 @@ export default function BotSettingsScreen() {
         setTitle(next.title);
         setDescription(next.description ?? "");
         setColor(next.color);
+        setAvatarShape(next.avatarShape);
+        setHasAvatar(next.hasAvatar);
         setComputerMode(next.computerMode);
         setModelKey(
           next.modelProvider && next.modelId
@@ -224,6 +232,28 @@ export default function BotSettingsScreen() {
     });
   }
 
+  async function uploadPhoto() {
+    if (!botId) return;
+    const picked = await pickFromLibrary(0);
+    const file = picked.attachments[0];
+    if (!file) return;
+    if (file.contentBase64.length > BOT_AVATAR_MAX_BASE64_LENGTH) {
+      setError(t("Couldn't update avatars"));
+      return;
+    }
+    try {
+      await rpc("bots/setAvatar", {
+        botId,
+        name: file.name,
+        mimeType: file.mimeType,
+        contentBase64: file.contentBase64,
+      });
+      setHasAvatar(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("Couldn't update avatars"));
+    }
+  }
+
   async function save() {
     if (!botId || !bot || pending) return;
     setPending(true);
@@ -238,6 +268,7 @@ export default function BotSettingsScreen() {
         description?: string;
         instructions?: string;
         color?: string;
+        avatarShape?: (typeof AVATAR_SHAPE_KEYS)[number] | null;
         modelProvider?: string | null;
         modelId?: string | null;
         thinkingLevel?: ThinkingLevel | null;
@@ -250,6 +281,10 @@ export default function BotSettingsScreen() {
         input.instructions = profile.instructions;
       }
       if (color !== bot.color) input.color = color;
+      if (avatarShape !== bot.avatarShape) {
+        const parsed = AvatarShapeSchema.safeParse(avatarShape);
+        input.avatarShape = parsed.success ? parsed.data : null;
+      }
       const modelChanged =
         (selected?.provider ?? null) !== (bot.modelProvider ?? null) ||
         (selected?.modelId ?? null) !== (bot.modelId ?? null);
@@ -289,13 +324,19 @@ export default function BotSettingsScreen() {
       >
         {bot ? (
           <View style={{ alignItems: "center", marginBottom: 24 }}>
-            <BotAvatar
-              color={color}
-              identity={bot.id}
-              size={64}
-              status={bot.status}
-              imageSrc={botAvatarSrc(bot)}
-            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("Avatar Studio")}
+              onPress={() => setStudioOpen(true)}
+            >
+              <BotAvatar
+                color={color}
+                shape={avatarShape}
+                identity={bot.id}
+                size={64}
+                imageSrc={hasAvatar ? botAvatarSrc({ ...bot, hasAvatar: true }) : undefined}
+              />
+            </Pressable>
           </View>
         ) : null}
         <Text style={{ color: tokens.mutedForeground, fontSize: 14 }}>{t("Name")}</Text>
@@ -350,33 +391,6 @@ export default function BotSettingsScreen() {
             textAlignVertical: "top",
           }}
         />
-        <Text style={{ color: tokens.mutedForeground, marginTop: 16, fontSize: 14 }}>
-          {t("Color")}
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 10, marginTop: 8 }}
-          accessibilityRole="radiogroup"
-        >
-          {BOT_COLORS.map((option, index) => (
-            <Pressable
-              key={option}
-              accessibilityRole="radio"
-              accessibilityLabel={t("Color {number}", { number: index + 1 })}
-              accessibilityState={{ checked: color === option }}
-              onPress={() => setColor(option)}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: option,
-                borderWidth: 3,
-                borderColor: color === option ? tokens.foreground : "transparent",
-              }}
-            />
-          ))}
-        </ScrollView>
         <ComputerModePicker value={computerMode} onChange={setComputerMode} />
         <Pressable
           accessibilityRole="button"
@@ -477,6 +491,95 @@ export default function BotSettingsScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+      <Modal
+        visible={studioOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setStudioOpen(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: tokens.background, padding: 24 }}>
+          <Text style={{ color: tokens.foreground, fontSize: 17, fontWeight: "600" }}>
+            {t("Avatar Studio")}
+          </Text>
+          <View style={{ alignItems: "center", marginVertical: 20 }}>
+            {bot ? (
+              <BotAvatar
+                color={color}
+                shape={avatarShape}
+                identity={bot.id}
+                size={72}
+                imageSrc={hasAvatar ? botAvatarSrc({ ...bot, hasAvatar: true }) : undefined}
+              />
+            ) : null}
+          </View>
+          <Text style={{ color: tokens.mutedForeground, fontSize: 12, marginBottom: 8 }}>
+            {t("Shape")}
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {AVATAR_SHAPE_KEYS.map((key) => (
+              <Pressable
+                key={key}
+                accessibilityRole="button"
+                accessibilityLabel={key}
+                accessibilityState={{ selected: avatarShape === key }}
+                onPress={() => setAvatarShape(key)}
+                style={{
+                  padding: 6,
+                  borderRadius: 12,
+                  borderWidth: avatarShape === key ? 2 : 0,
+                  borderColor: tokens.foreground,
+                }}
+              >
+                <BotAvatar color={color} shape={key} identity={bot?.id ?? "preview"} size={40} />
+              </Pressable>
+            ))}
+          </View>
+          <Text
+            style={{ color: tokens.mutedForeground, fontSize: 12, marginTop: 16, marginBottom: 8 }}
+          >
+            {t("Color")}
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+            {AVATAR_COLORS.map((option) => (
+              <Pressable
+                key={option.hex}
+                accessibilityRole="button"
+                accessibilityLabel={option.name}
+                accessibilityState={{ selected: color === option.hex }}
+                onPress={() => setColor(option.hex)}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: option.hex,
+                  borderWidth: color === option.hex ? 3 : 0,
+                  borderColor: tokens.foreground,
+                }}
+              />
+            ))}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("Upload photo")}
+            onPress={() => void uploadPhoto()}
+            style={{
+              marginTop: 24,
+              backgroundColor: tokens.muted,
+              borderRadius: 11,
+              padding: 14,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: tokens.foreground, fontSize: 15 }}>{t("Upload photo")}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setStudioOpen(false)}
+            style={{ marginTop: 16, alignItems: "center", padding: 12 }}
+          >
+            <Text style={{ color: tokens.foreground, fontSize: 15 }}>{t("Done")}</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </>
   );
 }

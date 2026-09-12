@@ -1,34 +1,48 @@
-const AVATAR_BY_COLOR: Record<string, string> = {
-  "#3ec5a8": "/avatars/bot-avatar-teal.svg",
-  "#f5a03c": "/avatars/bot-avatar-orange.svg",
-  "#6a6bf5": "/avatars/bot-avatar-indigo.svg",
-  "#9b5cf6": "/avatars/bot-avatar-violet.svg",
-  "#3b82f6": "/avatars/bot-avatar-blue.svg",
-  "#f2622a": "/avatars/bot-avatar-coral.svg",
-  "#d9508a": "/avatars/bot-avatar-pink.svg",
-};
+import {
+  AVATAR_CENTER,
+  AVATAR_EYE_INK,
+  AVATAR_SHAPES,
+  AVATAR_VIEWBOX,
+  resolveAvatarColorDef,
+  resolveAvatarShape,
+} from "@rakazo/core";
 
 export function LandingBotAvatar({
   color,
   size = 38,
+  identity,
   className,
 }: {
   color: string;
   size?: number;
+  identity?: string;
   className?: string;
 }) {
-  const src = AVATAR_BY_COLOR[color.toLowerCase()] ?? "/avatars/bot-avatar-coordinator.svg";
+  const seed = identity ?? color;
+  const colorDef = resolveAvatarColorDef(seed, color);
+  const shape = resolveAvatarShape(seed);
+  const gradId = `landing-${seed.replace(/[^a-zA-Z0-9-_]/g, "")}`;
 
   return (
-    <img
+    <svg
       aria-hidden="true"
-      alt=""
       className={className}
-      draggable={false}
       height={size}
-      src={src}
-      style={{ width: size, height: size, flex: "none" }}
+      viewBox={AVATAR_VIEWBOX}
       width={size}
-    />
+      style={{ width: size, height: size, flex: "none" }}
+    >
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={colorDef.light} />
+          <stop offset="100%" stopColor={colorDef.dark} />
+        </linearGradient>
+      </defs>
+      <path d={AVATAR_SHAPES[shape]} fill={`url(#${gradId})`} />
+      <g fill={AVATAR_EYE_INK}>
+        <ellipse cx={AVATAR_CENTER - 29} cy={AVATAR_CENTER - 8} rx={10} ry={7} />
+        <ellipse cx={AVATAR_CENTER + 29} cy={AVATAR_CENTER - 8} rx={10} ry={7} />
+      </g>
+    </svg>
   );
 }
