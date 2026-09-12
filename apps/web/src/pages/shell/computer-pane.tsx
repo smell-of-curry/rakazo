@@ -1,26 +1,18 @@
-import { t } from "@lingui/core/macro";
-import { Trans } from "@lingui/react/macro";
+import { i18n } from "@lingui/core";
 import type { Bot, ComputerStatus, Me, Routine, ThreadSnapshot } from "@rakazo/contracts";
 import { isActive } from "@rakazo/core";
-import { Maximize2 } from "lucide-react";
+import { Button } from "@rakazo/ui-web";
+import { Settings, X } from "lucide-react";
 import type { ReactNode } from "react";
-import {
-  ComputersUnavailableHint,
-  computersAreUnavailable,
-} from "../../components/ComputersUnavailableHint";
+import { computerStatusChip } from "../../lib/computer-screen";
 import { computerCanShowScreen } from "../../lib/thread-events";
+import { draftFromRoutine, emptyRoutineDraft, type RoutineDraftState } from "../routine-draft";
+import { RoutineListHeader, RoutineListRow } from "../routine-list";
 import {
-  draftFromRoutine,
-  emptyRoutineDraft,
-  type RoutineDraftState,
-  RoutineListHeader,
-  RoutineListRow,
-} from "../RoutineEditor";
-import {
+  ComputerScreenFrame,
+  ComputerScreenPlaceholder,
+  ComputerStatusChipView,
   computerLabel,
-  computerPlaceholder,
-  DesktopKindEmptyState,
-  screenIframeSandbox,
 } from "./computer-screen";
 import type { Panel } from "./types";
 
@@ -50,7 +42,6 @@ export function ComputerPane({
   booting,
   embeddedScreenUrl,
   computerScreenError,
-  bootstrapMe,
   openComputer,
   setRoutineDraft,
   setRoutineWebhookSecret,
@@ -61,59 +52,71 @@ export function ComputerPane({
   snapshot,
   stopRun,
 }: ComputerPaneProps) {
+  const chip = (() => {
+    const mapped = computerStatusChip(computer, snapshot?.run?.status);
+    if (booting && mapped.kind === "off")
+      return { kind: "setting_up" as const, tone: "muted" as const };
+    return mapped;
+  })();
+  const showScreen =
+    computerCanShowScreen(computer?.state, embeddedScreenUrl) && !computerScreenError;
   return (
     <div>
+      <div className="flex h-11 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-body font-medium text-foreground" dir="auto">
+            {computerLabel(computer?.mode ?? active.computerMode, active.name)}
+          </div>
+          <ComputerStatusChipView chip={chip} />
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={i18n._({ id: "Show settings", message: "Show settings" })}
+            onClick={() => setPanel("settings")}
+            className="text-muted-foreground"
+          >
+            <Settings size={16} strokeWidth={1.7} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={i18n._({ id: "Close panel", message: "Close panel" })}
+            onClick={() => setPanel(null)}
+          >
+            <X size={16} strokeWidth={1.8} />
+          </Button>
+        </div>
+      </div>
       <div
         data-testid="computer-preview"
-        className="group relative aspect-[16/10] overflow-hidden rounded-[14px] bg-background"
+        className="group relative mt-3 aspect-[16/10] overflow-hidden rounded-lg border bg-muted"
       >
         {computerOpen ? (
-          <div className="grid h-full place-items-center text-sm text-muted-foreground/80">
-            <Trans>Open in full window</Trans>
-          </div>
-        ) : computer?.kind === "desktop" ? (
-          <DesktopKindEmptyState className="grid h-full place-items-center px-6 text-center text-sm text-muted-foreground/80" />
-        ) : computerCanShowScreen(computer?.state, embeddedScreenUrl) && !computerScreenError ? (
-          <iframe
-            title={t`Bot screen preview`}
-            src={embeddedScreenUrl ?? undefined}
-            sandbox={screenIframeSandbox(embeddedScreenUrl)}
-            className="h-full w-full border-0 bg-black"
-            allow="clipboard-read; clipboard-write"
-            style={{ pointerEvents: "none" }}
+          <ComputerScreenPlaceholder chip={chip} />
+        ) : showScreen && embeddedScreenUrl ? (
+          <ComputerScreenFrame
+            url={embeddedScreenUrl}
+            title={i18n._({ id: "Bot screen preview", message: "Bot screen preview" })}
           />
         ) : (
-          <div className="grid h-full place-items-center px-6 text-center text-sm text-muted-foreground/80">
-            {computerScreenError ??
-              (computersAreUnavailable(bootstrapMe?.sandboxProvider) ? (
-                <ComputersUnavailableHint />
-              ) : (
-                computerPlaceholder(
-                  computer?.state,
-                  booting,
-                  computerLabel(computer?.mode, active.name),
-                )
-              ))}
-          </div>
+          (computerScreenError ?? <ComputerScreenPlaceholder chip={chip} />)
         )}
         {!computerScreenError ? (
           <button
             type="button"
             data-testid="computer-preview-open"
             className="absolute inset-0 flex cursor-pointer items-center justify-center bg-overlay/40 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-            aria-label={t`Open`}
+            aria-label={i18n._({ id: "Open", message: "Open" })}
             onClick={() => void openComputer()}
           >
-            <span className="inline-flex items-center gap-2 rounded-full bg-overlay px-3.5 py-2 text-[14px] text-foreground shadow-md">
-              <Maximize2 size={15} strokeWidth={1.9} aria-hidden />
-              <Trans>Open</Trans>
+            <span className="inline-flex items-center rounded-full bg-overlay px-3.5 py-2 text-body text-foreground shadow-md">
+              <span>{i18n._({ id: "Open", message: "Open" })}</span>
             </span>
           </button>
         ) : null}
       </div>
-      <p className="mt-2 truncate text-[13.5px] text-muted-foreground" dir="auto">
-        {t`${active.name}'s screen`}
-      </p>
       <RoutineListHeader
         onCreate={() => {
           setRoutineDraft(emptyRoutineDraft());

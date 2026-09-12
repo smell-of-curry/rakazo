@@ -2,15 +2,7 @@ import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ModelCatalogEntry, ModelCredential, Routine, ThinkingLevel } from "@rakazo/contracts";
 import { ThinkingLevelSchema } from "@rakazo/contracts";
-import {
-  type CronFreq,
-  type CronPreset,
-  cronFromPreset,
-  defaultCronPreset,
-  formatCron,
-  isOneShotRoutineCrons,
-  presetFromCron,
-} from "@rakazo/core";
+import { type CronFreq, type CronPreset, cronFromPreset, defaultCronPreset } from "@rakazo/core";
 import {
   Button,
   DropdownMenu,
@@ -25,26 +17,27 @@ import {
   NativeSelectOption,
   Textarea,
 } from "@rakazo/ui-web";
-import { ChevronLeft, Clock, GitBranch, Globe, MessageSquare, Pause, Plus, X } from "lucide-react";
+import { ChevronLeft, Clock, GitBranch, Globe, MessageSquare, Plus, X } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { rpc } from "../lib/rpc";
 import { RoutineSchedule } from "./RoutineSchedule";
+import {
+  draftFromRoutine,
+  emptyRoutineDraft,
+  type RoutineDraftState,
+  routineNeedsOneShotArm,
+} from "./routine-draft";
+import { RoutineListHeader, RoutineListRow, routineTriggerSummary } from "./routine-list";
 
-function toDatetimeLocalValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function defaultArmRunAtLocal(): string {
-  return toDatetimeLocalValue(new Date(Date.now() + 60 * 60 * 1000));
-}
-
-export function routineNeedsOneShotArm(
-  routine: Pick<Routine, "nextRunAt" | "lastRunAt">,
-  crons: string[],
-) {
-  return isOneShotRoutineCrons(crons) && !routine.nextRunAt && !routine.lastRunAt;
-}
+export type { RoutineDraftState };
+export {
+  draftFromRoutine,
+  emptyRoutineDraft,
+  RoutineListHeader,
+  RoutineListRow,
+  routineNeedsOneShotArm,
+  routineTriggerSummary,
+};
 
 const SCHEDULE_PRESETS: CronFreq[] = [
   "Every hour",
@@ -62,132 +55,6 @@ const COMING_SOON = [
   { id: "sentry", label: () => t`Sentry alert` },
   { id: "pagerduty", label: () => t`PagerDuty incident` },
 ] as const;
-
-export type RoutineDraftState = {
-  name: string;
-  prompt: string;
-  schedules: CronPreset[];
-  webhookEnabled: boolean;
-  githubEnabled: boolean;
-  messageProvider: string | null;
-  active: boolean;
-  runAtLocal: string;
-  modelProvider: string | null;
-  modelId: string | null;
-  thinkingLevel: ThinkingLevel | null;
-};
-
-export function emptyRoutineDraft(): RoutineDraftState {
-  return {
-    name: "",
-    prompt: "",
-    schedules: [],
-    webhookEnabled: false,
-    githubEnabled: false,
-    messageProvider: null,
-    active: true,
-    runAtLocal: "",
-    modelProvider: null,
-    modelId: null,
-    thinkingLevel: null,
-  };
-}
-
-export function draftFromRoutine(routine: Routine): RoutineDraftState {
-  return {
-    name: routine.name,
-    prompt: routine.prompt,
-    schedules: routine.crons.map(presetFromCron),
-    webhookEnabled: routine.webhookEnabled,
-    githubEnabled: routine.githubEnabled,
-    messageProvider: routine.messageProvider,
-    active: routine.active,
-    runAtLocal: routineNeedsOneShotArm(routine, routine.crons) ? defaultArmRunAtLocal() : "",
-    modelProvider: routine.modelProvider,
-    modelId: routine.modelId,
-    thinkingLevel: routine.thinkingLevel,
-  };
-}
-
-export function routineTriggerSummary(routine: Routine): string {
-  if (!routine.active) return t`Paused`;
-  const parts: string[] = [];
-  if (routine.webhookEnabled) parts.push(t`When a webhook fires`);
-  if (routine.githubEnabled) parts.push(t`Git event`);
-  if (routine.messageProvider === "slack") parts.push(t`Slack message`);
-  else if (routine.messageProvider === "teams") parts.push(t`Teams message`);
-  else if (routine.messageProvider) parts.push(t`Message event`);
-  for (const cron of routine.crons) parts.push(formatCron(cron));
-  return parts.length > 0 ? parts.join(" · ") : t`No trigger`;
-}
-
-export function RoutineListHeader({ onCreate }: { onCreate: () => void }) {
-  const { t } = useLingui();
-  return (
-    <div className="mt-[30px] mb-3 flex items-center justify-between gap-3">
-      <div className="text-sm text-muted-foreground">
-        <Trans>Routines</Trans>
-      </div>
-      <Button
-        variant="secondary"
-        size="icon-sm"
-        data-testid="routine-create-button"
-        aria-label={t`Create Routine`}
-        title={t`Create Routine`}
-        onClick={onCreate}
-      >
-        <Plus strokeWidth={1.9} />
-      </Button>
-    </div>
-  );
-}
-
-export function RoutineListRow({
-  routine,
-  running,
-  onOpen,
-  onStop,
-}: {
-  routine: Routine;
-  running: boolean;
-  onOpen: () => void;
-  onStop: () => void;
-}) {
-  return (
-    <div className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2.5 hover:bg-accent">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center gap-3 text-start"
-      >
-        <span className="grid h-5 w-5 place-items-center">
-          {routine.active ? (
-            <Clock size={16} strokeWidth={1.6} className="text-success" aria-hidden />
-          ) : (
-            <Pause size={14} className="text-muted-foreground" />
-          )}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14.5px] font-medium text-foreground" dir="auto">
-            {routine.name}
-          </span>
-          <span className="block truncate text-[12.5px] text-muted-foreground/80">
-            {routineTriggerSummary(routine)}
-          </span>
-        </span>
-      </button>
-      {running ? (
-        <Button
-          size="xs"
-          onClick={onStop}
-          className="shrink-0 rounded-full bg-warning/15 text-warning hover:bg-warning/25"
-        >
-          <Trans>Running · Stop</Trans>
-        </Button>
-      ) : null}
-    </div>
-  );
-}
 
 export function RoutineEditor({
   draft,
@@ -338,7 +205,7 @@ export function RoutineEditor({
         >
           <ChevronLeft />
         </Button>
-        <div className="text-[15.5px] font-medium text-foreground">
+        <div className="text-title font-semibold text-foreground">
           <Trans>Routine</Trans>
         </div>
         <Button
@@ -353,7 +220,7 @@ export function RoutineEditor({
       </div>
 
       <div className="mb-5 flex items-center justify-between gap-3">
-        <label className="flex items-center gap-2.5 text-sm text-foreground/75">
+        <label className="flex items-center gap-2.5 text-body text-foreground">
           <button
             type="button"
             role="switch"
@@ -383,7 +250,7 @@ export function RoutineEditor({
         </div>
       </div>
 
-      <label htmlFor={`${fieldId}-name`} className="block text-sm text-muted-foreground">
+      <label htmlFor={`${fieldId}-name`} className="block text-body text-muted-foreground">
         <Trans>Name</Trans>
         <Input
           id={`${fieldId}-name`}
@@ -394,7 +261,7 @@ export function RoutineEditor({
         />
       </label>
 
-      <label htmlFor={`${fieldId}-prompt`} className="mt-5 block text-sm text-muted-foreground">
+      <label htmlFor={`${fieldId}-prompt`} className="mt-5 block text-body text-muted-foreground">
         <Trans>Instruction</Trans>
         <Textarea
           id={`${fieldId}-prompt`}
@@ -406,7 +273,7 @@ export function RoutineEditor({
         />
       </label>
 
-      <label htmlFor={`${fieldId}-model`} className="mt-5 block text-sm text-muted-foreground">
+      <label htmlFor={`${fieldId}-model`} className="mt-5 block text-body text-muted-foreground">
         <Trans>Model</Trans>
         <NativeSelect
           id={`${fieldId}-model`}
@@ -444,7 +311,10 @@ export function RoutineEditor({
         </NativeSelect>
       </label>
       {modelKey && thinkingOptions.length ? (
-        <label htmlFor={`${fieldId}-thinking`} className="mt-5 block text-sm text-muted-foreground">
+        <label
+          htmlFor={`${fieldId}-thinking`}
+          className="mt-5 block text-body text-muted-foreground"
+        >
           <Trans>Thinking</Trans>
           <NativeSelect
             id={`${fieldId}-thinking`}
@@ -465,10 +335,10 @@ export function RoutineEditor({
         </label>
       ) : null}
 
-      <div className="mt-5 text-sm text-muted-foreground">
+      <div className="mt-5 text-body text-muted-foreground">
         <div className="flex items-baseline gap-2">
           <Trans>When to run</Trans>
-          <span className="text-xs text-muted-foreground/70">{timezone}</span>
+          <span className="text-small text-muted-foreground">{timezone}</span>
         </div>
 
         <div className="mt-2 space-y-2">
@@ -532,7 +402,7 @@ export function RoutineEditor({
           ) : null}
 
           {needsOneShotArm ? (
-            <label htmlFor={`${fieldId}-run-at`} className="block text-sm text-muted-foreground">
+            <label htmlFor={`${fieldId}-run-at`} className="block text-body text-muted-foreground">
               <Trans>Run at</Trans>
               <Input
                 id={`${fieldId}-run-at`}
@@ -591,11 +461,7 @@ export function RoutineEditor({
                 title={item.id === "teams" ? t`Teams not enabled` : t`Coming soon`}
               >
                 <DropdownMenuItem disabled>
-                  <span
-                    aria-hidden
-                    className="inline-block size-3.5 rounded-[4px]"
-                    style={{ background: comingSoonColor(item.id), opacity: 0.55 }}
-                  />
+                  <span aria-hidden className="inline-block size-3.5 rounded-sm bg-muted" />
                   {item.label()}
                 </DropdownMenuItem>
               </span>
@@ -612,12 +478,6 @@ export function RoutineEditor({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        {!hasTriggers ? (
-          <p className="mt-2 text-xs text-muted-foreground/70">
-            <Trans>Add a schedule, webhook, GitHub, or message trigger to run this routine.</Trans>
-          </p>
-        ) : null}
       </div>
 
       <div className="mt-5">
@@ -626,14 +486,14 @@ export function RoutineEditor({
         </Button>
       </div>
       {error ? (
-        <p role="alert" className="mt-3 text-[13px] text-destructive">
+        <p role="alert" className="mt-3 text-body text-destructive">
           {error}
         </p>
       ) : null}
 
-      <div className="mt-8 text-sm text-muted-foreground">
+      <div className="mt-8 text-body text-muted-foreground">
         <Trans>Run history</Trans>
-        <p className="mt-2 text-[13.5px] text-muted-foreground/80">
+        <p className="mt-2 text-small text-muted-foreground">
           <Trans>No runs yet</Trans>
         </p>
       </div>
@@ -653,7 +513,7 @@ function MessageTriggerCard({ provider, onRemove }: { provider: string; onRemove
     <div className="rounded-xl border border-border p-3">
       <div className="flex items-center gap-2.5 px-0.5">
         <MessageSquare size={16} strokeWidth={1.6} className="text-muted-foreground" aria-hidden />
-        <span className="flex-1 text-[14.5px] text-foreground">{label}</span>
+        <span className="flex-1 text-body text-foreground">{label}</span>
         <Button
           variant="ghost"
           size="icon-xs"
@@ -664,9 +524,6 @@ function MessageTriggerCard({ provider, onRemove }: { provider: string; onRemove
           <X />
         </Button>
       </div>
-      <p className="mt-2.5 text-[13.5px] text-muted-foreground/70">
-        <Trans>Runs when this bot receives a verified message from this provider.</Trans>
-      </p>
     </div>
   );
 }
@@ -708,7 +565,7 @@ function InboundTriggerCard({
             ? "Authorization: Bearer …"
             : placeholder;
   const cellClass =
-    "break-all rounded-lg bg-muted px-2.5 py-1.5 font-mono text-xs text-foreground/75";
+    "break-all rounded-lg bg-muted px-2.5 py-1.5 font-mono text-small text-foreground";
 
   return (
     <div className="rounded-xl border border-border p-3">
@@ -718,7 +575,7 @@ function InboundTriggerCard({
         ) : (
           <Globe size={16} strokeWidth={1.6} className="text-muted-foreground" aria-hidden />
         )}
-        <span className="flex-1 text-[14.5px] text-foreground">
+        <span className="flex-1 text-body text-foreground">
           {kind === "github" ? <Trans>Git event</Trans> : <Trans>When a webhook fires</Trans>}
         </span>
         <Button
@@ -731,18 +588,18 @@ function InboundTriggerCard({
           <X />
         </Button>
       </div>
-      <div className="mt-2.5 space-y-2.5 text-[13.5px]">
-        <div className="block text-muted-foreground/70">
+      <div className="mt-2.5 space-y-2.5 text-small">
+        <div className="block text-muted-foreground">
           <Trans>POST to</Trans>
           <div className={`mt-1 ${cellClass}`}>{postValue}</div>
         </div>
-        <div className="flex items-center gap-2 text-muted-foreground/70">
+        <div className="flex items-center gap-2 text-muted-foreground">
           <span className="shrink-0">
             <Trans>key</Trans>
           </span>
           <div className={`min-w-0 flex-1 ${cellClass}`}>{keyValue}</div>
         </div>
-        <div className="block text-muted-foreground/70">
+        <div className="block text-muted-foreground">
           <Trans>header</Trans>
           <div className={`mt-1 ${cellClass}`}>{headerValue}</div>
         </div>
@@ -779,19 +636,6 @@ function schedulePresetLabel(freq: CronFreq): string {
       return t`Advanced...`;
     default:
       return freq;
-  }
-}
-
-function comingSoonColor(id: string): string {
-  switch (id) {
-    case "teams":
-      return "#6264A7";
-    case "linear":
-      return "#5E6AD2";
-    case "sentry":
-      return "#A467FD";
-    default:
-      return "#06AC38";
   }
 }
 

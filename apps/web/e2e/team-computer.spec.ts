@@ -197,7 +197,7 @@ test("an active Team bot must be stopped before user takeover", async ({ page },
   const chrome = page.getByTestId("computer-chrome");
   await expect(page.getByRole("button", { name: "Close computer" })).toBeVisible();
   // Open while the bot is busy must not grant control (takeover stays blocked).
-  await expect(chrome.getByText("You have control", { exact: true })).toHaveCount(0);
+  await expect(chrome.getByRole("button", { name: "Release", exact: true })).toHaveCount(0);
   await expect(chrome.getByRole("button", { name: /Take control/i })).toHaveCount(0);
   await captureScreenshot(page, testInfo, "48b-open-while-busy-no-control");
   await page.getByRole("button", { name: "Close computer" }).click();
@@ -221,9 +221,8 @@ test("an active Team bot must be stopped before user takeover", async ({ page },
   await page.getByTestId("computer-preview").hover();
   await page.getByTestId("computer-preview-open").click();
   await expect(page.getByRole("button", { name: "Close computer" })).toBeVisible();
-  await expect(chrome.getByText("You have control", { exact: true })).toBeVisible();
-  await expect(chrome.getByRole("button", { name: /Take control/i })).toHaveCount(0);
   await expect(chrome.getByRole("button", { name: "Release", exact: true })).toBeVisible();
+  await expect(chrome.getByRole("button", { name: /Take control/i })).toHaveCount(0);
   await captureScreenshot(page, testInfo, "49-team-computer-open-after-stop");
   await chrome.getByRole("button", { name: "Release", exact: true }).click();
   // Release closes the overlay and clears control without a DB edit.
@@ -243,14 +242,10 @@ async function setComputerMode(
   await page.getByRole("button", { name: botName, exact: true }).last().click();
   const settings = page.getByTestId("bot-settings");
   await expect(settings.locator("label:has-text('Name') input")).toHaveValue(botName);
-  const advanced = settings.getByTestId("bot-settings-advanced");
-  await advanced.evaluate((element) => {
-    (element as HTMLDetailsElement).open = true;
-  });
   await settings
     .getByRole("button", { name: mode === "team" ? "Team" : "Private", exact: true })
     .click();
-  await settings.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByTestId("settings-saved")).toBeVisible();
   await expect
     .poll(async () => {
       const bots = await rpc<Array<{ id: string; computerMode: string }>>(page, "bots/list", {});

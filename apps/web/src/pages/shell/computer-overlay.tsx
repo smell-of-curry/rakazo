@@ -1,5 +1,4 @@
-import { t } from "@lingui/core/macro";
-import { Trans } from "@lingui/react/macro";
+import { i18n } from "@lingui/core";
 import type {
   Bot,
   ComputerReleaseReason,
@@ -7,7 +6,7 @@ import type {
   TaughtSkill,
   ThreadSnapshot,
 } from "@rakazo/contracts";
-import { BotAvatar, Button } from "@rakazo/ui-web";
+import { Button } from "@rakazo/ui-web";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import type { AskBlock } from "../../components/AskCard";
@@ -15,39 +14,54 @@ import { ComputerMaintenanceActions } from "../../components/ComputerMaintenance
 import { TeachCaptureOverlay } from "../../components/teach/TeachCaptureOverlay";
 import { TeachComputerOverlayControl } from "../../components/teach/TeachComputerOverlay";
 import { TeachRecordingChrome, TeachStopButton } from "../../components/teach/TeachRecordingChrome";
-import { botImageSrc } from "../../lib/bot-image-src";
+import { computerStatusChip } from "../../lib/computer-screen";
+import { rpc } from "../../lib/rpc";
 import { computerCanShowScreen } from "../../lib/thread-events";
 import {
+  ComputerScreenFrame,
+  ComputerScreenPlaceholder,
+  ComputerStatusChipView,
   computerLabel,
-  computerPlaceholder,
-  DesktopKindEmptyState,
-  screenIframeSandbox,
 } from "./computer-screen";
 
 export function ComputerReleaseActions({
   takeoverRequested,
+  hasControl,
+  onTakeControl,
   onRelease,
 }: {
   takeoverRequested: boolean;
+  hasControl: boolean;
+  onTakeControl: () => Promise<void>;
   onRelease: (reason?: ComputerReleaseReason) => Promise<void>;
 }) {
-  if (!takeoverRequested) {
+  if (takeoverRequested && !hasControl) {
     return (
-      <Button type="button" variant="outline" size="sm" onClick={() => void onRelease()}>
-        <Trans>Release</Trans>
+      <Button type="button" size="sm" onClick={() => void onTakeControl()}>
+        {i18n._({ id: "Take control", message: "Take control" })}
       </Button>
     );
   }
-  return (
-    <div className="flex items-center gap-2">
-      <Button type="button" variant="outline" size="sm" onClick={() => void onRelease("skipped")}>
-        <Trans>Skip</Trans>
+  if (takeoverRequested && hasControl) {
+    return (
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => void onRelease("skipped")}>
+          {i18n._({ id: "Skip", message: "Skip" })}
+        </Button>
+        <Button type="button" size="sm" onClick={() => void onRelease("done")}>
+          {i18n._({ id: "Done", message: "Done" })}
+        </Button>
+      </div>
+    );
+  }
+  if (hasControl) {
+    return (
+      <Button type="button" variant="outline" size="sm" onClick={() => void onRelease()}>
+        {i18n._({ id: "Release", message: "Release" })}
       </Button>
-      <Button type="button" size="sm" onClick={() => void onRelease("done")}>
-        <Trans>I’m done</Trans>
-      </Button>
-    </div>
-  );
+    );
+  }
+  return null;
 }
 
 export type ComputerOverlayProps = {
@@ -97,19 +111,25 @@ export function ComputerOverlay({
   dockedAsk,
   setComputerOpen,
 }: ComputerOverlayProps) {
-  if (booting) {
-    return (
-      <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-[22px] bg-background/95">
-        <div className="text-[19px] font-medium text-foreground">
-          <Trans>Booting up {active?.name}’s computer</Trans>
-        </div>
-        <div className="h-[5px] w-[min(420px,70%)] overflow-hidden rounded-full bg-accent">
-          <div className="h-full w-2/3 rounded-full bg-primary" />
-        </div>
-      </div>
-    );
-  }
   if (!computerOpen || !active) return null;
+  const bot = active;
+  const chip = computerStatusChip(
+    computer,
+    computer?.takeoverRequested ? "waiting_takeover" : null,
+  );
+  const showScreen =
+    computerCanShowScreen(computer?.state, embeddedScreenUrl) && !computerScreenError;
+  const takeoverRequested = Boolean(computer?.takeoverRequested);
+
+  async function takeControl() {
+    try {
+      await rpc.computer.takeover({ botId: bot.id });
+      await refreshThread(bot.id);
+    } catch {
+      // refreshThread still picks up the live computer/run state
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-30 bg-background">
       <div
@@ -122,16 +142,9 @@ export function ComputerOverlay({
       >
         <div
           data-testid="computer-chrome"
-          className="flex items-center justify-between gap-4 border-b border-sidebar-border px-[18px] py-3.5"
+          className="flex h-11 items-center justify-between gap-3 border-b px-4"
         >
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <BotAvatar
-              color={active.color}
-              shape={active.avatarShape}
-              identity={active.id}
-              size={28}
-              imageSrc={botImageSrc(active)}
-            />
             {recordingSkill ? (
               <TeachRecordingChrome
                 recording={recordingSkill}
@@ -140,45 +153,39 @@ export function ComputerOverlay({
                 variant="overlay"
               />
             ) : (
-              <span className="truncate text-[15.5px] font-medium text-foreground" dir="auto">
-                {computerLabel(computer?.mode, active.name)}
-              </span>
+              <div className="min-w-0">
+                <div className="truncate text-body font-medium text-foreground" dir="auto">
+                  {computerLabel(computer?.mode, active.name)}
+                </div>
+                <ComputerStatusChipView chip={chip} />
+              </div>
             )}
-            {!recordingSkill && hasControl ? (
-              computer?.takeoverRequested ? (
-                <span className="rounded-full bg-warning/15 px-[11px] py-1 text-[13px] text-warning">
-                  <Trans>Needs you</Trans>
-                </span>
-              ) : (
-                <span className="rounded-full bg-success/15 px-[11px] py-1 text-[13px] text-success">
-                  <Trans>You have control</Trans>
-                </span>
-              )
-            ) : null}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {composerRunning ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                aria-label={t`Stop`}
+                aria-label={i18n._({ id: "Stop", message: "Stop" })}
                 data-testid="computer-overlay-stop"
                 onClick={() => void stopRun()}
                 disabled={sending}
               >
-                <Trans>Stop</Trans>
+                {i18n._({ id: "Stop", message: "Stop" })}
               </Button>
             ) : null}
             {recordingSkill ? (
               <TeachStopButton busy={teachBusy} onStop={stopTeaching} />
-            ) : hasControl ? (
+            ) : (
               <ComputerReleaseActions
-                takeoverRequested={Boolean(computer?.takeoverRequested)}
+                takeoverRequested={takeoverRequested}
+                hasControl={hasControl}
+                onTakeControl={takeControl}
                 onRelease={releaseComputer}
               />
-            ) : null}
-            {active && !recordingSkill ? (
+            )}
+            {!recordingSkill ? (
               <TeachComputerOverlayControl
                 key={active.id}
                 botId={active.id}
@@ -187,7 +194,7 @@ export function ComputerOverlay({
                 onRefresh={refreshActiveTeaching}
               />
             ) : null}
-            {active && !recordingSkill ? (
+            {!recordingSkill ? (
               <ComputerMaintenanceActions
                 botId={active.id}
                 computer={computer}
@@ -200,7 +207,7 @@ export function ComputerOverlay({
               variant="ghost"
               size="icon-sm"
               className="text-muted-foreground"
-              aria-label={t`Close computer`}
+              aria-label={i18n._({ id: "Close computer", message: "Close computer" })}
               onClick={() => setComputerOpen(false)}
             >
               <X size={16} strokeWidth={1.8} />
@@ -210,45 +217,32 @@ export function ComputerOverlay({
         {sendError && !needsComputer && !dockedAsk ? (
           <div
             role="alert"
-            className="border-b border-destructive/40 bg-destructive/10 px-[18px] py-2 text-[13px] text-destructive"
+            className="border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-body text-destructive"
           >
             {sendError}
           </div>
         ) : null}
-        <div className="relative min-h-0 flex-1 bg-background">
-          {computer?.kind === "desktop" ? (
-            <DesktopKindEmptyState className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground/80" />
-          ) : computerCanShowScreen(computer?.state, embeddedScreenUrl) && !computerScreenError ? (
-            <>
-              <iframe
-                title={t`Bot screen`}
-                src={embeddedScreenUrl ?? undefined}
-                sandbox={screenIframeSandbox(embeddedScreenUrl)}
-                className="h-full w-full border-0 bg-black"
-                allow="clipboard-read; clipboard-write; fullscreen"
-                style={{
-                  pointerEvents: recordingSkill || !hasControl ? "none" : "auto",
-                }}
+        <div className="relative min-h-0 flex-1 bg-muted">
+          {showScreen && embeddedScreenUrl ? (
+            <ComputerScreenFrame
+              url={embeddedScreenUrl}
+              title={i18n._({ id: "Bot screen", message: "Bot screen" })}
+              interactive={!recordingSkill && hasControl}
+            >
+              <TeachCaptureOverlay
+                botId={active.id}
+                skill={recordingSkill}
+                enabled={Boolean(recordingSkill)}
+                screenWidth={computer?.screenWidth}
+                screenHeight={computer?.screenHeight}
               />
-              {active ? (
-                <TeachCaptureOverlay
-                  botId={active.id}
-                  skill={recordingSkill}
-                  enabled={Boolean(recordingSkill)}
-                  screenWidth={computer?.screenWidth}
-                  screenHeight={computer?.screenHeight}
-                />
-              ) : null}
-            </>
+            </ComputerScreenFrame>
           ) : (
-            <div className="grid h-full place-items-center text-sm text-muted-foreground/80">
-              {computerScreenError ??
-                computerPlaceholder(
-                  computer?.state,
-                  booting,
-                  computerLabel(computer?.mode, active.name),
-                )}
-            </div>
+            (computerScreenError ?? (
+              <ComputerScreenPlaceholder
+                chip={booting ? { kind: "setting_up", tone: "muted" } : chip}
+              />
+            ))
           )}
         </div>
       </div>

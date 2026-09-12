@@ -160,7 +160,9 @@ export function formatSchedule(preset: CronPreset): string {
 
 export function formatCron(cron: string): string {
   if (isOneShotRoutineCron(cron)) return "One-time";
-  return formatSchedule(presetFromCron(cron));
+  const preset = presetFromCron(cron);
+  if (preset.freq === "Advanced") return cron.trim();
+  return formatSchedule(preset);
 }
 
 export function resolveRoutineNextRunAt(

@@ -123,6 +123,8 @@ describe("formatCron", () => {
     expect(formatCron("0 8 * * 1-5")).toBe("Weekdays at 8:00 AM");
     expect(formatCron("*/15 * * * *")).toBe("Every 15 minutes");
     expect(formatCron(ONCE_ROUTINE_CRON)).toBe("One-time");
+    expect(formatCron("7 */6 * * *")).toBe("7 */6 * * *");
+    expect(formatCron("0 */6 * * *")).toBe("Every 6 hours");
     expect(describeCronPreset(preset({ freq: "Every hour" }))).toEqual({
       lead: "Every hour",
       detail: "",
