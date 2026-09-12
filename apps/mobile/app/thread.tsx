@@ -11,16 +11,19 @@ import {
   MESSAGE_REACTIONS,
   type MessageReaction,
 } from "@rakazo/contracts";
+import type { CondensedTranscriptRow } from "@rakazo/core";
 import {
   abortableDelay,
   attachmentsForThread,
   buildComposerMentionOptions,
   type ComposerMention,
   cloudAgentHttpsUrl,
+  condensePeerReceipts,
   isApprovalAskBlock,
+  isComposerDockedAskMessage,
+  isRateLimitError,
   isRunTerminalEvent,
   isSecretAskBlock,
-  isComposerDockedAskMessage,
   latestAnswerableAskMessageId,
   mentionChipKey,
   mentionStillInPrompt,
@@ -31,11 +34,8 @@ import {
   selectedAskActionLabel,
   serializeComposerPrompt,
   truncateSlashDescription,
-  condensePeerReceipts,
-  isRateLimitError,
   userVisibleMessages,
 } from "@rakazo/core";
-import type { CondensedTranscriptRow } from "@rakazo/core";
 import * as Clipboard from "expo-clipboard";
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/react-navigation";
@@ -92,14 +92,15 @@ import {
   subscribeThread,
 } from "../lib/api";
 import { mobileTokens } from "../lib/appearance";
+import { type MobileArtifactTarget, openMobileArtifact } from "../lib/artifact-open";
+import { botAvatarSrc } from "../lib/bot-avatar-src";
+import { confirmDeleteBot } from "../lib/bot-lifecycle";
 import {
   isHumanGateComposerError,
   isWaitingTakeover,
   latestComputerNeedsYouText,
   unansweredAskBlock,
 } from "../lib/composer-human-gate";
-import { type MobileArtifactTarget, openMobileArtifact } from "../lib/artifact-open";
-import { confirmDeleteBot } from "../lib/bot-lifecycle";
 import { cancelFocusPrompt, focusPromptThreadActive } from "../lib/focus-prompt";
 import { dateLocaleForUi, t, useI18n } from "../lib/i18n";
 import { saveLastBotId } from "../lib/last-bot";
@@ -109,7 +110,6 @@ import {
   setOpenNotificationThread,
 } from "../lib/live-notifications";
 import { presentMessageActionSheet } from "../lib/message-action-sheet";
-import { botAvatarSrc } from "../lib/bot-avatar-src";
 import {
   hasVisibleMessagePresentation,
   isBlankLiveProgress,
@@ -1411,7 +1411,9 @@ function Thread() {
     return {
       color: bot?.color ?? member?.color,
       status: bot?.status ?? member?.status,
-      imageSrc: botAvatarSrc(bot ?? (member ? { botId: member.botId, hasAvatar: member.hasAvatar } : undefined)),
+      imageSrc: botAvatarSrc(
+        bot ?? (member ? { botId: member.botId, hasAvatar: member.hasAvatar } : undefined),
+      ),
     };
   }
 
@@ -2710,6 +2712,7 @@ const MessageBubble = memo(function MessageBubble({
               actions={askBlock.actions}
               selectedId={askBlock.status === "answered" ? askBlock.answer : undefined}
               disabled={askBlock.status === "answered" || !canAnswer || !onAnswer}
+              allowOther={!isApprovalAskBlock(askBlock)}
               accessibilityActions={actionProps.accessibilityActions}
               onAccessibilityAction={actionProps.onAccessibilityAction}
               onAnswer={(answer) => onAnswer(message, answer)}

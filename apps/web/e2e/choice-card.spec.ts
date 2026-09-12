@@ -41,6 +41,8 @@ test("renders tappable choice buttons and submits the offered action id", async 
   await expect(seoul).toBeVisible();
   await expect(toronto).toBeVisible();
   await expect(lisbon).toBeVisible();
+  await expect(page.getByTestId("ask-other")).toBeVisible();
+  await expect(page.getByPlaceholder("Type your answer")).toBeVisible();
 
   // Options render as a vertical full-width list, not wrapping chips.
   const berlinBox = await berlin.boundingBox();

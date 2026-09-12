@@ -5,12 +5,14 @@ export function CollaborationMarker({
   ariaLabel,
   color,
   identity,
+  imageSrc,
   label,
   onClick,
 }: {
   ariaLabel: string;
   color: string;
   identity: string;
+  imageSrc?: string;
   label: string;
   onClick: () => void;
 }) {
@@ -23,7 +25,7 @@ export function CollaborationMarker({
         onClick={onClick}
         className="inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground/75"
       >
-        <BotAvatar color={color} identity={identity} size={16} />
+        <BotAvatar color={color} identity={identity} imageSrc={imageSrc} size={16} />
         <span dir="auto" className="truncate">
           {label}
         </span>

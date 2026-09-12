@@ -3,7 +3,8 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type { ThreadMessage } from "@rakazo/contracts";
 import { isApprovalAskBlock, isSecretAskBlock, selectedAskActionLabel } from "@rakazo/core";
-import { Button, Input, cn } from "@rakazo/ui-web";
+import { Button, cn, Input } from "@rakazo/ui-web";
+import { Check } from "lucide-react";
 import { useState } from "react";
 
 export type AskBlock = Extract<ThreadMessage["blocks"][number], { kind: "ask" }>;
@@ -55,7 +56,6 @@ export function AskCard({
   onAnswer: (text: string) => Promise<void>;
 }) {
   const { t } = useLingui();
-  const [editing, setEditing] = useState(false);
   const [answer, setAnswer] = useState("");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +65,12 @@ export function AskCard({
   const askActions = block.actions;
   const secretInput = isSecretAskBlock(block);
   const secretLabel = secretFieldLabel(block.purpose);
+  const choiceOther = Boolean(askActions?.length) && !approvalActions && !secretInput;
+  const customChoiceAnswer =
+    answered &&
+    choiceOther &&
+    Boolean(block.answer) &&
+    !askActions?.some((action) => action.id === block.answer);
 
   async function submitAnswer(value: string) {
     if (submitting) return;
@@ -119,33 +125,58 @@ export function AskCard({
               <Button
                 key={action.id}
                 variant={
-                  selected
-                    ? "secondary"
-                    : approvalActions && action.id === "allow" && !answered
-                      ? "default"
-                      : "outline"
+                  approvalActions && action.id === "allow" && !answered ? "default" : "outline"
                 }
                 aria-pressed={answered ? selected : undefined}
                 className={cn(
-                  "h-auto w-full justify-start whitespace-normal px-3.5 py-3 text-start font-normal",
-                  answered && selected && "disabled:opacity-100",
-                  answered && !selected && "disabled:opacity-40",
+                  "h-auto w-full justify-start gap-3 whitespace-normal px-3.5 py-3 text-start font-normal",
+                  selected &&
+                    "justify-between bg-background font-medium text-foreground disabled:opacity-100",
+                  answered && !selected && "disabled:opacity-30",
                 )}
                 disabled={answered || !canAnswer || submitting}
                 onClick={() => void submitAnswer(action.id)}
               >
-                {pendingAction === action.id ? (
-                  <Trans>Sending…</Trans>
-                ) : approvalActions ? (
-                  approvalActionLabel(action.id, action.label, action.outcome)
-                ) : (
-                  action.label
-                )}
+                <span>
+                  {pendingAction === action.id ? (
+                    <Trans>Sending…</Trans>
+                  ) : approvalActions ? (
+                    approvalActionLabel(action.id, action.label, action.outcome)
+                  ) : (
+                    action.label
+                  )}
+                </span>
+                {selected ? <Check size={16} strokeWidth={2} aria-hidden /> : null}
               </Button>
             );
           })}
         </div>
-      ) : answered ? (
+      ) : null}
+      {choiceOther && !answered && canAnswer ? (
+        <form
+          className="mt-3.5 flex flex-col gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitAnswer(answer);
+          }}
+        >
+          <Input
+            data-testid="ask-other"
+            aria-label={t`Answer`}
+            value={answer}
+            onChange={(event) => setAnswer(event.target.value)}
+            placeholder={t`Type your answer`}
+            disabled={submitting}
+          />
+          <Button type="submit" className="self-start" disabled={!answer.trim() || submitting}>
+            {submitting ? <Trans>Sending…</Trans> : <Trans>Send answer</Trans>}
+          </Button>
+        </form>
+      ) : customChoiceAnswer ? (
+        <div className="mt-3.5 text-[13.5px] font-medium text-muted-foreground">
+          {formatAnsweredState(block.answer, false, false, undefined, askActions)}
+        </div>
+      ) : askActions?.length ? null : answered ? (
         <div className="mt-3.5 text-[13.5px] font-medium text-muted-foreground">
           {formatAnsweredState(
             block.answer,
@@ -181,7 +212,7 @@ export function AskCard({
             {submitting ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
           </Button>
         </form>
-      ) : editing ? (
+      ) : (
         <form
           className="mt-3.5 flex flex-col gap-2"
           onSubmit={(event) => {
@@ -194,32 +225,12 @@ export function AskCard({
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
             placeholder={t`Type your answer`}
+            disabled={submitting}
           />
-          <div className="flex gap-2">
-            <Button type="submit" disabled={!answer.trim() || submitting}>
-              {submitting ? <Trans>Sending…</Trans> : <Trans>Send answer</Trans>}
-            </Button>
-            <Button
-              variant="outline"
-              disabled={submitting}
-              onClick={() => {
-                setAnswer("");
-                setEditing(false);
-              }}
-            >
-              <Trans>Cancel</Trans>
-            </Button>
-          </div>
+          <Button type="submit" className="self-start" disabled={!answer.trim() || submitting}>
+            {submitting ? <Trans>Sending…</Trans> : <Trans>Send answer</Trans>}
+          </Button>
         </form>
-      ) : (
-        <div className="mt-3.5 flex gap-2">
-          <Button disabled={submitting} onClick={() => void submitAnswer("approved")}>
-            {submitting ? <Trans>Sending…</Trans> : <Trans>Send it</Trans>}
-          </Button>
-          <Button variant="outline" disabled={submitting} onClick={() => setEditing(true)}>
-            <Trans>Edit first</Trans>
-          </Button>
-        </div>
       )}
       {error ? <p className="mt-3 text-[13px] text-destructive">{error}</p> : null}
     </div>
