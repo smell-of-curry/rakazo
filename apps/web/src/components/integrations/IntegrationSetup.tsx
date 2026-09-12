@@ -18,7 +18,6 @@ export function IntegrationSetup({
 }: {
   onDone?: () => void;
   serverSetup?: boolean;
-  /** Local host settings can configure providers, but cannot access account MCP servers. */
   managedOnly?: boolean;
   initialState?: IntegrationSetupState | null;
   botId?: string;
@@ -128,7 +127,7 @@ export function IntegrationSetup({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[32px] font-medium text-foreground">
+      <h1 className="text-display font-semibold text-foreground">
         {serverSetup ? t`Server integrations` : t`Add MCP server`}
       </h1>
       {serverSetup ? (
@@ -149,7 +148,7 @@ export function IntegrationSetup({
                   setApiKey("");
                   setError(null);
                 }}
-                className={`flex min-h-11 w-full items-center justify-between border-b border-border px-3.5 py-2.5 text-left last:border-0 ${choice === id ? "bg-muted" : "hover:bg-accent"}`}
+                className={`flex min-h-11 w-full items-center justify-between border-b border-border px-3.5 py-2.5 text-left text-body last:border-0 ${choice === id ? "bg-muted" : "hover:bg-accent"}`}
               >
                 <span>{label}</span>
                 {choice === id ? <Check className="size-4" aria-hidden /> : null}
@@ -160,7 +159,7 @@ export function IntegrationSetup({
       {choice === "composio" || choice === "pipedream" ? (
         <>
           {configured ? (
-            <p className="text-sm text-success">
+            <p className="text-small text-success">
               <Trans>Connected</Trans>
             </p>
           ) : null}
@@ -168,7 +167,7 @@ export function IntegrationSetup({
             <>
               {choice === "pipedream" ? (
                 <>
-                  <label htmlFor={`${fieldId}-client-id`} className="block text-sm">
+                  <label htmlFor={`${fieldId}-client-id`} className="block text-body">
                     <Trans>Client ID</Trans>
                     <Input
                       id={`${fieldId}-client-id`}
@@ -178,7 +177,7 @@ export function IntegrationSetup({
                       autoComplete="off"
                     />
                   </label>
-                  <label htmlFor={`${fieldId}-project-id`} className="block text-sm">
+                  <label htmlFor={`${fieldId}-project-id`} className="block text-body">
                     <Trans>Project ID</Trans>
                     <Input
                       id={`${fieldId}-project-id`}
@@ -190,7 +189,7 @@ export function IntegrationSetup({
                   </label>
                 </>
               ) : null}
-              <label htmlFor={`${fieldId}-key`} className="block text-sm">
+              <label htmlFor={`${fieldId}-key`} className="block text-body">
                 {choice === "composio" ? t`API key` : t`Client secret`}
                 <Input
                   id={`${fieldId}-key`}
@@ -202,7 +201,7 @@ export function IntegrationSetup({
                 />
               </label>
               <a
-                className="text-sm text-muted-foreground underline"
+                className="text-small text-muted-foreground underline"
                 href={
                   choice === "composio"
                     ? "https://dashboard.composio.dev"
@@ -223,10 +222,6 @@ export function IntegrationSetup({
                 </Button>
               ) : null}
             </>
-          ) : state && !configured ? (
-            <p className="text-sm text-muted-foreground">
-              <Trans>Ask the server owner to configure this provider.</Trans>
-            </p>
           ) : null}
         </>
       ) : null}
@@ -258,7 +253,7 @@ export function IntegrationSetup({
           </form>
           {remoteResults.map((result) => (
             <div key={result.endpoint} className="flex items-center justify-between gap-3">
-              <span className="min-w-0 truncate">{result.name}</span>
+              <span className="min-w-0 truncate text-body">{result.name}</span>
               <Button
                 variant="outline"
                 disabled={busy || connected.includes(result.endpoint)}
@@ -269,11 +264,11 @@ export function IntegrationSetup({
             </div>
           ))}
           {searched && !remoteResults.length ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-small text-muted-foreground">
               <Trans>No remote MCP servers found</Trans>
             </p>
           ) : null}
-          <details className="text-sm text-muted-foreground">
+          <details className="text-small text-muted-foreground">
             <summary className="cursor-pointer">
               <Trans>Add server URL</Trans>
             </summary>
@@ -296,7 +291,7 @@ export function IntegrationSetup({
       ) : null}
       {choice === "executor" ? (
         <div className="space-y-3">
-          <label htmlFor={`${fieldId}-endpoint`} className="block text-sm">
+          <label htmlFor={`${fieldId}-endpoint`} className="block text-body">
             <Trans>Server URL</Trans>
             <Input
               id={`${fieldId}-endpoint`}
@@ -306,7 +301,7 @@ export function IntegrationSetup({
               placeholder="http://localhost:8000/mcp"
             />
           </label>
-          <label htmlFor={`${fieldId}-token`} className="block text-sm">
+          <label htmlFor={`${fieldId}-token`} className="block text-body">
             <Trans>Access token</Trans>
             <Input
               id={`${fieldId}-token`}
@@ -323,23 +318,10 @@ export function IntegrationSetup({
           >
             <Trans>Connect</Trans>
           </Button>
-          <details className="text-sm text-muted-foreground">
-            <summary className="cursor-pointer">
-              <Trans>Setup help</Trans>
-            </summary>
-            <a
-              href="https://executor.sh/#get-started"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 block underline"
-            >
-              <Trans>Download Executor</Trans>
-            </a>
-          </details>
         </div>
       ) : null}
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-destructive">
           {error}
         </p>
       ) : null}

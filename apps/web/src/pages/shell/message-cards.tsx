@@ -4,11 +4,12 @@ import { abortableDelay } from "@rakazo/core";
 import { Button, Dialog, DialogClose, DialogContent, DialogTitle } from "@rakazo/ui-web";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { BuiCard, SuccessPop } from "../../components/ai/primitives";
+import { BuiCard } from "../../components/ai/primitives";
 import { type ArtifactTarget, decodeArtifactBase64 } from "../../lib/artifact-open";
 import { chartViewport } from "../../lib/chart-viewport";
 import { connectMcpOauth } from "../../lib/mcp-connect";
 import { rpc } from "../../lib/rpc";
+import { ItemLogo, StatusChip } from "../integrations/items";
 
 export function ChoiceCard({
   botId,
@@ -163,40 +164,32 @@ export function AppConnectCard({
     <BuiCard
       role="group"
       aria-label={t`${block.name} connection`}
-      className="w-[min(420px,80%)] px-4 py-3.5"
+      className="w-[min(420px,80%)] px-3 py-3"
     >
-      <div className="flex items-center gap-3.5">
-        {block.logo ? (
-          <img
-            src={block.logo}
-            alt=""
-            className="h-10 w-10 rounded-[10px] bg-white object-contain p-1"
-          />
-        ) : (
-          <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-muted text-[15px] text-foreground">
-            {block.name.slice(0, 1).toUpperCase()}
-          </span>
-        )}
+      <div className="flex items-center gap-3">
+        <ItemLogo src={block.logo} name={block.name} />
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-medium text-foreground">{block.name}</span>
-          <span className="block truncate text-[13px] text-muted-foreground">
-            {block.description}
+          <span className="block truncate text-body font-semibold tracking-[-0.011em] text-foreground">
+            {block.name}
           </span>
+          {block.description ? (
+            <span className="block truncate text-small text-muted-foreground">
+              {block.description}
+            </span>
+          ) : null}
         </span>
         {status === "connected" ? (
-          <SuccessPop label={t`Connected`} />
+          <StatusChip status="connected" />
         ) : (
-          <Button
-            variant="secondary"
-            className="rounded-full hover:border-border hover:bg-accent hover:text-foreground"
-            disabled={busy}
-            onClick={() => void authorize()}
-          >
-            {busy ? t`Waiting…` : t`Authorize`}
-          </Button>
+          <>
+            <StatusChip status="waiting" />
+            <Button variant="ghost" size="sm" disabled={busy} onClick={() => void authorize()}>
+              <Trans>Reopen</Trans>
+            </Button>
+          </>
         )}
       </div>
-      {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="mt-2 text-small text-destructive">{error}</p> : null}
     </BuiCard>
   );
 }
@@ -331,54 +324,35 @@ export function McpApprovalCard({
     }
   }
 
-  const summary = endpoint ?? `stdio · ${transport}`;
+  const waiting = state === "pending" || state === "connecting";
   return (
-    <BuiCard className="max-w-[74%] p-4">
-      <div className="flex items-center gap-2">
-        <span className="grid h-7 w-7 place-items-center rounded-lg bg-muted text-xs text-foreground">
-          M
+    <BuiCard className="max-w-[74%] px-3 py-3">
+      <div className="flex items-center gap-3">
+        <ItemLogo name={name} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-body font-semibold tracking-[-0.011em] text-foreground">
+            {name}
+          </span>
+          {endpoint ? (
+            <span className="block truncate text-small text-muted-foreground">{endpoint}</span>
+          ) : (
+            <span className="block truncate text-small text-muted-foreground">{transport}</span>
+          )}
         </span>
-        <span className="text-[14.5px] font-medium text-foreground">
-          <Trans>Connect MCP server “{name}”</Trans>
-        </span>
+        {state === "connected" ? <StatusChip status="connected" /> : null}
+        {waiting ? <StatusChip status="waiting" /> : null}
+        {waiting ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={state === "connecting"}
+            onClick={() => void authorize()}
+          >
+            <Trans>Reopen</Trans>
+          </Button>
+        ) : null}
       </div>
-      <p className="mt-1.5 truncate text-[12px] text-muted-foreground">{summary}</p>
-      {state === "pending" || state === "connecting" ? (
-        <>
-          <p className="mt-2 text-[13px] leading-[1.5] text-foreground/75">
-            {needsOAuth
-              ? t`Authorize this server so agents can use its tools.`
-              : t`Approve this server to let your agent use its tools.`}
-          </p>
-          {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
-          <div className="mt-3 flex gap-2">
-            <Button
-              className="rounded-full"
-              disabled={state === "connecting"}
-              onClick={() => void authorize()}
-            >
-              {state === "connecting" ? t`Connecting…` : needsOAuth ? t`Authorize` : t`Approve`}
-            </Button>
-            <Button
-              variant="secondary"
-              className="rounded-full"
-              onClick={() => setState("dismissed")}
-            >
-              <Trans>Not now</Trans>
-            </Button>
-          </div>
-        </>
-      ) : null}
-      {state === "connected" ? (
-        <div className="mt-3">
-          <SuccessPop label={t`Connected. Its tools are available from your next message.`} />
-        </div>
-      ) : null}
-      {state === "dismissed" ? (
-        <p className="mt-2 text-[13px] text-muted-foreground">
-          <Trans>Dismissed. Reconnect anytime from MCP settings.</Trans>
-        </p>
-      ) : null}
+      {error ? <p className="mt-2 text-small text-destructive">{error}</p> : null}
     </BuiCard>
   );
 }
