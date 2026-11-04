@@ -89,6 +89,7 @@ import { ShellDialogs, useShellDialogs } from "./shell/shell-dialogs";
 import { AppOverlays, SettingsOverlays } from "./shell/shell-overlays";
 import { cycleBotId, useShellShortcuts } from "./shell/shell-shortcuts";
 import { focusSidebarSearch, ShellSidebar } from "./shell/shell-sidebar";
+import { ShortcutSheet } from "./shell/shortcut-sheet";
 import { ShellSidePanel } from "./shell/side-panel";
 import { BotsSidebarLayout } from "./shell/sidebar-layout";
 import { SidebarRoster } from "./shell/sidebar-roster";
@@ -317,6 +318,7 @@ function SpaceShell() {
     [bots, botSections],
   );
   const dialogs = useShellDialogs();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   useShellShortcuts({
     run: (shortcut) => {
       switch (shortcut.type) {
@@ -325,6 +327,9 @@ function SpaceShell() {
           return true;
         case "new":
           setCreateMenuOpen(true);
+          return true;
+        case "shortcuts":
+          setShortcutsOpen((open) => !open);
           return true;
         case "back":
         case "forward":
@@ -560,7 +565,7 @@ function SpaceShell() {
     (botId: string | undefined) => memberName(transcriptMembers, botId),
     [transcriptMembers],
   );
-  const { composerMentionTargets, footerLogos, setFooterLogos } = useComposerMentions({
+  const { composerMentionTargets } = useComposerMentions({
     rpc,
     queries,
     bots,
@@ -996,7 +1001,6 @@ function SpaceShell() {
             setDeleteGroupTarget={dialogs.setDeleteGroupTarget}
           />
         }
-        footerLogos={footerLogos}
         user={session.data?.user}
         ticketBoardEnabled={Boolean(bootstrapMe?.ticketBoardEnabled)}
         navLinks={desktopBridge() ? [] : (bootstrapMe?.navLinks ?? [])}
@@ -1303,8 +1307,8 @@ function SpaceShell() {
           setOverlay={setOverlay}
           activeBotId={activeBotId.current}
           stdioEnabled={bootstrapMe?.mcpStdioEnabled === true}
-          onConnectedAppsChange={setFooterLogos}
         />
+        <ShortcutSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       </Suspense>
 
       <Suspense fallback={null}>

@@ -369,7 +369,7 @@ test("group chats share every context-menu action", async ({ page }, testInfo) =
   await copy.click({ button: "right" });
   await page.getByRole("menuitem", { name: "Archive", exact: true }).click();
   await expect(sidebar.getByRole("button", { name: /^Group menu copy/ })).toHaveCount(0);
-  await expect(sidebar.getByText("Archived", { exact: true })).toBeVisible();
+  await expect(sidebar.getByText("Archive", { exact: true })).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Open navigation" }).click();

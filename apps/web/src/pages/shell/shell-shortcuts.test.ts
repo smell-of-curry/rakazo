@@ -38,6 +38,12 @@ describe("shellShortcut", () => {
         type: "command-menu",
       });
       expect(shellShortcut(keyEvent({ key: "n", ctrlKey: true }), host)).toEqual({ type: "new" });
+      expect(shellShortcut(keyEvent({ key: "/", metaKey: true }), host)).toEqual({
+        type: "shortcuts",
+      });
+      expect(shellShortcut(keyEvent({ key: "?", ctrlKey: true, shiftKey: true }), host)).toEqual({
+        type: "shortcuts",
+      });
     }
     expect(shellShortcut(keyEvent({ key: "k" }), macApp)).toBeNull();
     expect(shellShortcut(keyEvent({ key: "k", metaKey: true, shiftKey: true }), macApp)).toBeNull();

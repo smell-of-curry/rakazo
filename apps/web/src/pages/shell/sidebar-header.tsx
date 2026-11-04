@@ -57,7 +57,7 @@ export function SidebarHeader({
               aria-pressed={searchOpen}
               data-testid="sidebar-search-trigger"
               onClick={onSearch}
-              className="app-no-drag text-muted-foreground"
+              className="app-no-drag size-8 rounded-full border border-border bg-card text-foreground hover:bg-accent"
             >
               <Search size={15} strokeWidth={1.8} aria-hidden="true" />
             </Button>
@@ -105,7 +105,7 @@ export function SidebarHeader({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="app-no-drag text-muted-foreground"
+                  className="app-no-drag size-8 rounded-full border border-border bg-card text-foreground hover:bg-accent"
                 />
               }
               aria-label={t`Create`}

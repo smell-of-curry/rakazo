@@ -157,7 +157,7 @@ export function SidebarRoster({
                       render={
                         group.emptySpaceId ? <button type="button" /> : <CollapsibleTrigger />
                       }
-                      className={`flex min-w-0 items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${hasSpaceActions ? "col-start-1 row-start-1 w-full" : "flex-1"}`}
+                      className={`group/section flex min-w-0 items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring ${hasSpaceActions ? "col-start-1 row-start-1 w-full" : "flex-1"}`}
                       onClick={() => {
                         if (group.emptySpaceId) {
                           openSpaceChat(group.emptySpaceId, "/onboarding");
@@ -202,9 +202,9 @@ export function SidebarRoster({
                         <ChevronDown
                           size={14}
                           strokeWidth={1.8}
-                          className={
-                            collapsed ? "-rotate-90 transition-transform" : "transition-transform"
-                          }
+                          className={`opacity-0 transition-opacity group-hover/section:opacity-100 group-focus-within/section:opacity-100 ${
+                            collapsed ? "-rotate-90" : ""
+                          }`}
                           aria-hidden="true"
                         />
                       )}

@@ -57,7 +57,7 @@ export function AppOverlays({
   setOverlay: (next: ShellOverlay) => void;
   activeBotId: string | undefined;
   stdioEnabled: boolean;
-  onConnectedAppsChange: (apps: ReturnType<typeof connectedAppMarks>) => void;
+  onConnectedAppsChange?: (apps: ReturnType<typeof connectedAppMarks>) => void;
 }) {
   return (
     <>

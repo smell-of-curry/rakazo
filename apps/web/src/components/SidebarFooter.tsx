@@ -1,19 +1,13 @@
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { NavLink } from "@rakazo/contracts";
 import { ANDROID_APP_STORE_URL, IOS_APP_STORE_URL } from "@rakazo/contracts";
-import {
-  AppMarkStack,
-  Button,
-  buttonVariants,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@rakazo/ui-web";
+import { Button, buttonVariants, Popover, PopoverContent, PopoverTrigger } from "@rakazo/ui-web";
 import {
   BookOpen,
   Check,
   Download,
   FolderOpen,
+  Grid2x2Plus,
   Link2,
   LogOut,
   Plug,
@@ -24,7 +18,7 @@ import {
   UserPlus,
   UserRound,
 } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { Organization } from "../lib/organizations";
 import { useSidebarUpdate } from "./DesktopUpdates";
 import { IconTooltip } from "./IconTooltip";
@@ -34,7 +28,6 @@ type Props = {
   name: string;
   initials: string | null;
   image?: string | null;
-  logos?: Array<{ name: string; logo?: string | null }>;
   email?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -54,17 +47,11 @@ type Props = {
   onSwitchOrganization?: (organization: Organization) => void;
 };
 
-// Marks are 24px wide, overlap by 2px, and need 2px for the outer ring.
-export function sidebarMarkCount(availableWidth: number) {
-  return Math.max(0, Math.min(3, Math.floor((availableWidth - 26) / 22) + 1));
-}
-
 export function SidebarFooter({
   mini = false,
   name,
   initials,
   image,
-  logos = [],
   email,
   open,
   onOpenChange,
@@ -86,29 +73,6 @@ export function SidebarFooter({
   const { t } = useLingui();
   const update = useSidebarUpdate();
   const [failedImage, setFailedImage] = useState<string | null>(null);
-  const pillRef = useRef<HTMLButtonElement>(null);
-  const labelRef = useRef<HTMLSpanElement>(null);
-  const [markCount, setMarkCount] = useState(3);
-  useLayoutEffect(() => {
-    const pill = pillRef.current;
-    const label = labelRef.current;
-    if (!pill || !label || typeof ResizeObserver === "undefined") return;
-    const measure = () => {
-      const style = getComputedStyle(pill);
-      const available =
-        pill.clientWidth -
-        Number.parseFloat(style.paddingLeft) -
-        Number.parseFloat(style.paddingRight) -
-        label.scrollWidth -
-        Number.parseFloat(style.columnGap);
-      setMarkCount(sidebarMarkCount(available));
-    };
-    const observer = new ResizeObserver(measure);
-    observer.observe(pill);
-    observer.observe(label);
-    measure();
-    return () => observer.disconnect();
-  }, [mini]);
   return (
     <div
       data-testid="sidebar-footer"
@@ -118,19 +82,28 @@ export function SidebarFooter({
         <PopoverTrigger
           data-testid="user-menu-trigger"
           aria-label={t`Account menu for ${name}`}
-          className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-sidebar-accent text-sm font-medium text-foreground outline-none hover:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring"
+          className={`flex min-w-0 items-center rounded-xl text-start outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring ${
+            mini ? "size-9 justify-center" : "h-11 flex-1 gap-2.5 px-1.5"
+          }`}
         >
-          {image && failedImage !== image ? (
-            <img
-              src={image}
-              alt=""
-              className="size-full object-cover"
-              onError={() => setFailedImage(image)}
-            />
-          ) : initials ? (
-            initials
-          ) : (
-            <UserRound size={18} aria-hidden="true" />
+          <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-sidebar-accent text-sm font-medium text-foreground">
+            {image && failedImage !== image ? (
+              <img
+                src={image}
+                alt=""
+                className="size-full object-cover"
+                onError={() => setFailedImage(image)}
+              />
+            ) : initials ? (
+              initials
+            ) : (
+              <UserRound size={18} aria-hidden="true" />
+            )}
+          </span>
+          {mini ? null : (
+            <span dir="auto" className="min-w-0 truncate text-sm text-foreground">
+              {name}
+            </span>
           )}
         </PopoverTrigger>
         {open ? (
@@ -277,14 +250,12 @@ export function SidebarFooter({
       {!mini ? (
         <Button
           variant="outline"
-          ref={pillRef}
+          size="icon"
+          aria-label={t`Connect apps`}
           onClick={onIntegrations}
-          className="h-9 min-w-0 flex-1 justify-between bg-sidebar-accent hover:border-foreground/30 hover:bg-sidebar-accent dark:hover:bg-sidebar-accent"
+          className="size-9 shrink-0 rounded-full border-border bg-card hover:bg-accent"
         >
-          <span ref={labelRef} className="min-w-0 truncate">
-            <Trans>Connect apps</Trans>
-          </span>
-          <AppMarkStack marks={logos.slice(0, markCount)} ringClassName="ring-sidebar-accent" />
+          <Grid2x2Plus size={16} strokeWidth={1.75} aria-hidden="true" />
         </Button>
       ) : null}
       {update.available ? (

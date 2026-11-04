@@ -25,6 +25,7 @@ import { useSignOut } from "../../lib/sign-out";
 import { ActivityList } from "../ActivityList";
 import { SpaceSearchResults } from "../SpaceSearch";
 import type { SettingsSection } from "../shell-overlay";
+import { MoreUnreads } from "./more-unreads";
 import { SidebarHeader } from "./sidebar-header";
 import type { SidebarSearch } from "./use-sidebar-search";
 
@@ -61,7 +62,6 @@ export function ShellSidebar({
   setCreateBotOpen,
   roster,
   archived,
-  footerLogos,
   user,
   ticketBoardEnabled,
   navLinks,
@@ -90,7 +90,6 @@ export function ShellSidebar({
   setCreateBotOpen: (open: boolean) => void;
   roster: ReactNode;
   archived: ReactNode;
-  footerLogos: Array<{ name: string; logo?: string | null }>;
   user: User | undefined;
   ticketBoardEnabled: boolean;
   navLinks: NavLink[];
@@ -235,7 +234,7 @@ export function ShellSidebar({
             ) : null}
           </InputGroup>
         )}
-        <div className="rk-scroll scroll-fade-y scroll-fade-12 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pb-2.5">
+        <MoreUnreads className="rk-scroll scroll-fade-y scroll-fade-12 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pb-2.5">
           {showSpaceSearch && !mini ? (
             <SpaceSearchResults
               hits={searchHits}
@@ -275,13 +274,12 @@ export function ShellSidebar({
             </>
           )}
           <div className={mini ? "hidden" : "contents"}>{archived}</div>
-        </div>
+        </MoreUnreads>
         <div className={mini ? "hidden" : "contents"}>
           <PasskeyOffer />
         </div>
         <ShellSidebarFooter
           mini={mini}
-          logos={footerLogos}
           user={user}
           ticketBoardEnabled={ticketBoardEnabled}
           navLinks={navLinks}
@@ -299,7 +297,6 @@ export function ShellSidebar({
 
 function ShellSidebarFooter({
   mini,
-  logos,
   user,
   ticketBoardEnabled,
   navLinks,
@@ -311,7 +308,6 @@ function ShellSidebarFooter({
   openSpaceChat,
 }: {
   mini: boolean;
-  logos: Array<{ name: string; logo?: string | null }>;
   user: User | undefined;
   ticketBoardEnabled: boolean;
   navLinks: NavLink[];
@@ -359,7 +355,6 @@ function ShellSidebarFooter({
       ) : null}
       <SidebarFooter
         mini={mini}
-        logos={logos}
         name={userName}
         initials={initials}
         image={user?.image}

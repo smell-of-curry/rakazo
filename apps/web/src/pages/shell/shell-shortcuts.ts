@@ -3,7 +3,10 @@ import { isDesktopMenuCommand } from "@rakazo/contracts";
 import { useEffect, useRef } from "react";
 import { desktopBridge } from "../../lib/desktop";
 
-export type ShellShortcut = { type: DesktopMenuCommand } | { type: "bot"; index: number };
+export type ShellShortcut =
+  | { type: DesktopMenuCommand }
+  | { type: "bot"; index: number }
+  | { type: "shortcuts" };
 
 /**
  * Browsers keep Cmd+F, Cmd+1–9 and their history chords, so those only reach the desktop app.
@@ -35,6 +38,9 @@ export function isEditableTarget(target: EventTarget | null) {
 export function shellShortcut(event: KeyboardEvent, host: ShortcutHost): ShellShortcut | null {
   if (event.repeat || !event.key) return null;
   const key = event.key.toLowerCase();
+  if ((event.metaKey || event.ctrlKey) && !event.altKey && (key === "/" || event.key === "?")) {
+    return { type: "shortcuts" };
+  }
   if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey) {
     if (key === "k") return { type: "command-menu" };
     if (key === "n") return { type: "new" };
