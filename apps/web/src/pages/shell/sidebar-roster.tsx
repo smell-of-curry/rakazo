@@ -259,7 +259,13 @@ export function SidebarRoster({
                 ) : null}
               </div>
             ) : null}
-            <CollapsibleContent className="flex flex-col gap-0.5">
+            <CollapsibleContent
+              className={
+                pinnedList && !mini
+                  ? "grid grid-cols-3 gap-x-1 gap-y-2 px-1 pt-1"
+                  : "flex flex-col gap-0.5"
+              }
+            >
               {group.bots.map((item) => {
                 const selected =
                   (item.kind === "bot" && !inGroup && active?.id === item.chat.id) ||
@@ -305,7 +311,7 @@ export function SidebarRoster({
                       avatarSet={item.chat.avatarSet}
                       color={item.chat.color}
                       identity={item.chat.id}
-                      size={mini ? 40 : compact ? 28 : 38}
+                      size={mini ? 40 : pinnedList ? 52 : compact ? 28 : 38}
                       status={item.chat.status}
                     />
                   ) : (
@@ -315,7 +321,7 @@ export function SidebarRoster({
                           ? (activeSnapshot.members ?? item.chat.members)
                           : item.chat.members
                       }
-                      size={mini ? 40 : compact ? 28 : 38}
+                      size={mini ? 40 : pinnedList ? 52 : compact ? 28 : 38}
                     />
                   );
                 const chatTrigger = (
@@ -389,13 +395,15 @@ export function SidebarRoster({
                     }}
                     // Focus the row so closing the menu returns focus here.
                     onContextMenu={(event) => event.currentTarget.focus()}
-                    className={`flex items-center ${
-                      mini
-                        ? "mx-auto size-12 justify-center rounded-xl"
-                        : compact
-                          ? "w-full min-h-11 gap-2 rounded-xl px-2.5 py-1.5"
-                          : "w-full gap-3 rounded-xl px-2.5 py-[10px]"
-                    } text-start ${
+                    className={`flex ${
+                      pinnedList && !mini
+                        ? "w-full flex-col items-center gap-1 rounded-2xl px-1 py-1.5 text-center"
+                        : mini
+                          ? "mx-auto size-12 justify-center rounded-xl"
+                          : compact
+                            ? "w-full min-h-11 items-center gap-2 rounded-xl px-2.5 py-1.5"
+                            : "w-full items-center gap-3 rounded-xl px-2.5 py-[10px]"
+                    } ${mini || (pinnedList && !mini) ? "" : "text-start"} ${
                       item.kind === "bot" ? "cursor-grab active:cursor-grabbing" : ""
                     } ${
                       selected || rosterDropKey === rowDropKey
@@ -436,10 +444,34 @@ export function SidebarRoster({
                           </>
                         ) : null}
                       </span>
+                    ) : pinnedList ? (
+                      <span className="relative">
+                        {avatar}
+                        {item.chat.unread ? (
+                          <span
+                            aria-hidden="true"
+                            data-roster-unread-dot
+                            className="absolute end-0 top-0 size-2 rounded-full bg-unread ring-2 ring-sidebar"
+                          />
+                        ) : null}
+                      </span>
                     ) : (
                       avatar
                     )}
-                    {!mini ? (
+                    {pinnedList && !mini ? (
+                      <span
+                        dir="auto"
+                        data-roster-bot-name={item.kind === "bot" ? "" : undefined}
+                        className="w-full truncate text-center text-[11px] font-medium leading-4 text-foreground"
+                      >
+                        {item.chat.name}
+                        {item.chat.unread ? (
+                          <span className="sr-only">
+                            <Trans> (unread)</Trans>
+                          </span>
+                        ) : null}
+                      </span>
+                    ) : !mini ? (
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1.5">
                           <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
