@@ -18,7 +18,7 @@ import {
   updateComposerMentionBindings,
 } from "@rakazo/core";
 import { Button } from "@rakazo/ui-web";
-import { ArrowUp, Box, Paperclip, Plus, Settings, Square, X } from "lucide-react";
+import { ArrowUp, AudioLines, Box, Paperclip, Plus, Settings, Square, X } from "lucide-react";
 import type { ClipboardEvent, ComponentProps, DragEvent, RefObject } from "react";
 import {
   memo,
@@ -86,6 +86,7 @@ const ComposerBody = memo(function Composer({
   onRemoveAttachment,
   onSend,
   onStop,
+  onVoice,
   phoneCallsEnabled,
   dictationTranscribe,
   replyTarget,
@@ -125,6 +126,8 @@ const ComposerBody = memo(function Composer({
     imageHandling?: "file",
   ) => Promise<boolean>;
   onStop: () => Promise<void>;
+  /** Empty composer: the green voice button. Opens voice settings when calls are off. */
+  onVoice?: () => void;
   phoneCallsEnabled?: boolean;
   /** Hold-to-talk falls back to the voice provider's transcription; undefined while unknown. */
   dictationTranscribe?: boolean;
@@ -971,21 +974,32 @@ const ComposerBody = memo(function Composer({
                 <Square size={11} strokeWidth={0} fill="currentColor" />
               </Button>
             </>
-          ) : (
+          ) : draft.trim().length === 0 ? (
             <>
-              {phoneCallsEnabled && draft.trim().length === 0 ? (
-                <HoldToTalkControls talk={talk} disabled={disabled || onCall} />
-              ) : null}
+              <HoldToTalkControls
+                talk={talk}
+                disabled={disabled || onCall || (!phoneCallsEnabled && !dictationTranscribe)}
+              />
               <Button
                 size="icon"
-                aria-label={t`Send`}
-                disabled={sending || !canSend || disabled}
-                onClick={() => void send()}
-                className="size-8 shrink-0 rounded-full transition-transform active:scale-95 disabled:bg-primary-disabled disabled:text-foreground/30 disabled:opacity-100"
+                aria-label={t`Voice`}
+                disabled={disabled || !onVoice}
+                onClick={onVoice}
+                className="size-8 shrink-0 rounded-full bg-success text-background hover:bg-success/90"
               >
-                <ArrowUp size={16} strokeWidth={2.2} />
+                <AudioLines size={16} strokeWidth={1.8} />
               </Button>
             </>
+          ) : (
+            <Button
+              size="icon"
+              aria-label={t`Send`}
+              disabled={sending || !canSend || disabled}
+              onClick={() => void send()}
+              className="size-8 shrink-0 rounded-full transition-transform active:scale-95 disabled:bg-primary-disabled disabled:text-foreground/30 disabled:opacity-100"
+            >
+              <ArrowUp size={16} strokeWidth={2.2} />
+            </Button>
           )}
         </div>
       </div>

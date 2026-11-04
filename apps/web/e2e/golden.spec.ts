@@ -433,11 +433,11 @@ test("sign-in, spawn, and stop work in the shell", async ({ page }, testInfo) =>
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeDisabled();
   releaseStopRequest();
-  // Idle Send stays disabled with an empty draft; wait for Stop to leave instead.
+  // An empty idle composer shows Voice once Stop leaves.
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toHaveCount(0, {
     timeout: 30_000,
   });
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Voice", exact: true })).toBeVisible();
 
   await page.context().clearCookies();
   await page.goto("/sign-in");

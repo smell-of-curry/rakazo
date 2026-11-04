@@ -1,5 +1,3 @@
-import { i18n } from "@lingui/core";
-import { t } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Bot, BotSection, Group, Me, Space, ThreadSnapshot } from "@rakazo/contracts";
 import {
@@ -97,6 +95,8 @@ export function SidebarRoster({
     <>
       {sidebarGroups.map((group, groupIndex) => {
         const collapsed = Boolean(group.title) && collapsedSidebarSections.has(group.key);
+        // Grok's pinned bots sit at the top with no section label.
+        const pinnedList = group.key === "pinned" || group.key.endsWith(":pinned");
         const groupBotIds = group.bots.flatMap((item) =>
           item.kind === "bot" ? [item.chat.id] : [],
         );
@@ -124,7 +124,7 @@ export function SidebarRoster({
             data-sidebar-group={group.key}
             className={`flex flex-col gap-0.5 ${mini && groupIndex > 0 ? "mt-2 border-t border-sidebar-border pt-2" : ""}`}
           >
-            {!mini && (group.title || hasSpaceActions) ? (
+            {!mini && !pinnedList && (group.title || hasSpaceActions) ? (
               // biome-ignore lint/a11y/useSemanticElements: groups sidebar controls, not form fields; Move to remains the keyboard alternative.
               <div
                 role="group"
@@ -446,9 +446,7 @@ export function SidebarRoster({
                             <span
                               dir="auto"
                               data-roster-bot-name={item.kind === "bot" ? "" : undefined}
-                              className={`max-w-full shrink-0 truncate text-body2 text-foreground ${
-                                item.chat.unread ? "font-semibold" : "font-medium"
-                              }`}
+                              className="max-w-full shrink-0 truncate text-body2 font-semibold text-foreground"
                             >
                               {item.chat.name}
                             </span>
@@ -458,15 +456,7 @@ export function SidebarRoster({
                               </span>
                             ) : null}
                           </div>
-                          <div className="flex shrink-0 items-center gap-1.5">
-                            {!compact ? (
-                              <span
-                                data-roster-time
-                                className="text-label text-faint-foreground tabular-nums"
-                              >
-                                {formatRosterTime(item.chat.updatedAt)}
-                              </span>
-                            ) : null}
+                          <div className="flex shrink-0 items-center">
                             {item.chat.unread ? (
                               <span
                                 aria-hidden="true"
@@ -572,35 +562,4 @@ export function SidebarRoster({
 /** A space section header's name as one phrase, for accessible labels. */
 function headerName(group: { title?: string | null; subtitle?: string }): string {
   return group.subtitle ? `${group.title}, ${group.subtitle}` : (group.title ?? "");
-}
-
-function formatRosterTime(isoDate?: string | null): string {
-  if (!isoDate) return "";
-  try {
-    const d = new Date(isoDate);
-    if (Number.isNaN(d.getTime())) return "";
-    const locale = i18n.locale || "en";
-    const now = new Date();
-    const isToday =
-      d.getDate() === now.getDate() &&
-      d.getMonth() === now.getMonth() &&
-      d.getFullYear() === now.getFullYear();
-    if (isToday) {
-      return d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
-    }
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    const isYesterday =
-      d.getDate() === yesterday.getDate() &&
-      d.getMonth() === yesterday.getMonth() &&
-      d.getFullYear() === yesterday.getFullYear();
-    if (isYesterday) return t`Yesterday`;
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays < 7) {
-      return d.toLocaleDateString(locale, { weekday: "short" });
-    }
-    return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
-  } catch {
-    return "";
-  }
 }

@@ -36,6 +36,7 @@ test("sidebar rail keeps chats interactive and remembers a dragged width", async
   await sidebar.getByTestId("sidebar-search-trigger").click();
   await sidebar.getByRole("textbox", { name: "Search", exact: true }).fill("no roster matches");
   await expect(row).toHaveCount(0);
+  await page.getByTestId("sidebar-search-trigger").hover();
   await page.getByTestId("minimize-bots-sidebar").click();
   await expect(sidebar).toHaveCSS("width", "72px");
   await expect(row).toHaveAccessibleName("Research");
@@ -45,6 +46,7 @@ test("sidebar rail keeps chats interactive and remembers a dragged width", async
     "no roster matches",
   );
   await sidebar.getByRole("textbox", { name: "Search", exact: true }).fill("");
+  await page.getByTestId("sidebar-search-trigger").hover();
   await page.getByTestId("minimize-bots-sidebar").click();
   await expect(sidebar).toHaveCSS("width", "72px");
   await row.click();
@@ -85,6 +87,7 @@ test("sidebar rail keeps chats interactive and remembers a dragged width", async
     .poll(async () => Math.round((await sidebar.boundingBox())!.width))
     .toBeGreaterThan(300);
 
+  await page.getByTestId("sidebar-search-trigger").hover();
   await page.getByTestId("minimize-bots-sidebar").click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Open navigation" }).click();
@@ -178,6 +181,7 @@ test("sidebar snaps its layout during a held drag in both directions", async ({
   };
   const handle = page.getByRole("separator", { name: "Resize bots sidebar" });
   const minimize = page.getByTestId("minimize-bots-sidebar");
+  await page.getByTestId("sidebar-search-trigger").hover();
   await page.getByTestId("minimize-bots-sidebar").click();
   await expect(sidebar).toHaveCSS("width", "72px");
   await captureFrame("sidebar-mini-tight-spacing");
@@ -195,7 +199,7 @@ test("sidebar snaps its layout during a held drag in both directions", async ({
     await expect(sidebar).toHaveCSS("width", `${width}px`);
     await expect(sidebar).toHaveAttribute("data-collapsed", String(mini));
     if (mini) await expect(minimize).toHaveCount(0);
-    else await expect(minimize).toBeVisible();
+    else await expect(minimize).toHaveCount(1);
     await captureFrame(`sidebar-drag-${frame}`);
   }
   await page.mouse.up();

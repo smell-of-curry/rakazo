@@ -42,7 +42,7 @@ test("shows peer lines in transcript and opens view-only peer chat", async ({ pa
     )
     .toBe(true);
 
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "Voice" })).toBeVisible({ timeout: 60_000 });
 
   const transcript = page.getByTestId("transcript");
   const chip = transcript
@@ -285,7 +285,7 @@ test(
     await view.getByRole("button", { name: "Close" }).click();
 
     // A search hit on a folded reply expands its marker and scrolls to it.
-    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "Voice" })).toBeVisible({ timeout: 60_000 });
     await page.getByTestId("sidebar-search-trigger").click();
     const search = page.getByTestId("sidebar-search").getByRole("textbox");
     await search.fill(foldedReplyText);
@@ -302,7 +302,7 @@ test(
     await expect(search).toHaveCount(0);
 
     // An ask from the woken run stays inline in the recipient's thread; its text folds.
-    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "Voice" })).toBeVisible({ timeout: 60_000 });
     await page.goto("/app");
     await chiefComposer.fill("message the bot named Researcher saying which city peer-fold-beta");
     await chiefComposer.press("Enter");

@@ -645,6 +645,12 @@ describe("Composer", () => {
     (running) => {
       renderComposer(vi.fn(), { running });
       const send = container?.querySelector<HTMLButtonElement>('button[aria-label="Send"]');
+      if (!running) {
+        expect(send).toBeNull();
+        expect(container?.querySelector('button[aria-label="Voice"]')).not.toBeNull();
+        expect(container?.querySelector('button[aria-label="Hold to talk"]')).not.toBeNull();
+        return;
+      }
       expect(send?.disabled).toBe(true);
       expect(send?.className.split(" ")).toEqual(
         expect.arrayContaining([
@@ -1209,9 +1215,11 @@ it.each([false, true])(
   },
 );
 
-it("hides call dictation until the server enables it", () => {
+it("keeps call dictation disabled until the server enables it", () => {
   renderComposer(vi.fn().mockResolvedValue(true));
-  expect(container?.querySelector('button[aria-label="Hold to talk"]')).toBeNull();
+  const mic = container?.querySelector<HTMLButtonElement>('button[aria-label="Hold to talk"]');
+  expect(mic).not.toBeNull();
+  expect(mic?.disabled).toBe(true);
 });
 
 it("shows file confirmation only for a recognized server response", () => {

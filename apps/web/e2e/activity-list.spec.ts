@@ -60,6 +60,7 @@ test("sidebar Working and Recent surface active and terminal runs", async ({ pag
     timeout: 30_000,
   });
 
+  await page.getByTestId("sidebar-search-trigger").hover();
   await activityToggle.click();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
   await expect(activityToggle).toHaveAttribute("data-activity-mode", "on");
@@ -128,18 +129,20 @@ test("sidebar Working and Recent surface active and terminal runs", async ({ pag
   await page.emulateMedia({ colorScheme: "light" });
   await runSearch.fill("Chief");
   // Search stays open across the switch, now searching the space instead of runs.
+  await page.getByTestId("sidebar-search-trigger").hover();
   await activityToggle.click();
   const normalSearch = aside.getByRole("textbox", { name: "Search", exact: true });
   await expect(normalSearch).toHaveValue("");
   await normalSearch.fill("Chief");
   await expect(aside.getByTestId("activity-list")).toHaveCount(0);
+  await page.getByTestId("sidebar-search-trigger").hover();
   await activityToggle.click();
   await expect(runSearch).toHaveValue("");
   await expect(filtersButton).toHaveAttribute("aria-expanded", "false");
   await expect(activityRow(page, "Chief")).toBeVisible();
 
   await page.getByRole("button", { name: "Stop", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Voice" })).toBeVisible({ timeout: 30_000 });
 
   await page.reload();
   await expect(activityToggle).toHaveAttribute("aria-pressed", "true");
@@ -250,6 +253,7 @@ test("activity filters keep retry when a refresh fails", async ({ page }, testIn
 
   const aside = page.locator("aside").first();
   const activityToggle = page.getByRole("button", { name: "Activity", exact: true });
+  await page.getByTestId("sidebar-search-trigger").hover();
   await activityToggle.click();
   // The list refreshes every 15s; drive that poll with a controlled clock.
   await page.clock.install();
@@ -319,6 +323,7 @@ test("activity groups what needs you, what is working, and unread chats", async 
   await page.getByPlaceholder("Message Researcher").fill("keep working until I stop you");
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
+  await page.getByTestId("sidebar-search-trigger").hover();
   await page.getByRole("button", { name: "Activity", exact: true }).click();
 
   const aside = page.locator("aside").first();

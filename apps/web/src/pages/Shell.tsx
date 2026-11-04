@@ -1154,6 +1154,10 @@ function SpaceShell() {
               onRemoveAttachment={composer.removeAttachment}
               onSend={composer.sendMessage}
               onStop={stopRun}
+              onVoice={() => {
+                if (active && bootstrapMe?.phoneCallsEnabled) callBot(active);
+                else openSettings("voice");
+              }}
               phoneCallsEnabled={bootstrapMe?.phoneCallsEnabled === true}
               dictationTranscribe={voiceStatus ? Boolean(voiceStatus.transcribe) : undefined}
               artifactTarget={transcriptArtifactTarget}

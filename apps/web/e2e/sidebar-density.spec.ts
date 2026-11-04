@@ -52,11 +52,6 @@ test("compact bot sidebar hides previews and preserves roster status accessibly"
     "background-color",
     "rgb(11, 109, 211)",
   );
-  // Times are tertiary text; a hovered row takes the light hover fill, lighter than selection.
-  await expect(previewRow.locator("[data-roster-time]")).toHaveCSS(
-    "color",
-    "rgba(28, 28, 28, 0.56)",
-  );
   await previewRow.hover();
   await expect(previewRow).toHaveCSS("background-color", "rgba(28, 28, 28, 0.06)");
   await expect(selectedRow).toHaveCSS("background-color", "rgba(28, 28, 28, 0.08)");

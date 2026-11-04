@@ -44,6 +44,7 @@ test("sidebar search opens from its icon and closes without moving chats mid-cli
   await trigger.click();
   await expect(search).toHaveCount(0);
 
+  await page.getByTestId("sidebar-search-trigger").hover();
   await page.getByRole("button", { name: "Activity", exact: true }).click();
   await trigger.click();
   const runSearch = sidebar.getByRole("textbox", { name: "Search runs", exact: true });
