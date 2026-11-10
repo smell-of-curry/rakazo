@@ -58,7 +58,7 @@ export function MoreUnreads({
         <button
           type="button"
           data-testid="more-unreads"
-          className="absolute top-2 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-unread px-3 py-1 text-[12px] font-medium text-white shadow-sm"
+          className="absolute top-2 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-unread px-3 py-1 text-label font-medium text-white shadow-sm"
           onClick={() => {
             const root = scrollRef.current;
             if (root) scrollToUnreadAbove(root);

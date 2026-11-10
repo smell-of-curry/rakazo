@@ -474,7 +474,7 @@ export function SidebarRoster({
                       <span
                         dir="auto"
                         data-roster-bot-name={item.kind === "bot" ? "" : undefined}
-                        className="w-full truncate text-center text-[11px] font-medium leading-4 text-foreground"
+                        className="w-full truncate text-center text-caption font-medium leading-4 text-foreground"
                       >
                         {item.chat.name}
                         {item.chat.unread ? (

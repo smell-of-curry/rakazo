@@ -86,7 +86,7 @@ export function SidebarFooter({
             mini ? "size-9 justify-center" : "h-11 flex-1 gap-2.5 px-1.5"
           }`}
         >
-          <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-sidebar-accent text-sm font-medium text-foreground">
+          <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-sidebar-accent text-body font-medium text-foreground">
             {image && failedImage !== image ? (
               <img
                 src={image}
@@ -101,7 +101,7 @@ export function SidebarFooter({
             )}
           </span>
           {mini ? null : (
-            <span dir="auto" className="min-w-0 truncate text-sm text-foreground">
+            <span dir="auto" className="min-w-0 truncate text-body text-foreground">
               {name}
             </span>
           )}
