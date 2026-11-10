@@ -1,6 +1,9 @@
 import type { MemoryDocument } from "./domain.js";
 import { MEMORY_INDEX_PATH } from "./domain.js";
 
+/** Retained notes from deleted bots are an archive, not active shared context. */
+export const ARCHIVED_BOT_MEMORY_DIRECTORY = "Archived bots";
+
 /** The heading seeded when a bot is created, before it has learned anything. */
 export function initialBotMemory(name: string): string {
   return `# ${name}\n\n`;
