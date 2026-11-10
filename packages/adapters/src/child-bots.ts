@@ -10,6 +10,7 @@ import type {
 import { routineJobKey, runContinueJob, runJobKey } from "@rakazo/adapter-kit";
 import type { Actor, Bot, ComputerMode } from "@rakazo/contracts";
 import {
+  ARCHIVED_BOT_MEMORY_DIRECTORY,
   BOT_DESCRIPTION_MAX_LENGTH,
   BOT_INSTRUCTIONS_MAX_LENGTH,
   GROUP_MEMBER_MIN,
@@ -640,7 +641,7 @@ async function removeStoredArtifacts(
 
 function archivedMemoryDirectory(name: string, botId: string) {
   const safeName = name.replace(/[\\/]/g, "-").trim() || "Bot";
-  return `Archived bots/${safeName} (${botId})`;
+  return `${ARCHIVED_BOT_MEMORY_DIRECTORY}/${safeName} (${botId})`;
 }
 
 function releasedComputerLease() {
