@@ -35,9 +35,11 @@ jobs:
           node apps/mobile/scripts/distribution.ts
       - name: Set up mobile build tools
         uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
+        env:
+          npm_config_ignore_scripts: "true"
         with:
           eas-version: 24.14.0
-          packager: pnpm
+          packager: npm
           token: ${{ secrets.MOBILE_DISTRIBUTION_TOKEN }}
       - run: pnpm install --frozen-lockfile
       - name: Verify mobile project
