@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-10
+
+### Security
+
+- Patch file-pattern dependencies against denial-of-service issues and filesystem traversal continuing after cancellation.
+- Patch the diagram math dependency so inherited object properties cannot enable trusted rendering. Existing strict SVG labels and sanitization remain unchanged.
+
+### Fixed
+
+- Desktop release feeds accept valid fork repository names beginning with punctuation while rejecting dot path segments and malformed coordinates.
+
 ## [0.9.0] - 2026-11-09
 
 ### Security
