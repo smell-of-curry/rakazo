@@ -3196,7 +3196,7 @@ msgstr "Znajdź stronę"
 
 #: src/pages/shell/shortcut-sheet.tsx
 msgid "Find in chat"
-msgstr ""
+msgstr "Znajdź w czacie"
 
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
@@ -3667,7 +3667,7 @@ msgstr "klucz"
 
 #: src/pages/shell/shortcut-sheet.tsx
 msgid "Keyboard shortcuts"
-msgstr ""
+msgstr "Skróty klawiszowe"
 
 #: src/components/vault/kinds.tsx
 msgid "Keys"
@@ -4154,7 +4154,7 @@ msgstr "Więcej działań komputera"
 
 #: src/pages/shell/more-unreads.tsx
 msgid "More unreads"
-msgstr ""
+msgstr "Więcej nieprzeczytanych"
 
 #: src/pages/ModelRoleSettings.tsx
 msgid "Move down"
@@ -4341,7 +4341,7 @@ msgstr "Nowa zmienna"
 
 #: src/pages/shell/shortcut-sheet.tsx
 msgid "Next bot"
-msgstr ""
+msgstr "Następny bot"
 
 #: src/components/markdown-copy.tsx
 msgid "Next page"
@@ -5899,7 +5899,7 @@ msgstr "Pokaż transkrypcję"
 
 #: src/pages/shell/shortcut-sheet.tsx
 msgid "Sidebar"
-msgstr ""
+msgstr "Pasek boczny"
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Sidebar density"
