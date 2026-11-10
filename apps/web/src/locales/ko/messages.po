@@ -907,15 +907,12 @@ msgid "Apps"
 msgstr ""
 
 #: src/pages/BotContextMenu.tsx
+#: src/pages/shell/archived-chats.tsx
 msgid "Archive"
 msgstr "보관"
 
 #: src/pages/shell/message-view.tsx
 msgid "archived"
-msgstr "보관됨"
-
-#: src/pages/shell/archived-chats.tsx
-msgid "Archived"
 msgstr "보관됨"
 
 #: src/pages/McpServersOverlay.tsx
@@ -3197,6 +3194,10 @@ msgstr ""
 msgid "Find a page"
 msgstr "페이지 찾기"
 
+#: src/pages/shell/shortcut-sheet.tsx
+msgid "Find in chat"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Find models"
@@ -3663,6 +3664,10 @@ msgstr ""
 #: src/pages/RoutineEditor.tsx
 msgid "key"
 msgstr "key"
+
+#: src/pages/shell/shortcut-sheet.tsx
+msgid "Keyboard shortcuts"
+msgstr ""
 
 #: src/components/vault/kinds.tsx
 msgid "Keys"
@@ -4147,6 +4152,10 @@ msgstr ""
 msgid "More computer actions"
 msgstr "컴퓨터 작업 더보기"
 
+#: src/pages/shell/more-unreads.tsx
+msgid "More unreads"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Move down"
 msgstr "아래로 이동"
@@ -4252,6 +4261,7 @@ msgstr "묻지 않기"
 
 #: src/components/VaultSettings.tsx
 #: src/pages/shell/chat-context.tsx
+#: src/pages/shell/shortcut-sheet.tsx
 msgid "New"
 msgstr ""
 
@@ -4327,6 +4337,10 @@ msgstr ""
 
 #: src/components/VaultSettings.tsx
 msgid "New variable"
+msgstr ""
+
+#: src/pages/shell/shortcut-sheet.tsx
+msgid "Next bot"
 msgstr ""
 
 #: src/components/markdown-copy.tsx
@@ -5635,6 +5649,7 @@ msgstr "화면이 연결되지 않음"
 #: src/pages/shell/chat-model-picker.tsx
 #: src/pages/shell/command-palette.tsx
 #: src/pages/shell/shell-sidebar.tsx
+#: src/pages/shell/shortcut-sheet.tsx
 #: src/pages/shell/sidebar-header.tsx
 msgid "Search"
 msgstr "검색"
@@ -5881,6 +5896,10 @@ msgstr ""
 #: src/components/call/VoiceChatCard.tsx
 msgid "Show transcript"
 msgstr "대화 기록 표시"
+
+#: src/pages/shell/shortcut-sheet.tsx
+msgid "Sidebar"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Sidebar density"
@@ -6935,6 +6954,7 @@ msgstr ""
 
 #: src/pages/settings-nav.ts
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/composer.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Voice"
@@ -7104,7 +7124,6 @@ msgid "Yearly"
 msgstr "연간"
 
 #: src/pages/shell/chat-context.tsx
-#: src/pages/shell/sidebar-roster.tsx
 msgid "Yesterday"
 msgstr "어제"
 

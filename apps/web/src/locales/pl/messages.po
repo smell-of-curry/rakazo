@@ -907,16 +907,13 @@ msgid "Apps"
 msgstr "Aplikacje"
 
 #: src/pages/BotContextMenu.tsx
+#: src/pages/shell/archived-chats.tsx
 msgid "Archive"
 msgstr "Archiwizuj"
 
 #: src/pages/shell/message-view.tsx
 msgid "archived"
 msgstr "zarchiwizowane"
-
-#: src/pages/shell/archived-chats.tsx
-msgid "Archived"
-msgstr "Zarchiwizowane"
 
 #: src/pages/McpServersOverlay.tsx
 msgid "Arguments"
@@ -3197,6 +3194,10 @@ msgstr "Finanse"
 msgid "Find a page"
 msgstr "Znajdź stronę"
 
+#: src/pages/shell/shortcut-sheet.tsx
+msgid "Find in chat"
+msgstr ""
+
 #: src/pages/model-settings/compatible-model-fields.tsx
 #: src/pages/Onboarding.tsx
 msgid "Find models"
@@ -3663,6 +3664,10 @@ msgstr "Zachowuj pełne wyniki narzędzi"
 #: src/pages/RoutineEditor.tsx
 msgid "key"
 msgstr "klucz"
+
+#: src/pages/shell/shortcut-sheet.tsx
+msgid "Keyboard shortcuts"
+msgstr ""
 
 #: src/components/vault/kinds.tsx
 msgid "Keys"
@@ -4147,6 +4152,10 @@ msgstr "Więcej aplikacji"
 msgid "More computer actions"
 msgstr "Więcej działań komputera"
 
+#: src/pages/shell/more-unreads.tsx
+msgid "More unreads"
+msgstr ""
+
 #: src/pages/ModelRoleSettings.tsx
 msgid "Move down"
 msgstr "Przenieś w dół"
@@ -4252,6 +4261,7 @@ msgstr "Nigdy nie pytaj"
 
 #: src/components/VaultSettings.tsx
 #: src/pages/shell/chat-context.tsx
+#: src/pages/shell/shortcut-sheet.tsx
 msgid "New"
 msgstr "Nowe"
 
@@ -4328,6 +4338,10 @@ msgstr "Nowe zgłoszenie"
 #: src/components/VaultSettings.tsx
 msgid "New variable"
 msgstr "Nowa zmienna"
+
+#: src/pages/shell/shortcut-sheet.tsx
+msgid "Next bot"
+msgstr ""
 
 #: src/components/markdown-copy.tsx
 msgid "Next page"
@@ -5635,6 +5649,7 @@ msgstr "Ekran nie jest połączony"
 #: src/pages/shell/chat-model-picker.tsx
 #: src/pages/shell/command-palette.tsx
 #: src/pages/shell/shell-sidebar.tsx
+#: src/pages/shell/shortcut-sheet.tsx
 #: src/pages/shell/sidebar-header.tsx
 msgid "Search"
 msgstr "Szukaj"
@@ -5881,6 +5896,10 @@ msgstr "Pokaż aktywność narzędzi"
 #: src/components/call/VoiceChatCard.tsx
 msgid "Show transcript"
 msgstr "Pokaż transkrypcję"
+
+#: src/pages/shell/shortcut-sheet.tsx
+msgid "Sidebar"
+msgstr ""
 
 #: src/pages/AccountSettingsOverlay.tsx
 msgid "Sidebar density"
@@ -6935,6 +6954,7 @@ msgstr "Zobacz źródło"
 
 #: src/pages/settings-nav.ts
 #: src/pages/shell/bot-panel.tsx
+#: src/pages/shell/composer.tsx
 #: src/pages/SpaceSettingOverrides.tsx
 #: src/pages/VoiceSettingsOverlay.tsx
 msgid "Voice"
@@ -7104,7 +7124,6 @@ msgid "Yearly"
 msgstr "Rocznie"
 
 #: src/pages/shell/chat-context.tsx
-#: src/pages/shell/sidebar-roster.tsx
 msgid "Yesterday"
 msgstr "Wczoraj"
 
