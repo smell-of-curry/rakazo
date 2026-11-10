@@ -1,0 +1,63 @@
+name: release-mobile-fork
+
+# An optional fork-owned build, uploaded to TestFlight without submitting public App Review.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-mobile-fork
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  ios:
+    name: Build fork iOS for TestFlight
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Require fork release credentials
+        env:
+          EXPO_TOKEN: ${{ secrets.MOBILE_DISTRIBUTION_TOKEN }}
+          MOBILE_DISTRIBUTION_CONFIG: ${{ secrets.MOBILE_DISTRIBUTION_CONFIG }}
+        run: |
+          test -n "$EXPO_TOKEN" || { echo 'Set MOBILE_DISTRIBUTION_TOKEN before releasing.' >&2; exit 1; }
+          node apps/mobile/scripts/distribution.ts
+      - name: Set up mobile build tools
+        uses: expo/expo-github-action@eab7a230208c952974db8c3245cfd78402c7b385 # v9
+        with:
+          eas-version: 24.14.0
+          packager: pnpm
+          token: ${{ secrets.MOBILE_DISTRIBUTION_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+      - name: Verify mobile project
+        run: pnpm --filter @rakazo/mobile check
+      - name: Build the configured fork
+        working-directory: apps/mobile
+        run: |
+          if ! eas build --platform ios --profile fork-testflight --non-interactive --wait --json > "$RUNNER_TEMP/fork-build.json" 2> "$RUNNER_TEMP/fork-build.log"; then
+            echo 'Mobile build failed. Review the build service dashboard.' >&2
+            exit 1
+          fi
+          jq -e --arg project "$(node -p 'require("./app.json").expo.extra.eas.projectId')" \
+            --arg identifier "$(node -p 'require("./app.json").expo.ios.bundleIdentifier')" \
+            'length == 1 and (.[0] | .status == "FINISHED" and .platform == "IOS" and .buildProfile == "fork-testflight" and .app.id == $project and .appIdentifier == $identifier)' \
+            "$RUNNER_TEMP/fork-build.json" > /dev/null
+      - name: Upload the verified build to TestFlight
+        working-directory: apps/mobile
+        run: |
+          build_id="$(jq -er '.[0].id' "$RUNNER_TEMP/fork-build.json")"
+          if ! eas submit --platform ios --profile fork-testflight --id "$build_id" --non-interactive --wait > "$RUNNER_TEMP/fork-submit.log" 2>&1; then
+            echo 'Mobile upload failed. Review the submission service dashboard.' >&2
+            exit 1
+          fi
