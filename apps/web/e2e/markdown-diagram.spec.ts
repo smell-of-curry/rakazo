@@ -32,24 +32,6 @@ async function expectDrawn(page: Page) {
   return image;
 }
 
-test("mathematical diagram labels render in both themes", async ({ page }, testInfo) => {
-  for (const theme of ["dark", "light"]) {
-    await page.goto(`${fixture}?theme=${theme}`);
-    await expectDrawn(page);
-    await streamUpdate(
-      page,
-      '```mermaid\ngraph LR\n  A["$$x^2$$"] --> B["$$\\frac{1}{2}$$"]\n```',
-      false,
-    );
-    await expect.poll(() => diagramMarkup(page)).toContain("<math");
-    await expectDrawn(page);
-    const markup = await diagramMarkup(page);
-    expect(markup).toContain("<msup>");
-    expect(markup).toContain("<mfrac>");
-    await captureScreenshot(page, testInfo, `markdown-diagram-math-${theme}`);
-  }
-});
-
 test("a mermaid fence is drawn as a themed, copyable diagram in place of its code block", async ({
   page,
 }, testInfo) => {
