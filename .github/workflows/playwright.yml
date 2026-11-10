@@ -101,14 +101,36 @@ jobs:
         # Skip --with-deps: GitHub ubuntu-latest already has Chromium's OS libraries,
         # and apt-get against azure.archive.ubuntu.com can stall until the job timeout.
         run: pnpm --filter @rakazo/web exec playwright install chromium
-      - name: Install CJK fonts
+      - name: Resolve CJK font package
         if: steps.areas.outputs.e2e != 'false'
-        timeout-minutes: 6
+        id: cjk-fonts
+        timeout-minutes: 2
         # Chromium needs CJK fallback fonts; the runner's Azure mirror can stall on this package.
         run: |
           sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
           sudo timeout 90s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update
-          sudo timeout 240s apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y --no-install-recommends fonts-noto-cjk
+          version=$(apt-cache policy fonts-noto-cjk | awk '/Candidate:/ {print $2}')
+          test -n "$version" && test "$version" != '(none)'
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          . /etc/os-release
+          echo "release=$VERSION_ID" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/cjk-font-archives/partial"
+      - name: Cache CJK font package
+        if: steps.areas.outputs.e2e != 'false'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ runner.temp }}/cjk-font-archives/*.deb
+          key: cjk-fonts-${{ runner.os }}-${{ runner.arch }}-${{ steps.cjk-fonts.outputs.release }}-${{ steps.cjk-fonts.outputs.version }}-v1
+      - name: Install CJK fonts
+        if: steps.areas.outputs.e2e != 'false'
+        timeout-minutes: 13
+        # Keep APT's signed-index and package integrity checks on cache hits too.
+        run: |
+          sudo timeout 720s apt-get \
+            -o Dir::Cache::archives="$RUNNER_TEMP/cjk-font-archives" \
+            -o APT::Keep-Downloaded-Packages=true \
+            -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 \
+            install -y --no-install-recommends "fonts-noto-cjk=${{ steps.cjk-fonts.outputs.version }}"
       - name: Wait for Postgres
         if: steps.areas.outputs.e2e != 'false'
         run: |
