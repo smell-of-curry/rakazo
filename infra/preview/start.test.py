@@ -90,9 +90,20 @@ class PreviewBoot(unittest.TestCase):
             if not succeeds:
                 self.assertNotEqual(process.wait(timeout=3), 0)
         finally:
-            if process.poll() is None:
+            # The shell can exit before a just-started stand-in handles TERM. Reap the whole
+            # isolated session, including descendants still holding the output pipe open.
+            try:
                 os.killpg(process.pid, signal.SIGTERM)
-            output = process.communicate(timeout=3)[0].decode()
+            except ProcessLookupError:
+                pass
+            try:
+                output = process.communicate(timeout=3)[0].decode()
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                output = process.communicate(timeout=3)[0].decode()
             if succeeds:
                 self.assertIn("[preview] Ready", output)
 
