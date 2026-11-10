@@ -38,7 +38,7 @@ jobs:
         env:
           npm_config_ignore_scripts: "true"
         with:
-          eas-version: 24.14.0
+          eas-version: 27.5.0
           packager: npm
           token: ${{ secrets.MOBILE_DISTRIBUTION_TOKEN }}
       - run: pnpm install --frozen-lockfile
