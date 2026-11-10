@@ -21,13 +21,15 @@ test("colored user bubbles keep white text in both themes", async ({ page }, tes
     await expect(bubble).toHaveCSS("color", "rgb(255, 255, 255)");
     // #A855F7 deepened in OKLCH to #9C47E9 for AA contrast with white text.
     await expect(bubble).toHaveCSS("background-color", "rgb(156, 71, 233)");
-    // The send button stays quiet on an empty draft...
-    const send = page.getByRole("button", { name: "Send", exact: true });
-    await expect(send).toBeDisabled();
-    await expect(send).not.toHaveCSS("background-color", "rgb(156, 71, 233)");
+    // An empty draft shows the neutral voice action.
+    const voice = page.getByRole("button", { name: "Voice", exact: true });
+    await expect(voice).toBeVisible();
+    await expect(voice).not.toHaveCSS("background-color", "rgb(156, 71, 233)");
     await captureScreenshot(page, testInfo, `chat-bubble-white-text-${theme}`);
-    // ...and wears the bubble's color once there is something to send.
+    // Send takes its place and wears the bubble's color once there is a draft.
     await composer.fill("And the week after.");
+    const send = page.getByRole("button", { name: "Send", exact: true });
+    await expect(send).toBeEnabled();
     await expect(send).toHaveCSS("background-color", "rgb(156, 71, 233)");
     await expect(send).toHaveCSS("color", "rgb(255, 255, 255)");
     await captureScreenshot(page, testInfo, `chat-send-button-bot-color-${theme}`);
