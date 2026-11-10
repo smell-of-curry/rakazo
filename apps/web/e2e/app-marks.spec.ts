@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { completeOnboarding, signup } from "./helpers";
+import { captureScreenshot, completeOnboarding, signup } from "./helpers";
 
-test("sidebar footer shows the account name and a round Connect apps button", async ({ page }) => {
+test("sidebar footer shows the account name and a round Connect apps button", async ({
+  page,
+}, testInfo) => {
   await signup(page, `footer-${Date.now()}@rakazo.test`, "password12", "Demo User");
   await completeOnboarding(page);
   const footer = page.getByTestId("sidebar-footer");
@@ -12,4 +14,5 @@ test("sidebar footer shows the account name and a round Connect apps button", as
     Number.parseFloat(getComputedStyle(el).borderRadius),
   );
   expect(radius).toBeGreaterThanOrEqual(16);
+  await captureScreenshot(page, testInfo, "fork-sidebar-footer");
 });

@@ -1,6 +1,6 @@
 import { Trans } from "@lingui/react/macro";
 import { ArrowUp } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ReactNode, UIEventHandler } from "react";
 import { useEffect, useRef, useState } from "react";
 import { countUnreadsAbove } from "./more-unreads-count";
 
@@ -19,7 +19,15 @@ function scrollToUnreadAbove(root: HTMLElement) {
 }
 
 /** Blue jump pill when unread chats have scrolled above the roster. */
-export function MoreUnreads({ className, children }: { className: string; children: ReactNode }) {
+export function MoreUnreads({
+  className,
+  children,
+  onScroll,
+}: {
+  className: string;
+  children: ReactNode;
+  onScroll?: UIEventHandler<HTMLDivElement>;
+}) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -60,7 +68,7 @@ export function MoreUnreads({ className, children }: { className: string; childr
           <Trans>More unreads</Trans>
         </button>
       ) : null}
-      <div ref={scrollRef} className={className}>
+      <div ref={scrollRef} className={className} onScroll={onScroll}>
         {children}
       </div>
     </div>
