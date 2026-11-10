@@ -8,6 +8,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const account = vi.hoisted(() => ({ load: (_me: unknown) => {} }));
 
+// Onboarding loads its account through rpc.me; keep the menu session offline as well.
+vi.mock("../lib/auth", () => ({ authClient: { useSession: () => ({ data: null }) } }));
+
 vi.mock("../lib/rpc", () => ({
   selectedSpaceId: () => null,
   rpc: {

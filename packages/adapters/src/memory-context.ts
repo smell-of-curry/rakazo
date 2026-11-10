@@ -1,6 +1,10 @@
 import type { AdapterContext, MemoryStore } from "@rakazo/adapter-kit";
 import type { MemoryPromptBudget, MemoryPromptDocumentUse } from "@rakazo/contracts";
-import { BOT_MEMORY_MAX_BYTES, MEMORY_INDEX_PATH } from "@rakazo/contracts";
+import {
+  ARCHIVED_BOT_MEMORY_DIRECTORY,
+  BOT_MEMORY_MAX_BYTES,
+  MEMORY_INDEX_PATH,
+} from "@rakazo/contracts";
 import { byteLength, truncateUtf8 } from "./utf8.js";
 
 /** How much durable memory a prompt carries before the rest is left out. */
@@ -32,9 +36,15 @@ export function buildAgentMemoryPrompt(
     documents: [],
     omitted: [],
   };
-  if (input.length === 0) return { plan };
+  // Deleting a bot can retain its notes in shared storage. Keep them available
+  // through the memory library without displacing every active bot's context.
+  const active = input.filter(
+    (document) =>
+      document.scope !== "user" || !document.path.startsWith(`${ARCHIVED_BOT_MEMORY_DIRECTORY}/`),
+  );
+  if (active.length === 0) return { plan };
 
-  const documents = [...input].sort(
+  const documents = active.sort(
     (left, right) =>
       memoryTimestamp(right.updatedAt) - memoryTimestamp(left.updatedAt) ||
       right.revision - left.revision ||

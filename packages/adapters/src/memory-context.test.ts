@@ -125,6 +125,39 @@ describe("memory prompt budget", () => {
     content,
   });
 
+  it("keeps retained deleted-bot archives out of active context and its budget", () => {
+    const active = doc("MEMORY.md", "current task", 1, "2026-08-14T12:00:00.000Z");
+    const archive = {
+      ...doc(
+        "Archived bots/Retired (bot-old)/MEMORY.md",
+        "old".repeat(20_000),
+        2,
+        "2026-08-15T12:00:00.000Z",
+      ),
+      scope: "user" as const,
+    };
+    const input = [archive, active];
+    const result = buildAgentMemoryPrompt(input);
+
+    expect(result).toEqual(buildAgentMemoryPrompt([active]));
+    expect(input[0]).toBe(archive);
+    expect(archive.content).toHaveLength(60_000);
+    expect(buildAgentMemoryPrompt([archive])).toEqual(buildAgentMemoryPrompt([]));
+  });
+
+  it("does not exclude a bot-owned document or a similarly named shared document", () => {
+    const documents = [
+      doc("Archived bots/notes.md", "bot-owned", 1, "2026-08-14T12:00:00.000Z"),
+      {
+        ...doc("Archived bots policy.md", "shared", 1, "2026-08-14T12:00:00.000Z"),
+        scope: "user" as const,
+      },
+    ];
+    const { plan } = buildAgentMemoryPrompt(documents);
+    expect(plan.documents).toHaveLength(2);
+    expect(plan.omitted).toEqual([]);
+  });
+
   it("reports every document when they all fit", () => {
     const { plan } = buildAgentMemoryPrompt([
       doc("MEMORY.md", "recent", 2, "2026-08-15T12:00:00.000Z"),
