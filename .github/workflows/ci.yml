@@ -138,9 +138,11 @@ jobs:
       - name: Codex subscription auth safety tests
         if: steps.areas.outputs.all_packages != 'false'
         run: python3 .github/scripts/codex-subscription-auth.test.py
-      - name: Dependency update patch safety tests
+      - name: Repository patch safety tests
         if: steps.areas.outputs.all_packages != 'false'
-        run: python3 .github/scripts/dependency-update-patch.test.py
+        run: |
+          python3 .github/scripts/dependency-update-patch.test.py
+          python3 .github/scripts/prepare-repository-patch.test.py
       - name: Issue triage labeling tests
         if: steps.areas.outputs.all_packages != 'false'
         run: python3 .github/scripts/apply-issue-triage.test.py

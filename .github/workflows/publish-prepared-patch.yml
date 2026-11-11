@@ -1,0 +1,53 @@
+name: Publish prepared patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: Current main commit used to prepare the patch
+        required: true
+        type: string
+      patch_base64:
+        description: Base64-encoded Git patch, at most 60000 characters
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ${{ vars.CI_LINUX_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Decode the prepared patch
+        env:
+          PATCH_BASE: ${{ inputs.base_sha }}
+          PATCH_BASE64: ${{ inputs.patch_base64 }}
+        run: python3 .github/scripts/prepare-repository-patch.py
+      - name: Apply the existing publication safeguards
+        run: bash .github/scripts/apply-dependency-update.sh "$RUNNER_TEMP/prepared.patch"
+      - name: Publish a new review branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config core.hooksPath /dev/null
+          git config commit.gpgsign false
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          branch="codex/prepared-patch-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git switch -c "$branch"
+          git diff --cached --check
+          git diff --cached --quiet && { echo 'The patch has no changes.'; exit 1; }
+          git commit -m 'Apply prepared repository patch'
+          gh auth setup-git
+          git push --set-upstream origin "$branch"
+          printf 'Published branch: `%s`\n' "$branch" >> "$GITHUB_STEP_SUMMARY"
+          printf 'Published branch: %s\n' "$branch"
