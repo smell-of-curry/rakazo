@@ -109,8 +109,9 @@ export function createHomeStyles() {
       paddingTop: 4,
       paddingBottom: 12,
     },
+    pinnedTileSlot: { width: "33.33%" },
     pinnedTile: {
-      width: "33.33%",
+      width: "100%",
       alignItems: "center",
       paddingVertical: 8,
       paddingHorizontal: 4,
