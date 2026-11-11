@@ -185,7 +185,8 @@ overrides:
   fast-uri@>=3 <3.1.9: 3.1.9
   js-yaml@>=4 <4.3.2: 4.3.2
   brace-expansion@>=2 <2.1.7: 2.1.7
-  node-forge@>=1 <1.4.1: 1.4.1
+  node-forge@>=1 <1.4.3: 1.4.3
+  fast-xml-parser@>=5 <5.12.0: 5.12.0
   compression@>=1 <1.8.2: 1.8.2
   markdown-it@>=14 <14.3.3: 14.3.3
   glob@>=9 <14.0.2: 14.0.3
@@ -8468,8 +8469,8 @@ packages:
   fast-xml-builder@1.3.1:
     resolution: {integrity: sha512-pIM/1n3ntFXKYrUZwW7QCK0gAW7XY+wzj1YMIV3tLDvPj/V+zTGJK5e3/4WJfwj0qWw2ElNXiTixda/R+3YSug==}
 
-  fast-xml-parser@5.11.2:
-    resolution: {integrity: sha512-R9iDuNrQYeQut46cn2r2wHKn4HYzVDvDm5J1wW+koZewykv0yuO2HChTYeZtrULyHIDM9cj9TUXloCsueCQUog==}
+  fast-xml-parser@5.12.0:
+    resolution: {integrity: sha512-/pXxRBtwxY9w8z7YbgsvIPPcPvFDsTbIkWwTQJhzNJPokj+TbN6ftmcv4j/pEQDvOCNnKGDzuk5Bo2oogIOiFg==}
     hasBin: true
 
   fastdom@1.0.12:
@@ -10026,8 +10027,8 @@ packages:
     resolution: {integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  node-forge@1.4.1:
-    resolution: {integrity: sha512-w5/MfWaeMrpR/5ba6fZyAUTLSuE6aYz7H/3cYrqwZEmf5eQS3IaaLgJt4MBv7HglGFWmV22K8h4U18RJQmw/ow==}
+  node-forge@1.4.3:
+    resolution: {integrity: sha512-P6wzfh6t70avmV8FrVEAd/36sOPJQ+hkaJVX1Laap9J/77m7M0eyozDvc8SwnDf4P7MP94gwbAAo0rg3YVXT+g==}
     engines: {node: '>= 6.13.0'}
 
   node-gyp@12.4.0:
@@ -14508,7 +14509,7 @@ snapshots:
       glob: 14.0.3
       lan-network: 0.2.1
       multitars: 1.0.2
-      node-forge: 1.4.1
+      node-forge: 1.4.3
       npm-package-arg: 11.0.3
       ora: 3.4.0
       picomatch: 4.0.7
@@ -14544,7 +14545,7 @@ snapshots:
 
   '@expo/code-signing-certificates@0.0.7':
     dependencies:
-      node-forge: 1.4.1
+      node-forge: 1.4.3
 
   '@expo/config-plugins@58.0.12(supports-color@8.1.1)(typescript@6.0.3)':
     dependencies:
@@ -20613,7 +20614,7 @@ snapshots:
       path-expression-matcher: 1.6.2
       xml-naming: 0.3.0
 
-  fast-xml-parser@5.11.2:
+  fast-xml-parser@5.12.0:
     dependencies:
       '@nodable/entities': 3.1.0
       fast-xml-builder: 1.3.1
@@ -21680,7 +21681,7 @@ snapshots:
     dependencies:
       '@postalsys/vmc': 1.1.5
       commander: 14.0.3
-      fast-xml-parser: 5.11.2
+      fast-xml-parser: 5.12.0
       ipaddr.js: 2.5.0
       joi: 18.3.2
       libmime: 5.6.2
@@ -22605,7 +22606,7 @@ snapshots:
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
 
-  node-forge@1.4.1: {}
+  node-forge@1.4.3: {}
 
   node-gyp@12.4.0:
     dependencies:
