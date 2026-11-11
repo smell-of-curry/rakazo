@@ -6,6 +6,8 @@ import type { InboxChatPreviewProps } from "./inbox-chat-preview";
 
 export type InboxSwipeRowProps = {
   rowKey: string;
+  /** Pinned tiles keep the context menu without a swipeable list row. */
+  swipe?: boolean;
   unread?: boolean;
   pinned?: boolean;
   /** Bots only; groups have no finish notifications. */

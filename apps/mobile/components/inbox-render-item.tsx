@@ -285,6 +285,10 @@ export function useInboxRenderItem({
             onLongPressGroup={organizeGroup}
             onBotAction={botAction}
             onGroupAction={groupAction}
+            sectionsOf={sectionsOf}
+            onOrganize={organizeFromMenu}
+            onEditSection={editSectionFromMenu}
+            onSnooze={snoozeChat}
           />
         </AvatarRow>
       ) : item.type === "heading" ? (
