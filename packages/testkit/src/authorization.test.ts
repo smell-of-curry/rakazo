@@ -294,6 +294,7 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["bots/archive", { botId: "missing-bot" }],
       ["bots/restore", { botId: "missing-bot" }],
       ["bots/remove", { botId: "missing-bot" }],
+      ["bots/removePreview", { botId: "missing-bot" }],
       ["bots/importCreate"],
       ["bots/importSetupState"],
       ["bots/templates"],
@@ -450,6 +451,7 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["pages/remove"],
       ["usage/list"],
       ["usage/summary"],
+      ["usage/limits"],
       ["export/bot", { botId: "missing-bot" }],
       ["export/accountToken"],
       ["notifications/subscribe"],
@@ -466,6 +468,7 @@ describeWithDatabase("API authorization and resource isolation", () => {
       ["notifications/registerPush", { token: "ExponentPushToken[not-real]" }],
       ["notifications/unregisterPush"],
       ["notifications/followWorkActivity", { token: "ab".repeat(32) }],
+      ["notifications/registerWorkActivityStarts", { token: "ab".repeat(32) }],
       ["search/query", { q: "anything" }],
       ["voice/catalog"],
       ["voice/status"],
@@ -875,6 +878,7 @@ describeWithDatabase("API authorization and resource isolation", () => {
     ).toMatchObject({ content: "owner-only-memory" });
 
     // Destructive bot removal is checked last so an authorization regression is unmistakable.
+    await expectDenied(app, intruder, "bots/removePreview", { botId: ownerBot.id });
     await expectDenied(app, intruder, "bots/remove", {
       botId: ownerBot.id,
       deleteMemories: true,

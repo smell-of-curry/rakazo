@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { applyTranslations, findMismatches, listGaps, translationsOf } from "./catalog-gaps.ts";
 
-const LOCALES = fileURLToPath(new URL("../../../apps/web/src/locales", import.meta.url));
+const LOCALES = fileURLToPath(new URL("../../../packages/i18n/locales", import.meta.url));
 
 const po = `msgid ""
 msgstr ""
@@ -88,7 +88,9 @@ describe("catalog gaps", () => {
   });
 
   it("writes every real translation back exactly as Lingui formats it", () => {
-    for (const locale of readdirSync(LOCALES)) {
+    for (const entry of readdirSync(LOCALES, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const locale = entry.name;
       const catalog = readFileSync(join(LOCALES, locale, "messages.po"), "utf8");
       const blanked = catalog
         .split("\n\n")
