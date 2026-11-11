@@ -79,5 +79,6 @@ allowBuilds:
   "@google/genai": false
   core-js: false
   cpu-features: false
+  dtrace-provider: false
   protobufjs: false
   ssh2: false
