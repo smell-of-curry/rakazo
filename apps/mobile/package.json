@@ -23,7 +23,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "check": "expo install --check && tsc --noEmit -p tsconfig.json",
+    "check": "cross-env EXPO_OFFLINE=1 expo install --check && tsc --noEmit -p tsconfig.json",
     "test": "vitest run --root ../.. apps/mobile/lib",
     "test:e2e": "maestro test .maestro/smoke.yaml"
   },
@@ -82,6 +82,7 @@
     "@ronradtke/react-native-markdown-display": "9.0.3"
   },
   "devDependencies": {
+    "cross-env": "10.1.0",
     "@react-native/metro-config": "0.88.1",
     "@sentry/cli": "2.58.6",
     "@types/node": "24.19.2",
