@@ -215,7 +215,7 @@ export function SectionChevron({ collapsed }: { collapsed: boolean }) {
   );
 }
 
-/** Android pinned chats open with a tap and organize with a long press. */
+/** Pinned chats open with a tap and keep their actions on long press. */
 export const PinnedTiles = memo(function PinnedTiles({
   chats,
   onOpenBot,
@@ -224,15 +224,20 @@ export const PinnedTiles = memo(function PinnedTiles({
   onLongPressGroup,
   onBotAction,
   onGroupAction,
+  sectionsOf,
+  onOrganize,
+  onEditSection,
+  onSnooze,
 }: {
   chats: PinnedChat[];
+  sectionsOf: (spaceId: string | undefined) => readonly MobileBotSection[];
   onOpenBot: (bot: MobileBot | SpaceBot) => void;
   onOpenGroup: (group: MobileGroup | SpaceGroup) => void;
   onLongPressBot: (bot: MobileBot | SpaceBot) => void;
   onLongPressGroup: (group: MobileGroup | SpaceGroup) => void;
   onBotAction: (action: InboxRowAction, bot: MobileBot | SpaceBot) => void;
   onGroupAction: (action: InboxRowAction, group: MobileGroup | SpaceGroup) => void;
-}) {
+} & Omit<RowMenuProps, "sections">) {
   const { i18n } = useLingui();
   const styles = useThemedStyles(createHomeStyles);
   const selectedId = useContext(SelectedChatContext);
@@ -252,9 +257,8 @@ export const PinnedTiles = memo(function PinnedTiles({
           chat.kind === "bot" ? onBotAction(action, chat.bot) : onGroupAction(action, chat.group);
         const organize = () =>
           chat.kind === "bot" ? onLongPressBot(chat.bot) : onLongPressGroup(chat.group);
-        return (
+        const tile = (
           <Pressable
-            key={`${chat.kind}-${id}`}
             accessibilityRole="button"
             accessibilityLabel={name}
             accessibilityState={{ selected: selectedId === id }}
@@ -267,7 +271,7 @@ export const PinnedTiles = memo(function PinnedTiles({
               if (action) runAction(action);
             }}
             onPress={() => (chat.kind === "bot" ? onOpenBot(chat.bot) : onOpenGroup(chat.group))}
-            onLongPress={organize}
+            onLongPress={Platform.OS === "ios" ? () => undefined : organize}
             style={({ pressed }) => [
               styles.pinnedTile,
               selectedId === id ? { backgroundColor: native.fillPressed } : null,
@@ -289,6 +293,32 @@ export const PinnedTiles = memo(function PinnedTiles({
             )}
             <PinnedName chat={chat} name={name} />
           </Pressable>
+        );
+        const target =
+          chat.kind === "bot"
+            ? { kind: "bot" as const, chat: chat.bot }
+            : { kind: "group" as const, chat: chat.group };
+        return (
+          <View key={`${chat.kind}-${id}`} style={styles.pinnedTileSlot}>
+            {Platform.OS === "ios" ? (
+              <ChatSwipe
+                target={target}
+                rowKey={`pinned:${chat.kind}:${id}`}
+                swipe={false}
+                onAction={runAction}
+                sections={sectionsOf(target.chat.spaceId)}
+                onOrganize={onOrganize}
+                onEditSection={onEditSection}
+                onSnooze={
+                  onSnooze ? (until) => onSnooze(target.kind, target.chat, until) : undefined
+                }
+              >
+                {tile}
+              </ChatSwipe>
+            ) : (
+              tile
+            )}
+          </View>
         );
       })}
     </View>
@@ -346,6 +376,7 @@ function chatTime(
 /** A chat row with the iOS swipe actions and context menu; other platforms get the row as is. */
 export function ChatSwipe({
   target,
+  swipe,
   rowKey = `${target.kind}:${target.chat.id}`,
   onAction,
   sections,
@@ -363,6 +394,7 @@ export function ChatSwipe({
     | { kind: "group"; chat: MobileGroup | SpaceGroup };
   /** Height cache key, for rows of a different layout than the inbox's. */
   rowKey?: string;
+  swipe?: boolean;
   onAction: (action: InboxRowAction) => void;
   children: ReactElement;
 } & RowMenuProps) {
@@ -370,6 +402,7 @@ export function ChatSwipe({
   return (
     <InboxSwipeRow
       rowKey={rowKey}
+      swipe={swipe}
       unread={chat.unread}
       pinned={chat.pinned}
       notifyOnFinish={target.kind === "bot" ? target.chat.notifyOnFinish : undefined}

@@ -219,14 +219,16 @@ vi.mock("../components/inbox-swipe-row", () => ({
   InboxSwipeRow: ({
     rowKey,
     sections,
+    swipe,
     children,
   }: {
     rowKey: string;
+    swipe?: boolean;
     sections: { id: string }[];
     children: ReactElement;
   }) => {
     ui.swipeRows.push([rowKey, ...sections.map((section) => section.id)].join(" "));
-    return children;
+    return <div data-swipe={String(swipe ?? true)}>{children}</div>;
   },
 }));
 vi.mock("../components/native-symbol", () => ({ NativeSymbol: () => null }));
@@ -514,6 +516,8 @@ it("ties the pinned tiles' avatars to the pinned row, so they freeze when it scr
   const bot = { id: "bot-p", name: "Pinned", preview: "", pinned: true } as MobileBot;
   render(<List items={[{ type: "pinned", chats: [{ kind: "bot", bot }] }]} />);
   expect(container.querySelector('[data-row="pinned"] b[data-identity="bot-p"]')).not.toBeNull();
+  expect(container.querySelector('[data-row="pinned"] [data-swipe="false"]')).not.toBeNull();
+  expect(ui.swipeRows).toContain("pinned:bot:bot-p");
 });
 
 it("collapses a section from its heading and keeps the choice for the account", async () => {

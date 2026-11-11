@@ -346,6 +346,27 @@ describe("iOS swipe row", () => {
     act(() => root.unmount());
   });
 
+  it("keeps the native menu on a pinned tile without nesting a swipe list", () => {
+    const { find, press, onAction, onOrganize, onSnooze, root } = render({
+      swipe: false,
+      pinned: true,
+      sectionId: "s1",
+    });
+    expect(find('[data-ui="List"]')).toBeNull();
+    expect(find('[data-ui="SwipeActions"]')).toBeNull();
+    expect(find('[data-ui="ContextMenu.Trigger"]')?.textContent).toBe("bot:1");
+    press("Unpin");
+    press("Mark as Unread");
+    press("Archive");
+    press("Delete…");
+    expect(onAction.mock.calls).toEqual([["unpin"], ["unread"], ["archive"], ["delete"]]);
+    press("Unassigned");
+    expect(onOrganize).toHaveBeenCalledWith({ sectionId: null });
+    press("1 hour");
+    expect(onSnooze).toHaveBeenCalledOnce();
+    act(() => root.unmount());
+  });
+
   it("joins the native inbox list as one of its rows, sized to its row", () => {
     const container = document.createElement("div");
     const root = createRoot(container);

@@ -11,6 +11,23 @@ name: Inbox
 - waitForAnimationToEnd:
     timeout: 3000
 - takeScreenshot: 01-inbox
+# Pins use the same native menu as rows, including groups.
+- longPressOn: ".*Researcher.*"
+- tapOn: "Pin"
+- longPressOn: ".*Writer.*"
+- tapOn: "Pin"
+- longPressOn: ".*Support.*"
+- tapOn: "Pin"
+- longPressOn: ".*Launch team.*"
+- tapOn: "Pin"
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: 01-pinned-grid
+- longPressOn: "Researcher"
+- assertVisible: "Unpin"
+- takeScreenshot: 01-pinned-menu
+- tapOn: "Unpin"
+- assertVisible: ".*Researcher.*"
 - tapOn: "Activity"
 - extendedWaitUntil:
     visible: ".*Recent.*"

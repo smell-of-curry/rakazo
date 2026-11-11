@@ -9,6 +9,7 @@ import {
   inboxHasNoChats,
   inboxNeedsCreateHint,
   inboxSignal,
+  pinnedInboxItems,
   removeInboxSpace,
   retryInboxSpaceFallback,
   selectInboxSpace,
@@ -586,4 +587,56 @@ it("keeps a snoozed chat out of the off-screen unread pills", () => {
     attention: 0,
   });
   expect(inboxSignal({ type: "bot", bot: { ...bot, unread: true } }).unread).toBe(1);
+});
+
+describe("pinnedInboxItems", () => {
+  it("puts bots and groups from all spaces in one grid without duplicate rows", () => {
+    const now = Date.parse("2026-11-07T12:00:00.000Z");
+    const first = space({
+      bots: [
+        { ...bot, pinned: true },
+        { ...bot, id: "regular" },
+      ],
+    });
+    const second = space({
+      id: "other",
+      bots: [{ ...bot, id: "other-pin", pinned: true }],
+      groups: [{ ...bot, id: "group-pin", pinned: true, members: [] }],
+    });
+    const items = pinnedInboxItems([first, second], new Set(), first.id, now);
+    expect(items[0]).toEqual({
+      type: "pinned",
+      chats: [
+        { kind: "bot", bot: first.bots[0] },
+        { kind: "bot", bot: second.bots[0] },
+        { kind: "group", group: second.groups[0] },
+      ],
+    });
+    expect(items.filter((item) => item.type === "bot").map((item) => item.bot.id)).toEqual([
+      "regular",
+    ]);
+    expect(items.filter((item) => item.type === "group")).toEqual([]);
+    expect(
+      items.filter((item) => item.type === "heading").some((item) => item.key.endsWith(":pinned")),
+    ).toBe(false);
+  });
+
+  it("keeps snoozed pins in their section, then restores the grid when they wake", () => {
+    const wake = Date.parse("2026-11-07T13:00:00.000Z");
+    const input = space({
+      bots: [{ ...bot, pinned: true, snoozedUntil: new Date(wake).toISOString() }],
+    });
+    const collapsed = new Set([snoozedHeadingKey(input.id)]);
+    const sleeping = pinnedInboxItems([input], collapsed, input.id, wake - 1);
+    expect(sleeping.some((item) => item.type === "pinned")).toBe(false);
+    expect(sleeping.find((item) => item.type === "bot")).toEqual({
+      type: "bot",
+      bot: input.bots[0],
+    });
+    expect(pinnedInboxItems([input], collapsed, input.id, wake)[0]?.type).toBe("pinned");
+    input.bots[0]!.pinned = false;
+    expect(
+      pinnedInboxItems([input], collapsed, input.id, wake).some((item) => item.type === "pinned"),
+    ).toBe(false);
+  });
 });
