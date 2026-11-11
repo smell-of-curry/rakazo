@@ -41,6 +41,36 @@ export type PinnedChat =
   | { kind: "group"; group: MobileGroup | SpaceGroup };
 export type InboxItem = InboxSpaceItem | { type: "pinned"; chats: PinnedChat[] };
 
+/** Pins share a grid on every platform; snoozed pins stay under their space's Snoozed heading. */
+export function pinnedInboxItems(
+  spaces: InboxSpace[],
+  collapsed: ReadonlySet<string>,
+  editableSpaceId: string | undefined,
+  now: number,
+): InboxItem[] {
+  const isPin = (chat: MobileBot | MobileGroup | SpaceBot | SpaceGroup) =>
+    chat.pinned && !chatSnoozed(chat, now);
+  const chats: PinnedChat[] = [
+    ...spaces.flatMap((space) =>
+      space.bots.filter(isPin).map((bot) => ({ kind: "bot" as const, bot })),
+    ),
+    ...spaces.flatMap((space) =>
+      space.groups.filter(isPin).map((group) => ({ kind: "group" as const, group })),
+    ),
+  ];
+  const rows = spaceInboxItems(
+    spaces.map((space) => ({
+      ...space,
+      bots: space.bots.filter((bot) => !isPin(bot)),
+      groups: space.groups.filter((group) => !isPin(group)),
+    })),
+    collapsed,
+    editableSpaceId,
+    now,
+  );
+  return chats.length ? [{ type: "pinned", chats }, ...rows] : rows;
+}
+
 /** A bot waiting on you: a question or an approval only you can answer. */
 export function botNeedsAttention(bot: MobileBot | SpaceBot): boolean {
   const activity = mobileLogoAvatarActivity.getActivity(bot.id, bot.status);
