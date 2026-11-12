@@ -5,6 +5,7 @@ import { getLogger } from "@rakazo/logging";
 import { executeCloudAgentTool } from "./cloud-agent-service.js";
 import { collectLogIds } from "./composio-connector.js";
 import { connectApp } from "./connect-app.js";
+import { preserveConnectorResult } from "./connector-result-file.js";
 import { redactConnectorPayload, sanitizeConnectorError } from "./connector-safety.js";
 import { mcpAppViewArguments, mcpAppViewResult } from "./mcp-app.js";
 import { addMcpServerFromTool } from "./mcp-server-tool.js";
@@ -75,7 +76,7 @@ export async function connectorTool(ctx: RunContext, call: ToolCall) {
         }
       }
     }
-    return call.finish(result);
+    return call.finish(await preserveConnectorResult(ctx, name, effectKey, result));
   }
   return call.finish({ error: `unknown tool ${name}` });
 }
