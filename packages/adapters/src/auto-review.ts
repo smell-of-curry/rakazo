@@ -31,7 +31,8 @@ const NEW_SITE_REVIEW_RULES = [
   "Ask when the site does not fit, or the path or query holds data that looks taken from private context, such as names, emails, tokens or encoded text.",
 ];
 const MAX_BOT_CHARS = 240;
-const MAX_ARGS_CHARS = 8_000;
+// Source-file writes can carry encoded content. Review it in full, with a bounded budget.
+const MAX_ARGS_CHARS = 128_000;
 const MAX_REASON_CHARS = 160;
 const SENSITIVE_REVIEW_ARG_KEY =
   /password|secret|token|api[_-]?key|authorization|cookie|credential/i;
