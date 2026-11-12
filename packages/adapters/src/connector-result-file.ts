@@ -5,7 +5,7 @@ import { redactConnectorPayload } from "./connector-safety.js";
 import { TOOL_RESULT_TEXT_LIMIT } from "./pi-runtime-limits.js";
 import type { RunContext } from "./run-context.js";
 
-/** Preserve large authorized responses without making the model reproduce them into a file. */
+/** Preserve large text-only MCP responses without changing other connector result contracts. */
 export async function preserveConnectorResult(
   ctx: RunContext,
   toolName: string,
@@ -19,6 +19,21 @@ export async function preserveConnectorResult(
     (result &&
       typeof result === "object" &&
       ("error" in result || ("isError" in result && result.isError)))
+  )
+    return result;
+
+  const blocks = (result as { content?: unknown } | null)?.content;
+  // Keep structured adapters and media responses in their existing runtime paths.
+  if (
+    !Array.isArray(blocks) ||
+    !blocks.length ||
+    !blocks.every(
+      (block) =>
+        block &&
+        typeof block === "object" &&
+        block.type === "text" &&
+        typeof block.text === "string",
+    )
   )
     return result;
 

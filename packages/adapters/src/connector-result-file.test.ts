@@ -65,6 +65,15 @@ describe("large connector response files", () => {
     }
     expect(get).not.toHaveBeenCalled();
   });
+  it("preserves structured pagination and media result contracts", async () => {
+    const { ctx, get } = setup();
+    for (const value of [
+      { segment: 1, nextCursor: "opaque-cursor", diagnostic: "x".repeat(20_000) },
+      { content: [...large().content, { type: "image", data: "encoded" }] },
+    ])
+      expect(await preserveConnectorResult(ctx, "read", "call", value)).toBe(value);
+    expect(get).not.toHaveBeenCalled();
+  });
   it("respects disabled file tools and bots without computers", async () => {
     const { ctx, get } = setup();
     const value = large();
