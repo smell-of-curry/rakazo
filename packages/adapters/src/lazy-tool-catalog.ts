@@ -110,9 +110,18 @@ export function lazyCatalogTools(
             maxLength: MAX_TOOL_ID_LENGTH,
             description: "Exact tool ID returned by search",
           },
-          arguments: { type: "object", description: "Arguments matching the loaded schema" },
+          arguments: {
+            type: "object",
+            description:
+              "Arguments matching the loaded schema. Supply this or argumentsPath, not both.",
+          },
+          argumentsPath: {
+            type: "string",
+            description:
+              "Workspace path to a UTF-8 JSON object matching the loaded schema, up to 128,000 bytes. Use instead of arguments for prepared files. The full contents receive the same validation and action review as inline arguments.",
+          },
         },
-        required: ["id", "arguments"],
+        required: ["id"],
       },
       route: { connectorId, toolName: CATALOG_EXECUTE },
     },

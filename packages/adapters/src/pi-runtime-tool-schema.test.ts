@@ -423,15 +423,20 @@ describe("jsonSchemaParameters", () => {
       (tool) => tool.name === "connectors_execute_tool",
     )!;
     const wire = JSON.parse(JSON.stringify(parametersFor(execute)));
-    expect(wire.required).toEqual(["id", "arguments"]);
+    expect(wire.required).toEqual(["id"]);
+    expect(wire).not.toHaveProperty("oneOf");
+    expect(wire.properties.argumentsPath.type).toBe("string");
     expect(wire.properties.arguments).toEqual({
       type: "object",
-      description: "Arguments matching the loaded schema",
+      description: "Arguments matching the loaded schema. Supply this or argumentsPath, not both.",
     });
     expect(parseConnectorToolArgs(wire, { id: "server:tool", arguments: { query: "q" } })).toEqual({
       id: "server:tool",
       arguments: { query: "q" },
     });
+    const file = { id: "server:tool", argumentsPath: "prepared.json" };
+    expect(parseConnectorToolArgs(wire, file)).toEqual(file);
+    expect(parseConnectorToolArgs(execute.inputSchema, file)).toEqual(file);
   });
 
   it("keeps an explicitly closed empty object closed", () => {
