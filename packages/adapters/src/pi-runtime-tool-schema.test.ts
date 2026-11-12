@@ -379,7 +379,7 @@ describe("jsonSchemaParameters", () => {
     const wire = JSON.parse(JSON.stringify(schema));
     expect(wire.properties.arguments).toEqual({
       type: "object",
-      description: "Arguments matching the loaded schema. Supply this or argumentsPath, not both.",
+      description: "Arguments matching the loaded schema",
     });
     expect(wire.properties.arguments).not.toHaveProperty("properties");
     // Free-form only on the wire: connector validation still rejects a non-object.
@@ -428,7 +428,7 @@ describe("jsonSchemaParameters", () => {
     expect(wire.properties.argumentsPath.type).toBe("string");
     expect(wire.properties.arguments).toEqual({
       type: "object",
-      description: "Arguments matching the loaded schema",
+      description: "Arguments matching the loaded schema. Supply this or argumentsPath, not both.",
     });
     expect(parseConnectorToolArgs(wire, { id: "server:tool", arguments: { query: "q" } })).toEqual({
       id: "server:tool",
