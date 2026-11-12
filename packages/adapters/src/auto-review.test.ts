@@ -337,6 +337,54 @@ describe("buildAutoReviewPrompt", () => {
 });
 
 describe("LlmAutoReviewProvider", () => {
+  it("reviews complete source-sized arguments including the final batch action", async () => {
+    const content = Buffer.from("export const value = 1;\n".repeat(1_500)).toString("base64");
+    const args = {
+      actions: [
+        { tool: "update_file", branch: "fix/example", content },
+        { tool: "send_message", to: "unrelated@example.invalid" },
+      ],
+    };
+    const run = vi.fn((_request: { prompt: string }) =>
+      (async function* () {
+        yield {
+          type: "done",
+          text: '{"decision":"ask","reason":"The final action is outside the task."}',
+        } as never;
+      })(),
+    );
+    const provider = new LlmAutoReviewProvider({
+      runtime: { describe: () => ({ capabilities: { scripted: false } }), run } as never,
+      checker: { provider: "fixture", model: "reviewer" },
+      runId: "run",
+      spaceId: "ws",
+      userId: "user",
+      botId: "bot",
+      threadId: "thread",
+    });
+    const result = await provider.review(
+      {
+        toolName: "batch",
+        connectorKind: "fixture",
+        args,
+        userTask: "Prepare the source fix",
+        botDescription: "Repository helper",
+        matchingRules: [],
+      },
+      {
+        operationId: "review",
+        traceId: "review",
+        spaceId: "ws",
+        userId: "user",
+        signal: new AbortController().signal,
+      },
+    );
+    expect(result.decision).toBe("ask");
+    expect(run).toHaveBeenCalledOnce();
+    const request = run.mock.calls[0]![0] as { prompt: string };
+    const block = request.prompt.match(/<tool_args>\n([\s\S]*?)\n<\/tool_args>/)?.[1];
+    expect(JSON.parse(block!)).toEqual(args);
+  });
   it("asks without running the checker when the arguments are too long to show in full", async () => {
     const run = vi.fn(() =>
       (async function* () {
@@ -358,7 +406,7 @@ describe("LlmAutoReviewProvider", () => {
         connectorKind: "composio",
         args: {
           actions: [
-            { tool: "notes_create", body: "a".repeat(10_000) },
+            { tool: "notes_create", body: "a".repeat(70_000) },
             { tool: "gmail_send_email", to: "someone@else.test" },
           ],
         },
