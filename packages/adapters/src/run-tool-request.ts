@@ -19,6 +19,7 @@ import {
 } from "./approval-effect.js";
 import { listVaultItems } from "./bot-secrets.js";
 import { validCloudAgentArgs } from "./cloud-agent-tools.js";
+import { expandConnectorArgumentFile } from "./connector-argument-file.js";
 import { sanitizeConnectorError } from "./connector-safety.js";
 import { isFleetApprovalTool, modelLabel, prepareFleetRequest } from "./fleet-tools.js";
 import { assertConnectorToolArgs, CATALOG_EXECUTE } from "./lazy-tool-catalog.js";
@@ -125,6 +126,8 @@ export async function resolveToolRequest(
   let effectRequest: unknown = name === "paid_request" ? paidRequestEffect(args) : args;
   if (connectorCall.route && deps.connector?.resolveCall) {
     try {
+      if (onCatalogExecuteRoute)
+        connectorCall.args = await expandConnectorArgumentFile(ctx, name, connectorCall.args);
       const resolved = await deps.connector.resolveCall(connectorCall, context);
       if (resolved) {
         if (BUILTIN_AGENT_TOOL_NAMES.has(resolved.tool.name)) {
