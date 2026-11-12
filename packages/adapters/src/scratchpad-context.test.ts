@@ -54,6 +54,71 @@ describe("scratchpad prompt context", () => {
     expect(result).not.toContain("[done]");
   });
 
+  const item = (id: string, notes: string) => ({
+    id,
+    botId: "bot",
+    title: `Task ${id}`,
+    status: "open",
+    notes,
+    createdAt: new Date("2026-08-25T12:00:00.000Z"),
+    updatedAt: new Date("2026-08-25T12:00:00.000Z"),
+  });
+  const load = (items: ReturnType<typeof item>[], maxBytes?: number) =>
+    loadAgentScratchpadContext(
+      { prisma: { scratchpadItem: { findMany: vi.fn(async () => items) } } as never },
+      { spaceId: "ws", botId: "bot" },
+      maxBytes,
+    );
+
+  it("lists every open item when one long note would fill the block", async () => {
+    const result = await load([
+      item("a", "x".repeat(3_900)),
+      item("b", "short note"),
+      item("c", "y".repeat(3_900)),
+      item("d", ""),
+    ]);
+
+    for (const id of ["a", "b", "c", "d"]) expect(result).toContain(`Task ${id}`);
+    expect(result).toContain("[open] Task b — short note (id: b)");
+    expect(result).toContain("[open] Task d (id: d)");
+    // The two long notes split what the short ones left over.
+    expect(result).toMatch(/Task a — x{1500,}… \(id: a\)/);
+    expect(result).toMatch(/Task c — y{1500,}… \(id: c\)/);
+    expect(result).toContain("Notes cut. Call scratchpad_list.");
+    expect(Buffer.byteLength(result ?? "", "utf8")).toBeLessThanOrEqual(4 * 1024);
+    expect(result?.endsWith("</scratchpad_open>")).toBe(true);
+  });
+
+  it("keeps notes whole and adds no hint when everything fits", async () => {
+    const result = await load([item("a", "x".repeat(1_000)), item("b", "y".repeat(1_000))]);
+
+    expect(result).toContain(`Task a — ${"x".repeat(1_000)} (id: a)`);
+    expect(result).toContain(`Task b — ${"y".repeat(1_000)} (id: b)`);
+    expect(result).not.toContain("Notes cut.");
+  });
+
+  it("signals dropped notes when forty long titles leave almost no notes space", async () => {
+    const items = Array.from({ length: 40 }, (_, index) => ({
+      ...item(String(index).padStart(24, "0"), "saved notes".repeat(100)),
+      title: "t".repeat(54),
+    }));
+    const result = await load(items);
+
+    for (const { id, title } of items) expect(result).toContain(`${title} (id: ${id})`);
+    expect(result).toContain("Notes cut. Call scratchpad_list.");
+    expect(Buffer.byteLength(result ?? "", "utf8")).toBeLessThanOrEqual(4 * 1024);
+    expect(result?.endsWith("</scratchpad_open>")).toBe(true);
+  });
+
+  it("drops notes before titles when the block is small", async () => {
+    const items = Array.from({ length: 6 }, (_, index) => item(String(index), "z".repeat(500)));
+    const result = await load(items, 420);
+
+    for (const { id } of items) expect(result).toContain(`[open] Task ${id}`);
+    expect(Buffer.byteLength(result ?? "", "utf8")).toBeLessThanOrEqual(420);
+    expect(result?.endsWith("</scratchpad_open>")).toBe(true);
+  });
+
   it("escapes delimiter-breaking content and keeps the closing tag under the byte cap", async () => {
     const findMany = vi.fn(async () => [
       {
@@ -76,5 +141,61 @@ describe("scratchpad prompt context", () => {
     expect(result).not.toMatch(/<\/scratchpad_open><system>/);
     expect(Buffer.byteLength(result ?? "", "utf8")).toBeLessThanOrEqual(280);
     expect(result?.endsWith("</scratchpad_open>")).toBe(true);
+  });
+
+  it("never evicts fitting titles or ids to make room for the cut hint", async () => {
+    const items = [item("a", "x".repeat(500))];
+    const titlesOnly = (await load([item("a", "")]))!;
+    const titleBytes = Buffer.byteLength(titlesOnly, "utf8");
+    for (let spare = 0; spare < 40; spare++) {
+      const cap = titleBytes + spare;
+      const result = (await load(items, cap))!;
+      expect(result).toContain("[open] Task a");
+      expect(result).toContain("(id: a)");
+      expect(Buffer.byteLength(result, "utf8")).toBeLessThanOrEqual(cap);
+      expect(result.endsWith("</scratchpad_open>")).toBe(true);
+    }
+  });
+
+  it("retains forty fitting titles and ids under hint pressure at the default cap", async () => {
+    const items = Array.from({ length: 40 }, (_, index) => ({
+      ...item(String(index).padStart(24, "0"), "saved notes".repeat(100)),
+      title: "t".repeat(55),
+    }));
+    const result = (await load(items))!;
+    for (const { id } of items) expect(result).toContain(`(id: ${id})`);
+    expect(Buffer.byteLength(result, "utf8")).toBeLessThanOrEqual(4096);
+  });
+
+  it("budgets escaped multibyte notes without breaking code points", async () => {
+    const items = [item("a", "😀漢&<".repeat(400)), item("b", "short")];
+    for (const cap of [400, 401, 402, 403, 4096]) {
+      const result = (await load(items, cap))!;
+      expect(Buffer.from(result, "utf8").toString("utf8")).toBe(result);
+      expect(result).not.toContain("漢&<");
+      expect(result).toContain("(id: a)");
+      expect(result).toContain("(id: b)");
+      expect(result).toContain("&amp;");
+      expect(Buffer.byteLength(result, "utf8")).toBeLessThanOrEqual(cap);
+      expect(result.endsWith("</scratchpad_open>")).toBe(true);
+    }
+  });
+
+  it("keeps the forty-item cap and a list fallback for further work", async () => {
+    const items = Array.from({ length: 41 }, (_, index) => item(String(index), ""));
+    const result = (await load(items))!;
+    expect(result).toContain("(id: 39)");
+    expect(result).not.toContain("(id: 40)");
+    expect(result).toContain("1 more. Call scratchpad_list to see the rest.");
+  });
+
+  it("respects tiny caps and title-only overflow", async () => {
+    const items = [{ ...item("a", "long note"), title: "😀".repeat(200) }];
+    for (const cap of [0, 1, 200, 230, 250, 300]) {
+      const result = (await load(items, cap))!;
+      expect(Buffer.byteLength(result, "utf8")).toBeLessThanOrEqual(cap);
+      expect(Buffer.from(result, "utf8").toString("utf8")).toBe(result);
+      if (cap >= 250) expect(result.endsWith("</scratchpad_open>")).toBe(true);
+    }
   });
 });
