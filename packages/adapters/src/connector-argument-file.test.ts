@@ -101,6 +101,9 @@ describe("connector argument files", () => {
   it("rejects unassigned targets and invalid source arguments before execution", async () => {
     const { ctx, readFile } = setup();
     expect(
+      await resolveToolRequest(ctx, "connectors_execute_tool", { id: wrapper.id }, "call"),
+    ).toHaveProperty("error");
+    expect(
       await resolveToolRequest(
         ctx,
         "connectors_execute_tool",

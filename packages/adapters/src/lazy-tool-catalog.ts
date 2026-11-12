@@ -110,7 +110,11 @@ export function lazyCatalogTools(
             maxLength: MAX_TOOL_ID_LENGTH,
             description: "Exact tool ID returned by search",
           },
-          arguments: { type: "object", description: "Arguments matching the loaded schema" },
+          arguments: {
+            type: "object",
+            description:
+              "Arguments matching the loaded schema. Supply this or argumentsPath, not both.",
+          },
           argumentsPath: {
             type: "string",
             description:
@@ -118,7 +122,6 @@ export function lazyCatalogTools(
           },
         },
         required: ["id"],
-        oneOf: [{ required: ["arguments"] }, { required: ["argumentsPath"] }],
       },
       route: { connectorId, toolName: CATALOG_EXECUTE },
     },
