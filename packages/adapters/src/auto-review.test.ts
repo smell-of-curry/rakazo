@@ -338,7 +338,7 @@ describe("buildAutoReviewPrompt", () => {
 
 describe("LlmAutoReviewProvider", () => {
   it("reviews complete source-sized arguments including the final batch action", async () => {
-    const content = Buffer.from("export const value = 1;\n".repeat(1_500)).toString("base64");
+    const content = Buffer.from("export const value = 1;\n".repeat(3_000)).toString("base64");
     const args = {
       actions: [
         { tool: "update_file", branch: "fix/example", content },
@@ -406,7 +406,7 @@ describe("LlmAutoReviewProvider", () => {
         connectorKind: "composio",
         args: {
           actions: [
-            { tool: "notes_create", body: "a".repeat(70_000) },
+            { tool: "notes_create", body: "a".repeat(140_000) },
             { tool: "gmail_send_email", to: "someone@else.test" },
           ],
         },

@@ -32,7 +32,7 @@ const NEW_SITE_REVIEW_RULES = [
 ];
 const MAX_BOT_CHARS = 240;
 // Source-file writes can carry encoded content. Review it in full, with a bounded budget.
-const MAX_ARGS_CHARS = 64_000;
+const MAX_ARGS_CHARS = 128_000;
 const MAX_REASON_CHARS = 160;
 const SENSITIVE_REVIEW_ARG_KEY =
   /password|secret|token|api[_-]?key|authorization|cookie|credential/i;

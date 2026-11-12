@@ -77,7 +77,7 @@ describe("JevAutoReviewProvider", () => {
         toolName: "multi_execute",
         args: {
           actions: [
-            { tool: "notes_create", body: "a".repeat(70_000) },
+            { tool: "notes_create", body: "a".repeat(140_000) },
             { tool: "gmail_send_email", to: "someone@else.test" },
           ],
         },
