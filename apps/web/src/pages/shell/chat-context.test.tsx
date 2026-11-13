@@ -303,3 +303,19 @@ it("shows no quote on a message sent from an open page, even with its card not l
   );
   expect(container.textContent).toContain("Q3 plan");
 });
+
+it.each(["😀", "👩‍💻", "🇧🇷", "👍🏽", "e\u0301"])(
+  "keeps %s intact in the spoken reply preview",
+  (cluster) => {
+    const prefix = "x".repeat(119);
+    const text = `${prefix}${cluster}tail`;
+    act(() =>
+      root.render(
+        <ReplyLine message={{ ...message, replyPreview: { role: "bot", text } }} author="Helper" />,
+      ),
+    );
+    const button = container.querySelector("button");
+    expect(button?.getAttribute("aria-label")).toBe(`Jump to replied message: ${prefix}`);
+    expect(button?.textContent).toContain(text);
+  },
+);

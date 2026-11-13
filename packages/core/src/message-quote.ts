@@ -7,6 +7,7 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { blocksToAgentHistoryText } from "./attachments.js";
 import { replyAttachment } from "./message-replies.js";
+import { truncatePreviewText } from "./preview-text.js";
 
 const markdownParser = unified().use(remarkParse).use(remarkGfm);
 /** Past this much source text in one message, quote derivation refuses to run. */
@@ -135,8 +136,7 @@ export function messageReplyExcerpt(blocks: MessageBlock[], role: string): strin
       .map((line) => line.trim())
       .find(Boolean);
     if (first) {
-      const excerpt = first.slice(0, 280);
-      return /[\uD800-\uDBFF]$/u.test(excerpt) ? excerpt.slice(0, -1) : excerpt;
+      return truncatePreviewText(first, 280);
     }
   }
   return "";

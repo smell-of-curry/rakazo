@@ -82,6 +82,7 @@ export * from "./peer-exchanges.js";
 export * from "./peer-history.js";
 export * from "./peer-messages.js";
 export * from "./plugin-catalog.js";
+export * from "./preview-text.js";
 export * from "./product-analytics.js";
 export * from "./prompt-data.js";
 export * from "./refresh-coalescer.js";

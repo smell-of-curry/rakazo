@@ -5,6 +5,7 @@ import {
   isPageOriginReply,
   isPeerReceiptBlocks,
   replyLabel,
+  truncatePreviewText,
 } from "@rakazo/core";
 import { cn } from "@rakazo/ui-web";
 import { X } from "lucide-react";
@@ -183,7 +184,7 @@ export function ReplyLine({
     attachment,
     { photo: t`Photo`, attachment: t`Attachment` },
   );
-  const excerpt = text.replace(/\s+/gu, " ").slice(0, 120);
+  const excerpt = truncatePreviewText(text.replace(/\s+/gu, " "), 120);
   // The wrapper aligns in the frame's direction; the quote keeps its own text direction.
   return (
     <div className={cn("flex", message.role === "user" && "justify-end")}>
