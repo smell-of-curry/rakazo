@@ -1,5 +1,5 @@
-import type { MenuAction } from "@expo/ui/community/menu";
-import { MenuView } from "@expo/ui/community/menu";
+import type { ButtonProps } from "@expo/ui/swift-ui";
+import { Button, ContextMenu, Host, Menu, RNHostView, Section } from "@expo/ui/swift-ui";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import type { ColorSchemeName, GestureResponderEvent } from "react-native";
@@ -15,7 +15,7 @@ const symbols = {
   speak: "speaker.wave.2",
   select: "character.cursor.ibeam",
   unread: "message.badge",
-} as const satisfies Record<MessageMenuSymbol, Extract<NonNullable<MenuAction["image"]>, string>>;
+} as const satisfies Record<MessageMenuSymbol, NonNullable<ButtonProps["systemImage"]>>;
 
 const tapPoint = (event: GestureResponderEvent) => ({
   x: event.nativeEvent.pageX,
@@ -67,35 +67,58 @@ export function MessageContextMenu({
     );
   }
   return (
-    <MenuView
-      actions={actions.map(toMenuAction)}
-      colorScheme={colorScheme}
-      onPressAction={(event) => onAction(event.nativeEvent.event)}
-      shouldOpenOnLongPress
+    <Host
+      colorScheme={colorScheme ?? undefined}
+      // The row must reserve the trigger height after wrapping, helper completion or expansion.
+      matchContents={{ vertical: true }}
+      ignoreSafeArea="all"
       style={{ maxWidth: "100%", flexShrink: 1 }}
     >
-      {/* The SwiftUI bridge measures its trigger without a horizontal constraint. */}
-      <View
-        style={{ maxWidth, width: fullWidth ? maxWidth : undefined, flexShrink: 1 }}
-        onStartShouldSetResponder={() => Boolean(onDoubleTap)}
-        onResponderGrant={(event) => detector.start(tapPoint(event))}
-        onResponderMove={(event) => detector.move(tapPoint(event))}
-        onResponderRelease={release}
-        onResponderTerminationRequest={() => true}
-        onResponderTerminate={() => detector.cancel()}
-      >
-        {children}
-      </View>
-    </MenuView>
+      <ContextMenu>
+        <ContextMenu.Trigger>
+          <RNHostView matchContents boundedByHost>
+            {/* The SwiftUI bridge measures its trigger without a horizontal constraint. */}
+            <View
+              style={{ maxWidth, width: fullWidth ? maxWidth : undefined, flexShrink: 1 }}
+              onStartShouldSetResponder={() => Boolean(onDoubleTap)}
+              onResponderGrant={(event) => detector.start(tapPoint(event))}
+              onResponderMove={(event) => detector.move(tapPoint(event))}
+              onResponderRelease={release}
+              onResponderTerminationRequest={() => true}
+              onResponderTerminate={() => detector.cancel()}
+            >
+              {children}
+            </View>
+          </RNHostView>
+        </ContextMenu.Trigger>
+        <ContextMenu.Items>
+          {actions.map((entry) => renderMenuEntry(entry, onAction))}
+        </ContextMenu.Items>
+      </ContextMenu>
+    </Host>
   );
 }
 
-function toMenuAction(entry: MessageMenuEntry): MenuAction {
-  return {
-    id: entry.id,
-    title: entry.title,
-    image: entry.symbol ? symbols[entry.symbol] : undefined,
-    displayInline: entry.displayInline,
-    subactions: entry.subactions?.map(toMenuAction),
-  };
+function renderMenuEntry(entry: MessageMenuEntry, onAction: (id: string) => void): ReactNode {
+  const image = entry.symbol ? symbols[entry.symbol] : undefined;
+  if (entry.subactions?.length) {
+    const items = entry.subactions.map((child) => renderMenuEntry(child, onAction));
+    return entry.displayInline ? (
+      <Section key={entry.id} title={entry.title}>
+        {items}
+      </Section>
+    ) : (
+      <Menu key={entry.id} label={entry.title} systemImage={image}>
+        {items}
+      </Menu>
+    );
+  }
+  return (
+    <Button
+      key={entry.id}
+      label={entry.title}
+      systemImage={image}
+      onPress={() => onAction(entry.id)}
+    />
+  );
 }
