@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { messageReplyPreview } from "@rakazo/core/message-quote";
 import { lightTokens } from "@rakazo/ui-tokens";
 import type { ReactNode } from "react";
 import { act, createElement } from "react";
@@ -183,3 +184,19 @@ it("shows no quote on a message sent from an open page, but keeps one picked in 
   );
   expect(container.textContent).toBe("Helper: Q3 plan");
 });
+
+it.each(["😀", "👩‍💻", "🇧🇷", "👍🏽", "e\u0301"])(
+  "renders a whole shared preview at the %s boundary",
+  (cluster) => {
+    const prefix = "x".repeat(279);
+    const preview = messageReplyPreview(
+      [{ kind: "text", text: `${prefix}${cluster}tail` }],
+      "user",
+    );
+    act(() => root.render(<ReplyLine targetId="parent" preview={preview} author="You" />));
+    expect(container.textContent).toBe(`You: ${prefix}`);
+    const intact = messageReplyPreview([{ kind: "text", text: `Short ${cluster}` }], "user");
+    act(() => root.render(<ReplyLine targetId="parent" preview={intact} author="You" />));
+    expect(container.textContent).toBe(`You: Short ${cluster}`);
+  },
+);
