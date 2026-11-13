@@ -64,6 +64,30 @@ describe("speakable", () => {
     expect(speakable("**Done** ✅ — [x] shipped the _thing_")).toBe("Done — shipped the thing");
   });
 
+  it("keeps underscores inside identifiers and asterisks in arithmetic", () => {
+    expect(speakable("Open user_profile_page.tsx and set max_retry_count to 3")).toBe(
+      "Open user_profile_page.tsx and set max_retry_count to 3",
+    );
+    expect(speakable("compute 2*3*4 now")).toBe("compute 2*3*4 now");
+    expect(speakable("a_b and c_d")).toBe("a_b and c_d");
+  });
+
+  it("strips emphasis in linear time on markers that never close", () => {
+    for (const unit of ["(_a", ".*a", "(*a_"]) {
+      const text = unit.repeat(Math.floor(20_000 / unit.length));
+      expect(speakable(text)).toBe(text);
+    }
+  });
+
+  it("still drops emphasis markers around a word or phrase", () => {
+    expect(speakable("this is _really_ good")).toBe("this is really good");
+    expect(speakable("this is *really* good")).toBe("this is really good");
+    expect(speakable("this is *very good indeed* here")).toBe("this is very good indeed here");
+    expect(speakable("(_note_) and *(this)*")).toBe("(note) and (this)");
+    expect(speakable("*one* and _two_ but a_b_c and 2*3")).toBe("one and two but a_b_c and 2*3");
+    expect(speakable("*not closed\non this line*")).toBe("*not closed. on this line*");
+  });
+
   it("gives a heading a full stop so the voice breathes", () => {
     expect(speakable("## Results\nAll green")).toBe("Results. All green");
   });
