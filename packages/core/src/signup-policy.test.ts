@@ -41,6 +41,18 @@ describe("signup policy", () => {
     expect(emailAllowed("eviyou@example.com", list)).toBe(false);
   });
 
+  it("does not match domain rules to addresses with more than one @", () => {
+    const list = parseAllowlist("@company.com");
+    for (const email of ["evil@company.com@evil.test", "a@b@company.com", "@@company.com"]) {
+      expect(emailAllowed(email, list)).toBe(false);
+    }
+    expect(emailAllowed("a@company.com", list)).toBe(true);
+    expect(emailAllowed("no-at-sign", list)).toBe(false);
+    expect(emailAllowed("company.com", list)).toBe(false);
+    // Exact entries remain explicit policy choices, not domain matches.
+    expect(emailAllowed("a@b@company.com", parseAllowlist("a@b@company.com"))).toBe(true);
+  });
+
   it("recognizes internal messaging addresses in any case", () => {
     expect(isMessagingEmail(" MSG-1@Messaging.Invalid ")).toBe(true);
     expect(isMessagingEmail("msg-1@messaging.invalid.example.com")).toBe(false);
