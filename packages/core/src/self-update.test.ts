@@ -77,6 +77,34 @@ describe("repoIdentity", () => {
     expect(repoIdentity("not a url")).toBeNull();
   });
 
+  it.each([
+    ["https://git.example/team/repo", "https://git.example:8443/team/repo"],
+    ["https://git.example/team/repo", "https://git.example/team/Repo"],
+    ["https://git.example/team/repo", "https://git.example/team/repo.git"],
+    ["ssh://git@git.example/team/repo", "ssh://git@git.example:2222/team/repo"],
+    ["ssh://git@git.example/team/repo", "ssh://other@git.example/team/repo"],
+    ["https://git.example/team/repo", "ssh://git@git.example/team/repo"],
+  ])("keeps distinct custom endpoints separate: %s / %s", (current, selected) => {
+    expect(repoIdentity(current)).not.toBe(repoIdentity(selected));
+  });
+
+  it("recognizes equivalent SSH syntax and default ports without folding custom paths", () => {
+    expect(repoIdentity("git@GIT.example:Team/Repo")).toBe(
+      repoIdentity("ssh://git@git.example:22/Team/Repo"),
+    );
+    expect(repoIdentity("https://git.example:443/Team/Repo")).toBe(
+      repoIdentity("https://git.example/Team/Repo"),
+    );
+  });
+
+  it.each([
+    "https://github.com:8443/elie222/rakazo",
+    "ssh://git@github.com:2222/elie222/rakazo",
+    "ssh://other@github.com/elie222/rakazo",
+  ])("does not treat another GitHub endpoint as official: %s", (url) => {
+    expect(isOfficialRepoUrl(url)).toBe(false);
+  });
+
   it("only calls the real upstream official", () => {
     expect(isOfficialRepoUrl("git@github.com:elie222/rakazo.git")).toBe(true);
     expect(isOfficialRepoUrl("https://github.com/attacker/rakazo")).toBe(false);

@@ -212,35 +212,45 @@ describe("updater orchestration", () => {
     expect((await first).status).toBe(200);
   });
 
-  it("restores the previous remote when a fork update fails after repointing it", async () => {
-    const fixture = await deployment();
-    await mkdir(path.join(fixture.deployDir, ".git"));
-    const calls: Array<{ command: string; args: string[] }> = [];
-    const previousRemote = "https://github.com/example/previous-fork";
-    const nextRemote = "https://github.com/example/next-fork";
-    const run: UpdaterCommandRunner = async (command, args) => {
-      calls.push({ command, args });
-      const joined = args.join(" ");
-      if (joined === "rev-parse HEAD") return ok(currentCommit);
-      if (joined === "rev-parse --abbrev-ref HEAD") return ok("main");
-      if (joined === "remote get-url origin") return ok(previousRemote);
-      if (args.includes("status") || joined === "ls-files --others --exclude-standard") return ok();
-      if (args.includes("ls-remote")) return ok(`${targetCommit}\trefs/heads/main\n`);
-      if (args[0] === "fetch") return failed("registry unavailable");
-      return ok();
-    };
-    const subject = createUpdaterApp(fixture.config, { run });
-    const response = await request(subject, "/apply", { repoUrl: nextRemote, branch: "main" });
-    const record = (await response.json()) as ServerUpdateRun;
-    expect(record.ok).toBe(false);
-    expect(record.steps.map((step) => step.id)).toEqual(["remote", "fetch", "restore-remote"]);
-    expect(
-      calls.filter(({ args }) => args.slice(0, 3).join(" ") === "remote set-url origin"),
-    ).toEqual([
-      { command: "git", args: ["remote", "set-url", "origin", nextRemote] },
-      { command: "git", args: ["remote", "set-url", "origin", previousRemote] },
-    ]);
-  });
+  it.each([
+    ["https://github.com/example/previous-fork", "https://github.com/example/next-fork"],
+    ["https://git.example/team/repo", "https://git.example:8443/team/repo"],
+    ["https://git.example/team/repo", "https://git.example/team/Repo"],
+    ["https://git.example/team/repo", "https://git.example/team/repo.git"],
+    ["ssh://git@git.example/team/repo", "ssh://git@git.example:2222/team/repo"],
+    ["ssh://git@git.example/team/repo", "ssh://other@git.example/team/repo"],
+    ["https://git.example/team/repo", "ssh://git@git.example/team/repo"],
+  ])(
+    "repoints distinct sources and restores the remote on failure: %s / %s",
+    async (previousRemote, nextRemote) => {
+      const fixture = await deployment();
+      await mkdir(path.join(fixture.deployDir, ".git"));
+      const calls: Array<{ command: string; args: string[] }> = [];
+      const run: UpdaterCommandRunner = async (command, args) => {
+        calls.push({ command, args });
+        const joined = args.join(" ");
+        if (joined === "rev-parse HEAD") return ok(currentCommit);
+        if (joined === "rev-parse --abbrev-ref HEAD") return ok("main");
+        if (joined === "remote get-url origin") return ok(previousRemote);
+        if (args.includes("status") || joined === "ls-files --others --exclude-standard")
+          return ok();
+        if (args.includes("ls-remote")) return ok(`${targetCommit}\trefs/heads/main\n`);
+        if (args[0] === "fetch") return failed("registry unavailable");
+        return ok();
+      };
+      const subject = createUpdaterApp(fixture.config, { run });
+      const response = await request(subject, "/apply", { repoUrl: nextRemote, branch: "main" });
+      const record = (await response.json()) as ServerUpdateRun;
+      expect(record.ok).toBe(false);
+      expect(record.steps.map((step) => step.id)).toEqual(["remote", "fetch", "restore-remote"]);
+      expect(
+        calls.filter(({ args }) => args.slice(0, 3).join(" ") === "remote set-url origin"),
+      ).toEqual([
+        { command: "git", args: ["remote", "set-url", "origin", nextRemote] },
+        { command: "git", args: ["remote", "set-url", "origin", previousRemote] },
+      ]);
+    },
+  );
 
   it("restores the prior image after a recreate fails health checks", async () => {
     const fixture = await deployment();
