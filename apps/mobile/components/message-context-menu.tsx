@@ -76,7 +76,9 @@ export function MessageContextMenu({
     >
       <ContextMenu>
         <ContextMenu.Trigger>
-          <RNHostView matchContents boundedByHost>
+          {/* Do not cap content at the previous host height: apps/helpers resize after mount.
+              The inner View supplies the horizontal constraint without a vertical ceiling. */}
+          <RNHostView matchContents>
             {/* The SwiftUI bridge measures its trigger without a horizontal constraint. */}
             <View
               style={{ maxWidth, width: fullWidth ? maxWidth : undefined, flexShrink: 1 }}

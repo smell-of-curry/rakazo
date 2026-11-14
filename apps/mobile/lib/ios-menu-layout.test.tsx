@@ -69,12 +69,13 @@ const actions = buildMessageContextMenu({
   include: { quote: true, react: true, speak: true, select: true, unread: true },
 });
 
-function renderMenu(onAction = vi.fn(), onDoubleTap = vi.fn()) {
+function renderMenu(onAction = vi.fn(), onDoubleTap = vi.fn(), fullWidth = false) {
   renderToStaticMarkup(
     <MessageContextMenu
       actions={actions}
       colorScheme="light"
       maxWidth={320}
+      fullWidth={fullWidth}
       onAction={onAction}
       onDoubleTap={onDoubleTap}
     >
@@ -97,8 +98,17 @@ describe("iOS message menu layout", () => {
     expect(captures.host.matchContents).toEqual({ vertical: true });
     expect(captures.host.style).toEqual({ maxWidth: "100%", flexShrink: 1 });
     expect(captures.trigger.matchContents).toBe(true);
-    expect(captures.trigger.boundedByHost).toBe(true);
+    // Bounding both axes caps a growing app/helper at the previous host height.
+    expect(captures.trigger.boundedByHost).not.toBe(true);
     expect(captures.view.style).toEqual({ maxWidth: 320, width: undefined, flexShrink: 1 });
+  });
+
+  it("keeps full-width cards horizontally bounded without imposing a host height ceiling", () => {
+    renderMenu(vi.fn(), vi.fn(), true);
+    expect(captures.host.matchContents).toEqual({ vertical: true });
+    expect(captures.trigger.matchContents).toBe(true);
+    expect(captures.trigger.boundedByHost).not.toBe(true);
+    expect(captures.view.style).toEqual({ maxWidth: 320, width: 320, flexShrink: 1 });
   });
 
   it("preserves inline secondary actions and reaction submenu selection", () => {
