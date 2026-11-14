@@ -238,7 +238,7 @@ export const PinnedTiles = memo(function PinnedTiles({
   onBotAction: (action: InboxRowAction, bot: MobileBot | SpaceBot) => void;
   onGroupAction: (action: InboxRowAction, group: MobileGroup | SpaceGroup) => void;
 } & Omit<RowMenuProps, "sections">) {
-  const { i18n } = useLingui();
+  const { i18n, t } = useLingui();
   const styles = useThemedStyles(createHomeStyles);
   const selectedId = useContext(SelectedChatContext);
   // Three tiles share the row, so a narrow pane shrinks the avatars instead of overlapping them.
@@ -252,6 +252,7 @@ export const PinnedTiles = memo(function PinnedTiles({
       {chats.map((chat) => {
         const id = chat.kind === "bot" ? chat.bot.id : chat.group.id;
         const name = chat.kind === "bot" ? chat.bot.name : chat.group.name;
+        const unread = chat.kind === "bot" ? chat.bot.unread : chat.group.unread;
         const actions = inboxRowActionList(chat.kind === "bot" ? chat.bot : chat.group);
         const runAction = (action: InboxRowAction) =>
           chat.kind === "bot" ? onBotAction(action, chat.bot) : onGroupAction(action, chat.group);
@@ -260,7 +261,7 @@ export const PinnedTiles = memo(function PinnedTiles({
         const tile = (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={name}
+            accessibilityLabel={[name, unread ? t`unread` : null].filter(Boolean).join(", ")}
             accessibilityState={{ selected: selectedId === id }}
             accessibilityActions={actions.map((action) => ({
               name: action,
@@ -278,19 +279,29 @@ export const PinnedTiles = memo(function PinnedTiles({
               pressed && styles.rowPressed,
             ]}
           >
-            {chat.kind === "bot" ? (
-              <BotAvatar
-                color={chat.bot.color || FALLBACK_COLOR}
-                avatarSet={chat.bot.avatarSet}
-                identity={chat.bot.id}
-                size={avatarSize}
-                status={chat.bot.status}
-                muted={chat.bot.notifyOnFinish === false}
-                motion="lazy"
-              />
-            ) : (
-              <GroupAvatar members={chat.group.members} size={avatarSize} />
-            )}
+            <View style={styles.pinnedAvatar}>
+              {chat.kind === "bot" ? (
+                <BotAvatar
+                  color={chat.bot.color || FALLBACK_COLOR}
+                  avatarSet={chat.bot.avatarSet}
+                  identity={chat.bot.id}
+                  size={avatarSize}
+                  status={chat.bot.status}
+                  muted={chat.bot.notifyOnFinish === false}
+                  motion="lazy"
+                />
+              ) : (
+                <GroupAvatar members={chat.group.members} size={avatarSize} />
+              )}
+              {unread ? (
+                <View
+                  pointerEvents="none"
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  style={[styles.unreadDot, styles.pinnedUnreadDot]}
+                />
+              ) : null}
+            </View>
             <PinnedName chat={chat} name={name} />
           </Pressable>
         );

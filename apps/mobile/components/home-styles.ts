@@ -118,6 +118,17 @@ export function createHomeStyles() {
       borderRadius: 16,
       gap: 4,
     },
+    pinnedAvatar: { position: "relative" },
+    pinnedUnreadDot: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: native.page,
+    },
     pinnedName: {
       color: native.secondaryLabel,
       fontSize: 13,

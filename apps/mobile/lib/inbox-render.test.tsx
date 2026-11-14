@@ -15,7 +15,7 @@ import { onInboxChanged } from "./inbox-changes";
 import { retainInboxValue } from "./inbox-retention";
 import type { InboxItem, InboxSpace } from "./inbox-spaces";
 import { inboxItemKey, spaceInboxItems } from "./inbox-spaces";
-import type { MobileBot } from "./mobile-types";
+import type { MobileBot, MobileGroup } from "./mobile-types";
 import { useCollapsedSections } from "./use-collapsed-sections";
 import { useInboxDay } from "./use-inbox-day";
 import { usePublishSearchInbox } from "./use-publish-search-inbox";
@@ -65,7 +65,25 @@ vi.mock("react-native", () => {
     PlatformColor: (name: string) => name,
     StyleSheet: { create: <T,>(styles: T) => styles },
     useWindowDimensions: () => ({ width: 400, height: 800, fontScale: 1 }),
-    View: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+    View: ({
+      children,
+      style,
+      pointerEvents,
+      importantForAccessibility,
+    }: {
+      children?: ReactNode;
+      style?: unknown;
+      pointerEvents?: string;
+      importantForAccessibility?: string;
+    }) => (
+      <div
+        style={flatten(style)}
+        data-pointer-events={pointerEvents}
+        data-a11y-hidden={importantForAccessibility}
+      >
+        {children}
+      </div>
+    ),
     Text: ({ children }: { children?: ReactNode }) => <span>{children}</span>,
     Pressable: ({
       children,
@@ -1183,3 +1201,41 @@ it("lets screen readers reach a heading's long-press menu through the heading", 
   act(() => ui.a11yActions.get("Work")!({ nativeEvent: { actionName: "delete" } }));
   expect(confirmDeleteSpace).toHaveBeenCalledWith(expect.objectContaining({ id: "space-work" }));
 });
+
+it.each(["bot", "group"] as const)(
+  "shows a corner unread dot for a pinned %s and clears it on read",
+  (kind) => {
+    const chat = {
+      id: "pinned-unread",
+      name: "Helper",
+      unread: true,
+      pinned: true,
+      preview: "",
+      members: [],
+    };
+    const items = (unread: boolean): InboxItem[] => [
+      {
+        type: "pinned",
+        chats: [
+          kind === "bot"
+            ? { kind: "bot", bot: { ...chat, unread } as unknown as MobileBot }
+            : { kind: "group", group: { ...chat, unread } as unknown as MobileGroup },
+        ],
+      },
+    ];
+    render(<List items={items(true)} />);
+    const dot = container.querySelector<HTMLElement>('[data-a11y-hidden="no-hide-descendants"]')!;
+    expect(dot).not.toBeNull();
+    expect(dot.dataset.pointerEvents).toBe("none");
+    expect(dot.style.position).toBe("absolute");
+    expect(dot.style.top).toBe("0px");
+    expect(dot.style.right).toBe("0px");
+    expect(dot.style.width).toBe("12px");
+    expect(container.querySelector('button[aria-label="Helper, unread"]')).not.toBeNull();
+    render(<List items={items(false)} />);
+    expect(container.querySelector('[data-a11y-hidden="no-hide-descendants"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="Helper"]')).not.toBeNull();
+    render(<List items={items(true)} />);
+    expect(container.querySelector('[data-a11y-hidden="no-hide-descendants"]')).not.toBeNull();
+  },
+);
