@@ -80,32 +80,29 @@ function normalizeRepoPath(raw: string): string | null {
   return segments.join("/");
 }
 
-/** `github.com/elie222/rakazo` for every spelling of the same remote, for comparison only. */
+/** Compare source endpoints conservatively; only GitHub has known cross-transport aliases. */
 export function repoIdentity(url: string): string | null {
   const normalized = normalizeRepoUrl(url);
   if ("error" in normalized) return null;
 
   const scp = SCP_LIKE.exec(normalized.url);
-  const host = scp?.groups?.host ?? safeHost(normalized.url);
-  const path = scp?.groups?.path ?? safePath(normalized.url);
-  if (host === null || path === null) return null;
-  return `${host}/${path.replace(/\.git$/, "")}`.toLowerCase();
-}
-
-function safeHost(url: string): string | null {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return null;
+  const endpoint = new URL(
+    scp?.groups ? `ssh://${scp.groups.user}@${scp.groups.host}/${scp.groups.path}` : normalized.url,
+  );
+  const host = endpoint.hostname.toLowerCase();
+  const port = endpoint.protocol === "ssh:" && endpoint.port === "22" ? "" : endpoint.port;
+  const path = endpoint.pathname.replace(/^\/+/, "");
+  if (
+    host === "github.com" &&
+    port === "" &&
+    (endpoint.protocol === "https:" || endpoint.username === "git")
+  ) {
+    return `${host}/${path.replace(/\.git$/, "").toLowerCase()}`;
   }
-}
-
-function safePath(url: string): string | null {
-  try {
-    return new URL(url).pathname.replace(/^\/+/, "");
-  } catch {
-    return null;
-  }
+  // Custom servers may route by transport, port, SSH user, path case, or .git suffix.
+  const user = endpoint.username === "" ? "" : `${endpoint.username}@`;
+  const authority = `${user}${host}${port === "" ? "" : `:${port}`}`;
+  return `${endpoint.protocol}//${authority}/${path}`;
 }
 
 export function isOfficialRepoUrl(url: string): boolean {
