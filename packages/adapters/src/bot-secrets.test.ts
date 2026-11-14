@@ -5,6 +5,7 @@ import type { PrismaClient } from "@rakazo/db";
 import * as Logging from "@rakazo/logging";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  cardRedactionForms,
   credentialArgument,
   encodeRunCode,
   encodeRunLogin,
@@ -21,6 +22,7 @@ import {
   resolveCodeFill,
   resolveLoginFill,
   resolveRequestSecretDestination,
+  resolveVaultCardFill,
   sameSecretDestination,
   storeBotSecret,
 } from "./bot-secrets.js";
@@ -1563,5 +1565,59 @@ describe("replacing a saved login's site", () => {
     const [row] = db.rows();
     expect(row).toMatchObject({ id: before.id, origin: "https://other.example.test" });
     expect(await secretStore.load(row!.ciphertext, row!.id)).toBe(typed("fake-password-other"));
+  });
+});
+
+describe("cardRedactionForms", () => {
+  it("covers the groups of four that most cards are printed in", () => {
+    expect(cardRedactionForms("4242424242424242")).toEqual([
+      "4242424242424242",
+      "4242 4242 4242 4242",
+      "4242-4242-4242-4242",
+    ]);
+  });
+
+  it.each([
+    ["a 15-digit American Express", "378282246310005", "3782 822463 10005", "3782-822463-10005"],
+    ["a 14-digit Diners Club", "30569309025904", "3056 930902 5904", "3056-930902-5904"],
+  ])("also covers the groups %s is printed in", (_label, digits, spaced, hyphenated) => {
+    const forms = cardRedactionForms(digits);
+    expect(forms).toContain(digits);
+    expect(forms).toContain(spaced);
+    expect(forms).toContain(hyphenated);
+    expect(redactSecrets(`Card ${spaced} and ${hyphenated}`, forms)).not.toMatch(/\d{4}/);
+  });
+
+  it.each([
+    ["378282246310005", "3782 822463 10005", "3782-822463-10005"],
+    ["30569309025904", "3056 930902 5904", "3056-930902-5904"],
+  ])("hides saved card %s in later runs and approved fills", async (number, spaced, hyphenated) => {
+    const db = fakeDatabase();
+    await storeBotSecret({
+      prisma: db.prisma,
+      secretStore,
+      scope,
+      destination: { name: "test-card", origin: "", auth: { type: "card" } },
+      plaintext: JSON.stringify({ number, expMonth: 8, expYear: 2030, cvc: "1234" }),
+    });
+    const redactions = await loadLoginPasswordRedactions(db.prisma, secretStore, scope);
+    const row = db.rows()[0]!;
+    const filled = await resolveVaultCardFill({
+      prisma: db.prisma,
+      secretStore,
+      scope,
+      name: "test-card",
+      field: "number",
+      site: "https://checkout.example.test",
+      savedAt: row.updatedAt!.toISOString(),
+    });
+    expect(filled).toMatchObject({ text: number });
+    if (!("redactions" in filled)) throw new Error("Expected an approved fill");
+    for (const forms of [redactions, filled.redactions]) {
+      for (const printed of [number, spaced, hyphenated]) {
+        expect(forms).toContain(printed);
+        expect(redactSecrets(`Card on file: ${printed}`, forms)).not.toMatch(/\d{4}/);
+      }
+    }
   });
 });
